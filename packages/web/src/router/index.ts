@@ -31,6 +31,18 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/opportunity/index.vue'),
         meta: { title: '商机管理', icon: 'TrendCharts' },
       },
+      {
+        path: 'call-record',
+        name: 'CallRecord',
+        component: () => import('@/views/call-record/index.vue'),
+        meta: { title: '通话记录' },
+      },
+      {
+        path: 'knowledge',
+        name: 'Knowledge',
+        component: () => import('@/views/knowledge/index.vue'),
+        meta: { title: '知识库' },
+      },
     ],
   },
   {

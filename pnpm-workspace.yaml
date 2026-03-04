@@ -1,2 +1,8 @@
 packages:
-  - 'packages/*'
+  - packages/*
+
+ignoredBuiltDependencies:
+  - "@nestjs/core"
+  - esbuild
+  - msgpackr-extract
+  - vue-demi

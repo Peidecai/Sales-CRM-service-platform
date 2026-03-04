@@ -4,10 +4,10 @@
   "description": "CRM Sales Platform — NestJS Backend",
   "scripts": {
     "build": "nest build",
-    "start": "node dist/main",
-    "start:dev": "nest start --watch",
+    "start": "node dist/src/main",
+    "start:dev": "node --require ts-node/register --require tsconfig-paths/register src/main.ts",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/src/main",
     "lint": "eslint src --ext .ts --fix",
     "test": "jest",
     "test:watch": "jest --watch",

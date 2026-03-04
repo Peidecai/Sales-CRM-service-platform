@@ -19,15 +19,23 @@
       >
         <el-menu-item index="/">
           <el-icon><HomeFilled /></el-icon>
-          <template #title>工作台</template>
+          <template #title> 工作台 </template>
         </el-menu-item>
         <el-menu-item index="/customer">
           <el-icon><User /></el-icon>
-          <template #title>客户管理</template>
+          <template #title> 客户管理 </template>
         </el-menu-item>
         <el-menu-item index="/opportunity">
           <el-icon><TrendCharts /></el-icon>
-          <template #title>商机管理</template>
+          <template #title> 商机管理 </template>
+        </el-menu-item>
+        <el-menu-item index="/call-record">
+          <el-icon><Phone /></el-icon>
+          <template #title> 通话记录 </template>
+        </el-menu-item>
+        <el-menu-item index="/knowledge">
+          <el-icon><Collection /></el-icon>
+          <template #title> 知识库 </template>
         </el-menu-item>
       </el-menu>
     </el-aside>
@@ -37,7 +45,7 @@
       <el-header class="layout-header">
         <div class="header-left">
           <el-button text @click="isCollapsed = !isCollapsed">
-            <el-icon size="20"><Fold v-if="!isCollapsed" /><Expand v-else /></el-icon>
+            <el-icon size="20"> <Fold v-if="!isCollapsed" /><Expand v-else /> </el-icon>
           </el-button>
         </div>
         <div class="header-right">
@@ -51,7 +59,7 @@
             </div>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+                <el-dropdown-item command="logout"> 退出登录 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>

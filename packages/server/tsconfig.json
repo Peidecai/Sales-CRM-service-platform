@@ -19,7 +19,7 @@
     "noFallthroughCasesInSwitch": false,
     "strict": true,
     "paths": {
-      "@crm/shared": ["../../packages/shared/src"]
+      "@crm/shared": ["../../packages/shared/dist"]
     }
   },
   "include": ["src/**/*", "database/**/*"],
