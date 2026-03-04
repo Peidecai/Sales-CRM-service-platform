@@ -1,0 +1,16 @@
+{
+  "packages/web/src/**/*.{ts,tsx,vue}": [
+    "eslint --fix",
+    "prettier --write"
+  ],
+  "packages/server/src/**/*.ts": [
+    "eslint --fix",
+    "prettier --write"
+  ],
+  "packages/shared/src/**/*.ts": [
+    "prettier --write"
+  ],
+  "*.{json,md,yaml,yml}": [
+    "prettier --write"
+  ]
+}

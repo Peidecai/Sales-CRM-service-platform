@@ -1,0 +1,15 @@
+{
+  "name": "@crm/shared",
+  "version": "1.0.0",
+  "description": "Shared types, enums, and interfaces for CRM Sales Platform",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "build:watch": "tsc -p tsconfig.json --watch",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}

@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: crm-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: crm_password_123
+      MYSQL_DATABASE: crm_sales
+      MYSQL_USER: crm_user
+      MYSQL_PASSWORD: crm_password_123
+      TZ: Asia/Shanghai
+    ports:
+      - '3306:3306'
+    volumes:
+      - ./docker/mysql/data:/var/lib/mysql
+      - ./docker/mysql/conf.d:/etc/mysql/conf.d
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-pcrm_password_123']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - crm-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: crm-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - ./docker/redis/data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - crm-network
+
+networks:
+  crm-network:
+    driver: bridge
