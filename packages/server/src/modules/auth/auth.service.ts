@@ -3,6 +3,8 @@ import { JwtService } from '@nestjs/jwt'
 import { ConfigService } from '@nestjs/config'
 import * as bcrypt from 'bcryptjs'
 import { LoginDto } from './dto/login.dto'
+import { RedisService } from '../../common/redis'
+import { CACHE_KEYS } from '../../common/redis'
 
 // Temporary in-memory user for development/testing
 // Replace with actual UserService + database in production
@@ -30,6 +32,7 @@ export class AuthService {
   constructor(
     private jwtService: JwtService,
     private configService: ConfigService,
+    private redisService: RedisService,
   ) {}
 
   async login(loginDto: LoginDto) {
@@ -64,6 +67,33 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException('Refresh token is invalid or expired')
     }
+  }
+
+  /**
+   * Logout: add the token to a Redis blacklist so it cannot be reused.
+   * TTL = remaining seconds until token expiry.
+   */
+  async logout(token: string): Promise<void> {
+    try {
+      const payload = this.jwtService.verify(token, {
+        secret: this.configService.get<string>('JWT_SECRET', 'dev-secret-key'),
+      }) as { sub: number; exp: number }
+
+      const now = Math.floor(Date.now() / 1000)
+      const ttl = payload.exp - now
+      if (ttl > 0) {
+        const key = `${CACHE_KEYS.JWT_BLACKLIST}:${token}`
+        await this.redisService.set(key, '1', ttl)
+      }
+    } catch {
+      // Token already expired or invalid — no need to blacklist
+    }
+  }
+
+  /** Check if a token has been blacklisted (used by JwtStrategy) */
+  async isTokenBlacklisted(token: string): Promise<boolean> {
+    const key = `${CACHE_KEYS.JWT_BLACKLIST}:${token}`
+    return this.redisService.exists(key)
   }
 
   private generateTokens(user: { id: number; username: string; role: string; name: string }) {

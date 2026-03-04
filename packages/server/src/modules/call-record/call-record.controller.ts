@@ -73,4 +73,13 @@ export class CallRecordController {
     await this.callRecordService.remove(id)
     return null
   }
+
+  @Post(':id/summarize')
+  @ApiOperation({ summary: 'Generate AI summary for a call record' })
+  @ApiResponse({ status: 200, description: 'Summary job submitted, returns jobId' })
+  @ApiResponse({ status: 400, description: 'Call record has no notes' })
+  @ApiResponse({ status: 404, description: 'Call record not found' })
+  summarize(@Param('id', ParseIntPipe) id: number) {
+    return this.callRecordService.summarize(id)
+  }
 }

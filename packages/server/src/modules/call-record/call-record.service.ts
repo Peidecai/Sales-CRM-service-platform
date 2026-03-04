@@ -1,10 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
+import { InjectQueue } from '@nestjs/bull'
+import { Queue } from 'bull'
 import { CallRecord } from './call-record.entity'
 import { CreateCallRecordDto } from './dto/create-call-record.dto'
 import { UpdateCallRecordDto } from './dto/update-call-record.dto'
 import { QueryCallRecordDto } from './dto/query-call-record.dto'
+import type { CallSummaryJobData } from '../ai/processors/call-summary.processor'
 
 export interface CallRecordListResult {
   list: CallRecord[]
@@ -24,6 +27,8 @@ export class CallRecordService {
   constructor(
     @InjectRepository(CallRecord)
     private readonly callRecordRepository: Repository<CallRecord>,
+    @InjectQueue('call-summary')
+    private readonly callSummaryQueue: Queue<CallSummaryJobData>,
   ) {}
 
   async create(dto: CreateCallRecordDto): Promise<CallRecord> {
@@ -39,6 +44,8 @@ export class CallRecordService {
 
     const qb = this.callRecordRepository
       .createQueryBuilder('cr')
+      .leftJoinAndSelect('cr.customer', 'customer')
+      .leftJoinAndSelect('cr.opportunity', 'opportunity')
       .where('cr.deleted = :deleted', { deleted: false })
 
     if (customerId) {
@@ -76,6 +83,7 @@ export class CallRecordService {
   async findOne(id: number): Promise<CallRecord> {
     const record = await this.callRecordRepository.findOne({
       where: { id, deleted: false },
+      relations: ['customer', 'opportunity'],
     })
 
     if (!record) {
@@ -137,5 +145,24 @@ export class CallRecordService {
     const weekCount = await weekQb.getCount()
 
     return { totalCount, totalDuration, weekCount }
+  }
+
+  /**
+   * Submit a call record for AI summary generation.
+   * Returns the Bull job ID for tracking.
+   */
+  async summarize(id: number): Promise<{ jobId: string }> {
+    const record = await this.findOne(id)
+
+    if (!record.notes) {
+      throw new BadRequestException(`Call record #${id} has no notes — cannot generate summary`)
+    }
+
+    const job = await this.callSummaryQueue.add(
+      { callRecordId: id },
+      { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
+    )
+
+    return { jobId: String(job.id) }
   }
 }

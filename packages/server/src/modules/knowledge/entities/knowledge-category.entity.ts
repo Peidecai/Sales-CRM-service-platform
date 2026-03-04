@@ -1,5 +1,6 @@
-import { Entity, Column } from 'typeorm'
+import { Entity, Column, ManyToOne, OneToMany, JoinColumn } from 'typeorm'
 import { BaseEntity } from '../../../common/entities/base.entity'
+import type { KnowledgeArticle } from './knowledge-article.entity'
 
 @Entity('knowledge_categories')
 export class KnowledgeCategory extends BaseEntity {
@@ -14,4 +15,19 @@ export class KnowledgeCategory extends BaseEntity {
 
   @Column({ length: 200, nullable: true })
   description!: string
+
+  // ---- Relations ----
+
+  @ManyToOne('KnowledgeCategory', 'children', {
+    createForeignKeyConstraints: false,
+    nullable: true,
+  })
+  @JoinColumn({ name: 'parent_id' })
+  parent!: KnowledgeCategory | null
+
+  @OneToMany('KnowledgeCategory', 'parent')
+  children!: KnowledgeCategory[]
+
+  @OneToMany('KnowledgeArticle', 'category')
+  articles!: KnowledgeArticle[]
 }

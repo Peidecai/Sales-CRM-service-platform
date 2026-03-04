@@ -19,6 +19,7 @@ import { CreateArticleDto } from './dto/create-article.dto'
 import { UpdateArticleDto } from './dto/update-article.dto'
 import { QueryArticleDto } from './dto/query-article.dto'
 import { CreateCategoryDto } from './dto/create-category.dto'
+import { AskQuestionDto } from '../ai/dto/ask-question.dto'
 
 @ApiTags('知识库')
 @ApiBearerAuth()
@@ -99,5 +100,17 @@ export class KnowledgeController {
   async removeCategory(@Param('id', ParseIntPipe) id: number) {
     await this.knowledgeService.removeCategory(id)
     return null
+  }
+
+  // ---- AI / RAG Endpoints ----
+
+  @Post('ask')
+  @ApiOperation({ summary: 'AI knowledge Q&A (RAG)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns AI-generated answer with source references',
+  })
+  ask(@Body() dto: AskQuestionDto) {
+    return this.knowledgeService.ask(dto.question, dto.topK)
   }
 }

@@ -1,27 +1,62 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable, NotFoundException, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
+import { InjectQueue } from '@nestjs/bull'
+import { Queue } from 'bull'
 import { KnowledgeArticle } from './entities/knowledge-article.entity'
 import { KnowledgeCategory } from './entities/knowledge-category.entity'
 import { CreateArticleDto } from './dto/create-article.dto'
 import { UpdateArticleDto } from './dto/update-article.dto'
 import { QueryArticleDto } from './dto/query-article.dto'
 import { CreateCategoryDto } from './dto/create-category.dto'
+import { RedisService } from '../../common/redis'
+import { CACHE_KEYS, CACHE_TTL } from '../../common/redis'
+import { AiService } from '../ai/ai.service'
+import { VectorService } from '../ai/vector/vector.service'
+import type { EmbeddingJobData } from '../ai/processors/embedding.processor'
+
+export interface AskResult {
+  answer: string
+  sources: { articleId: number; title: string; similarity: number }[]
+}
+
+const RAG_SYSTEM_PROMPT = `你是一个专业的销售知识库助手。请根据以下参考资料回答用户的问题。
+
+规则：
+1. 仅根据提供的参考资料回答，不要编造信息
+2. 如果参考资料中没有相关信息，请如实告知
+3. 回答要简洁、专业、有条理
+4. 如果可以，引用具体来源文章
+
+参考资料：
+{context}`
 
 @Injectable()
 export class KnowledgeService {
+  private readonly logger = new Logger(KnowledgeService.name)
+
   constructor(
     @InjectRepository(KnowledgeArticle)
     private readonly articleRepository: Repository<KnowledgeArticle>,
     @InjectRepository(KnowledgeCategory)
     private readonly categoryRepository: Repository<KnowledgeCategory>,
+    private readonly redisService: RedisService,
+    private readonly aiService: AiService,
+    private readonly vectorService: VectorService,
+    @InjectQueue('embedding')
+    private readonly embeddingQueue: Queue<EmbeddingJobData>,
   ) {}
 
   // ---- Article Methods ----
 
   async createArticle(dto: CreateArticleDto): Promise<KnowledgeArticle> {
     const article = this.articleRepository.create(dto)
-    return this.articleRepository.save(article)
+    const saved = await this.articleRepository.save(article)
+
+    // Trigger async embedding
+    await this.triggerEmbedding(saved.id)
+
+    return saved
   }
 
   async findAllArticles(
@@ -31,6 +66,7 @@ export class KnowledgeService {
 
     const qb = this.articleRepository
       .createQueryBuilder('article')
+      .leftJoinAndSelect('article.category', 'category')
       .where('article.deleted = :deleted', { deleted: false })
 
     if (keyword) {
@@ -73,27 +109,53 @@ export class KnowledgeService {
   async updateArticle(id: number, dto: UpdateArticleDto): Promise<KnowledgeArticle> {
     const article = await this.findOneArticle(id)
     Object.assign(article, dto)
-    return this.articleRepository.save(article)
+    const saved = await this.articleRepository.save(article)
+
+    // Re-trigger embedding if content changed
+    if (dto.content || dto.title) {
+      await this.triggerEmbedding(saved.id)
+    }
+
+    return saved
   }
 
   async removeArticle(id: number): Promise<void> {
     const article = await this.findOneArticle(id)
     article.deleted = true
     await this.articleRepository.save(article)
+
+    // Remove vectors for deleted article
+    this.vectorService.deleteArticleVectors(id)
   }
 
   // ---- Category Methods ----
 
   async createCategory(dto: CreateCategoryDto): Promise<KnowledgeCategory> {
     const category = this.categoryRepository.create(dto)
-    return this.categoryRepository.save(category)
+    const saved = await this.categoryRepository.save(category)
+    await this.invalidateCategoryCache()
+    return saved
   }
 
   async findAllCategories(): Promise<KnowledgeCategory[]> {
-    return this.categoryRepository.find({
+    // Check cache first
+    const cached = await this.redisService.get(CACHE_KEYS.CATEGORY_TREE)
+    if (cached) {
+      return JSON.parse(cached) as KnowledgeCategory[]
+    }
+
+    const categories = await this.categoryRepository.find({
       where: { deleted: false },
+      relations: ['children'],
       order: { sort: 'ASC' },
     })
+
+    await this.redisService.set(
+      CACHE_KEYS.CATEGORY_TREE,
+      JSON.stringify(categories),
+      CACHE_TTL.CATEGORY_TREE,
+    )
+    return categories
   }
 
   async removeCategory(id: number): Promise<void> {
@@ -107,5 +169,85 @@ export class KnowledgeService {
 
     category.deleted = true
     await this.categoryRepository.save(category)
+    await this.invalidateCategoryCache()
+  }
+
+  // ---- AI / RAG Methods ----
+
+  /**
+   * RAG-based knowledge Q&A.
+   * Embeds the question → searches vectors → assembles context → calls LLM.
+   */
+  async ask(question: string, topK = 5): Promise<AskResult> {
+    // 1. Embed the question
+    const queryEmbedding = await this.aiService.embedSingle(question)
+
+    // 2. Vector search for relevant chunks
+    const searchResults = this.vectorService.search(queryEmbedding, topK)
+
+    if (searchResults.length === 0) {
+      return {
+        answer: '抱歉，知识库中暂无相关信息，无法回答此问题。',
+        sources: [],
+      }
+    }
+
+    // 3. Fetch article titles for sources (deduplicate by articleId)
+    const articleIds = [...new Set(searchResults.map((r) => r.articleId))]
+    const articles = await this.articleRepository
+      .createQueryBuilder('a')
+      .select(['a.id', 'a.title'])
+      .where('a.id IN (:...ids)', { ids: articleIds })
+      .getMany()
+
+    const articleMap = new Map(articles.map((a) => [a.id, a.title]))
+
+    // 4. Assemble context
+    const context = searchResults
+      .map(
+        (r, i) =>
+          `[${i + 1}] (文章: ${articleMap.get(r.articleId) ?? '未知'}, 相关度: ${(r.similarity * 100).toFixed(1)}%)\n${r.content}`,
+      )
+      .join('\n\n')
+
+    const systemPrompt = RAG_SYSTEM_PROMPT.replace('{context}', context)
+
+    // 5. Call LLM
+    const answer = await this.aiService.chat(systemPrompt, question, {
+      temperature: 0.3,
+      maxTokens: 2048,
+    })
+
+    // 6. Build sources
+    const sources = articleIds.map((id) => {
+      const bestMatch = searchResults.find((r) => r.articleId === id)
+      return {
+        articleId: id,
+        title: articleMap.get(id) ?? '未知',
+        similarity: bestMatch ? bestMatch.similarity : 0,
+      }
+    })
+
+    return { answer, sources }
+  }
+
+  // ---- Private Helpers ----
+
+  /** Invalidate category tree cache */
+  private async invalidateCategoryCache(): Promise<void> {
+    await this.redisService.del(CACHE_KEYS.CATEGORY_TREE)
+  }
+
+  /** Trigger async embedding for an article via Bull queue */
+  private async triggerEmbedding(articleId: number): Promise<void> {
+    try {
+      await this.embeddingQueue.add(
+        { articleId },
+        { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
+      )
+      this.logger.log(`Embedding job queued for article #${articleId}`)
+    } catch (error) {
+      this.logger.error(`Failed to queue embedding for article #${articleId}`, String(error))
+    }
   }
 }

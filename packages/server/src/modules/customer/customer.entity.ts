@@ -1,9 +1,21 @@
-import { Entity, Column, Index } from 'typeorm'
+import { Entity, Column, Index, OneToMany } from 'typeorm'
 import { BaseEntity } from '../../common/entities/base.entity'
 import { CustomerStatus } from '@crm/shared'
+import type { Opportunity } from '../opportunity/opportunity.entity'
+import type { CallRecord } from '../call-record/call-record.entity'
 
 @Entity('customers')
 export class Customer extends BaseEntity {
+  // ---- Relations (ORM only, no FK constraint) ----
+
+  @OneToMany('Opportunity', 'customer')
+  opportunities!: Opportunity[]
+
+  @OneToMany('CallRecord', 'customer')
+  callRecords!: CallRecord[]
+
+  // ---- Columns ----
+
   @Column({ length: 100 })
   name!: string
 

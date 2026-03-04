@@ -54,3 +54,6 @@ coverage/
 # Docker volumes
 docker/mysql/data/
 docker/redis/data/
+
+# SQLite vector database
+packages/server/data/

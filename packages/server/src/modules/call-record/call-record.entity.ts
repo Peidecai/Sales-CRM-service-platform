@@ -1,5 +1,7 @@
-import { Entity, Column, Index } from 'typeorm'
+import { Entity, Column, Index, ManyToOne, JoinColumn } from 'typeorm'
 import { BaseEntity } from '../../common/entities/base.entity'
+import { Customer } from '../customer/customer.entity'
+import { Opportunity } from '../opportunity/opportunity.entity'
 
 @Entity('call_records')
 export class CallRecord extends BaseEntity {
@@ -9,6 +11,19 @@ export class CallRecord extends BaseEntity {
 
   @Column({ name: 'opportunity_id', nullable: true })
   opportunityId!: number
+
+  // ---- Relations ----
+
+  @ManyToOne(() => Customer, (c) => c.callRecords, { createForeignKeyConstraints: false })
+  @JoinColumn({ name: 'customer_id' })
+  customer!: Customer
+
+  @ManyToOne(() => Opportunity, (o) => o.callRecords, {
+    createForeignKeyConstraints: false,
+    nullable: true,
+  })
+  @JoinColumn({ name: 'opportunity_id' })
+  opportunity!: Opportunity | null
 
   @Index()
   @Column({ name: 'user_id', comment: 'Caller user ID' })
