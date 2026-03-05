@@ -33,6 +33,10 @@
         </el-form-item>
       </el-form>
       <div class="toolbar-right">
+        <el-button v-if="isAdminOrManager" :loading="exportLoading" @click="handleExport">
+          <el-icon><Download /></el-icon>
+          导出
+        </el-button>
         <el-button type="primary" @click="handleCreate">
           <el-icon><Plus /></el-icon>
           新建商机
@@ -43,26 +47,48 @@
     <!-- Table -->
     <el-card shadow="never" class="table-card">
       <el-table v-loading="loading" :data="tableData" row-key="id" stripe style="width: 100%">
-        <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="customerId" label="客户ID" min-width="90" />
-        <el-table-column prop="stage" label="阶段" min-width="120">
+        <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip sortable>
+          <template #default="{ row }">
+            <el-button
+              type="primary"
+              link
+              size="small"
+              @click="$router.push(`/opportunity/${row.id}`)"
+            >
+              {{ row.title }}
+            </el-button>
+          </template>
+        </el-table-column>
+        <el-table-column prop="customerId" label="关联客户" min-width="120">
+          <template #default="{ row }">
+            <el-button
+              v-if="customerMap[row.customerId]"
+              type="primary"
+              link
+              size="small"
+              @click="$router.push(`/customer/${row.customerId}`)"
+            >
+              {{ customerMap[row.customerId] }}
+            </el-button>
+            <span v-else>ID: {{ row.customerId }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="stage" label="阶段" min-width="120" sortable>
           <template #default="{ row }">
             <el-tag :type="getStageTagType(row.stage)" size="small">
               {{ getStageLabel(row.stage) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="amount" label="金额" min-width="130">
-          <template #default="{ row }">
-            {{ formatAmount(row.amount) }}
-          </template>
+        <el-table-column prop="amount" label="金额" min-width="130" sortable>
+          <template #default="{ row }"> ¥{{ formatAmount(row.amount) }} </template>
         </el-table-column>
-        <el-table-column prop="expectedCloseDate" label="预计成交日期" min-width="140">
+        <el-table-column prop="expectedCloseDate" label="预计成交日期" min-width="140" sortable>
           <template #default="{ row }">
             {{ row.expectedCloseDate ?? '—' }}
           </template>
         </el-table-column>
-        <el-table-column prop="probability" label="成交概率" min-width="140">
+        <el-table-column prop="probability" label="成交概率" min-width="140" sortable>
           <template #default="{ row }">
             <el-progress
               :percentage="row.probability"
@@ -71,14 +97,22 @@
             />
           </template>
         </el-table-column>
-        <el-table-column prop="assignedUserId" label="负责人ID" min-width="100" />
         <el-table-column label="操作" width="190" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="handleEdit(row)"> 编辑 </el-button>
+            <el-button
+              type="primary"
+              link
+              size="small"
+              @click="$router.push(`/opportunity/${row.id}`)"
+            >
+              详情
+            </el-button>
+            <el-button type="info" link size="small" @click="handleEdit(row)"> 编辑 </el-button>
             <el-button type="warning" link size="small" @click="handleAdvanceStage(row)">
-              推进阶段
+              推进
             </el-button>
             <el-popconfirm
+              v-if="isAdminOrManager"
               title="确定要删除该商机吗？"
               confirm-button-text="确定"
               cancel-button-text="取消"
@@ -90,10 +124,15 @@
             </el-popconfirm>
           </template>
         </el-table-column>
+        <template #empty>
+          <el-empty description="暂无商机数据" :image-size="100">
+            <el-button type="primary" @click="handleCreate"> 新建商机 </el-button>
+          </el-empty>
+        </template>
       </el-table>
 
       <!-- Pagination -->
-      <div class="pagination-wrap">
+      <div v-if="pagination.total > 0" class="pagination-wrap">
         <el-pagination
           v-model:current-page="pagination.page"
           v-model:page-size="pagination.pageSize"
@@ -134,25 +173,23 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="客户ID" prop="customerId">
-              <el-input-number
+            <el-form-item label="关联客户" prop="customerId">
+              <el-select
                 v-model="formData.customerId"
-                :min="1"
-                placeholder="请输入客户ID"
+                filterable
+                remote
+                :remote-method="searchCustomers"
+                placeholder="搜索并选择客户"
                 style="width: 100%"
-                controls-position="right"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="负责人ID" prop="assignedUserId">
-              <el-input-number
-                v-model="formData.assignedUserId"
-                :min="1"
-                placeholder="请输入负责人ID"
-                style="width: 100%"
-                controls-position="right"
-              />
+                :loading="customerSearchLoading"
+              >
+                <el-option
+                  v-for="c in customerOptions"
+                  :key="c.id"
+                  :label="`${c.name}${c.company ? ' (' + c.company + ')' : ''}`"
+                  :value="c.id"
+                />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -230,6 +267,11 @@
       :close-on-click-modal="false"
     >
       <el-form label-width="80px">
+        <el-form-item label="当前阶段">
+          <el-tag v-if="stageCurrentLabel" :type="getStageTagType(stageCurrentStage)" size="small">
+            {{ stageCurrentLabel }}
+          </el-tag>
+        </el-form-item>
         <el-form-item label="目标阶段">
           <el-select v-model="targetStage" placeholder="请选择阶段" style="width: 100%">
             <el-option
@@ -252,9 +294,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Download } from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/user'
 import {
   opportunityApi,
   OpportunityStage,
@@ -262,6 +306,14 @@ import {
   type CreateOpportunityParams,
   type UpdateOpportunityParams,
 } from '@/api/opportunity'
+import { customerApi, type CustomerVO } from '@/api/customer'
+import { formatAmount } from '@/utils/format'
+import { getStageTagType, getStageLabel } from '@/utils/tag-helpers'
+import { usePermission } from '@/composables/usePermission'
+
+const route = useRoute()
+const userStore = useUserStore()
+const { isAdminOrManager } = usePermission()
 
 // ---- Stage helpers ----
 interface StageOption {
@@ -278,36 +330,52 @@ const stageOptions: StageOption[] = [
   { value: OpportunityStage.CLOSED_LOST, label: '丢单' },
 ]
 
-type TagType = 'info' | 'primary' | 'warning' | 'success' | 'danger' | ''
-
-function getStageTagType(stage: OpportunityStage): TagType {
-  const map: Record<OpportunityStage, TagType> = {
-    [OpportunityStage.LEAD]: 'info',
-    [OpportunityStage.QUALIFIED]: 'primary',
-    [OpportunityStage.PROPOSAL]: 'warning',
-    [OpportunityStage.NEGOTIATION]: 'warning',
-    [OpportunityStage.CLOSED_WON]: 'success',
-    [OpportunityStage.CLOSED_LOST]: 'danger',
-  }
-  return map[stage] ?? ''
-}
-
-function getStageLabel(stage: OpportunityStage): string {
-  return stageOptions.find((o) => o.value === stage)?.label ?? stage
-}
-
 function getProbabilityStatus(probability: number): '' | 'success' | 'exception' {
   if (probability >= 100) return 'success'
   if (probability === 0) return 'exception'
   return ''
 }
 
-function formatAmount(amount: number): string {
-  if (amount == null) return '0'
-  return Number(amount).toLocaleString('zh-CN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
+// ---- Customer Name Resolution ----
+const customerMap = ref<Record<number, string>>({})
+
+async function resolveCustomerNames(ids: number[]) {
+  const uniqueIds = [...new Set(ids)].filter((id) => !(id in customerMap.value))
+  if (uniqueIds.length === 0) return
+
+  try {
+    // Fetch customer list matching IDs by loading a page to get names
+    const res = await customerApi.getList({ page: 1, pageSize: 100 })
+    if (res?.data) {
+      for (const c of res.data.list) {
+        customerMap.value[c.id] = c.name + (c.company ? ` (${c.company})` : '')
+      }
+    }
+  } catch {
+    // Silently fail
+  }
+}
+
+// ---- Customer Search for Dialog ----
+const customerSearchLoading = ref(false)
+const customerOptions = ref<CustomerVO[]>([])
+
+async function searchCustomers(query: string) {
+  if (!query) {
+    customerOptions.value = []
+    return
+  }
+  customerSearchLoading.value = true
+  try {
+    const res = await customerApi.getList({ keyword: query, page: 1, pageSize: 20 })
+    if (res?.data) {
+      customerOptions.value = res.data.list
+    }
+  } catch {
+    customerOptions.value = []
+  } finally {
+    customerSearchLoading.value = false
+  }
 }
 
 // ---- Search ----
@@ -325,6 +393,8 @@ const pagination = reactive({
   total: 0,
 })
 
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+
 async function fetchList() {
   loading.value = true
   try {
@@ -337,6 +407,9 @@ async function fetchList() {
     if (res && res.data) {
       tableData.value = res.data.list
       pagination.total = res.data.total
+      // Resolve customer names
+      const ids = res.data.list.map((o) => o.customerId)
+      resolveCustomerNames(ids)
     }
   } catch {
     // Error handled by request interceptor
@@ -346,8 +419,11 @@ async function fetchList() {
 }
 
 function handleSearch() {
-  pagination.page = 1
-  fetchList()
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    pagination.page = 1
+    fetchList()
+  }, 300)
 }
 
 function handleReset() {
@@ -383,7 +459,6 @@ interface OpportunityForm {
   amount: number
   expectedCloseDate: string
   probability: number
-  assignedUserId: number | undefined
   description: string
 }
 
@@ -394,7 +469,6 @@ const defaultForm = (): OpportunityForm => ({
   amount: 0,
   expectedCloseDate: '',
   probability: 10,
-  assignedUserId: undefined,
   description: '',
 })
 
@@ -402,15 +476,22 @@ const formData = reactive<OpportunityForm>(defaultForm())
 
 const formRules: FormRules = {
   title: [{ required: true, message: '请输入商机标题', trigger: 'blur' }],
-  customerId: [{ required: true, message: '请输入客户ID', trigger: 'blur' }],
-  assignedUserId: [{ required: true, message: '请输入负责人ID', trigger: 'blur' }],
+  customerId: [{ required: true, message: '请选择关联客户', trigger: 'change' }],
 }
 
 function handleCreate() {
   isEdit.value = false
   editId.value = null
   dialogTitle.value = '新建商机'
-  Object.assign(formData, defaultForm())
+  const form = defaultForm()
+  // Check if coming from customer detail page
+  const createForCustomer = route.query.createForCustomer
+  if (createForCustomer) {
+    form.customerId = Number(createForCustomer)
+  }
+  Object.assign(formData, form)
+  // Pre-load customer options
+  searchCustomers('')
   dialogVisible.value = true
 }
 
@@ -425,9 +506,17 @@ function handleEdit(row: OpportunityVO) {
     amount: Number(row.amount) ?? 0,
     expectedCloseDate: row.expectedCloseDate ?? '',
     probability: row.probability ?? 10,
-    assignedUserId: row.assignedUserId,
     description: row.description ?? '',
   })
+  // Set customer options for the current customer
+  customerApi
+    .getDetail(row.customerId)
+    .then((res) => {
+      if (res?.data) {
+        customerOptions.value = [res.data]
+      }
+    })
+    .catch(() => {})
   dialogVisible.value = true
 }
 
@@ -450,7 +539,6 @@ async function handleSubmit() {
         amount: formData.amount,
         expectedCloseDate: formData.expectedCloseDate || undefined,
         probability: formData.probability,
-        assignedUserId: formData.assignedUserId,
         description: formData.description || undefined,
       }
       await opportunityApi.update(editId.value, params)
@@ -463,7 +551,7 @@ async function handleSubmit() {
         amount: formData.amount,
         expectedCloseDate: formData.expectedCloseDate || undefined,
         probability: formData.probability,
-        assignedUserId: formData.assignedUserId as number,
+        assignedUserId: userStore.userInfo?.id ?? 1,
         description: formData.description || undefined,
       }
       await opportunityApi.create(params)
@@ -478,14 +566,41 @@ async function handleSubmit() {
   }
 }
 
+// ---- Export ----
+const exportLoading = ref(false)
+
+async function handleExport() {
+  exportLoading.value = true
+  try {
+    const blob = await opportunityApi.exportCsv()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `opportunities_${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    ElMessage.success('导出成功')
+  } catch {
+    // Error handled by request interceptor
+  } finally {
+    exportLoading.value = false
+  }
+}
+
 // ---- Advance Stage Dialog ----
 const stageDialogVisible = ref(false)
 const stageSubmitLoading = ref(false)
 const targetStage = ref<OpportunityStage>(OpportunityStage.LEAD)
 const stageTargetId = ref<number | null>(null)
+const stageCurrentStage = ref<OpportunityStage>(OpportunityStage.LEAD)
+
+const stageCurrentLabel = computed(() => getStageLabel(stageCurrentStage.value))
 
 function handleAdvanceStage(row: OpportunityVO) {
   stageTargetId.value = row.id
+  stageCurrentStage.value = row.stage
   targetStage.value = row.stage
   stageDialogVisible.value = true
 }
@@ -522,6 +637,10 @@ async function handleDelete(id: number) {
 // ---- Init ----
 onMounted(() => {
   fetchList()
+  // Check if should auto-open create dialog from customer page
+  if (route.query.createForCustomer) {
+    handleCreate()
+  }
 })
 </script>
 
@@ -549,6 +668,7 @@ onMounted(() => {
 .toolbar-right {
   display: flex;
   align-items: center;
+  gap: 8px;
 }
 
 .table-card :deep(.el-card__body) {

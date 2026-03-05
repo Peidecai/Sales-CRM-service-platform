@@ -51,6 +51,64 @@ services:
     networks:
       - crm-network
 
+  server:
+    build:
+      context: .
+      dockerfile: docker/server/Dockerfile
+    container_name: crm-server
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: crm_password_123
+      DB_DATABASE: crm_sales
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-refresh-in-production}
+      JWT_ACCESS_EXPIRES_IN: 2h
+      JWT_REFRESH_EXPIRES_IN: 7d
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
+    ports:
+      - "3000:3000"
+    volumes:
+      - server-data:/app/packages/server/data
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        ["CMD-SHELL", "wget -qO- http://localhost:3000/api/v1/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - crm-network
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+    container_name: crm-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      server:
+        condition: service_healthy
+    networks:
+      - crm-network
+
 networks:
   crm-network:
     driver: bridge
+
+volumes:
+  server-data:

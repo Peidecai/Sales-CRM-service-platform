@@ -69,6 +69,12 @@ export interface PageResult<T> {
   pageSize: number
 }
 
+// Import result
+export interface ImportResult {
+  imported: number
+  errors: string[]
+}
+
 export const customerApi = {
   getList(params: CustomerQueryParams): Promise<ApiResponse<PageResult<CustomerVO>>> {
     return request.get('/customers', { params })
@@ -88,5 +94,25 @@ export const customerApi = {
 
   remove(id: number): Promise<ApiResponse<null>> {
     return request.delete(`/customers/${id}`)
+  },
+
+  /**
+   * Export all customers as CSV.
+   * Returns a Blob since the backend sends raw CSV (not JSON-wrapped).
+   */
+  async exportCsv(): Promise<Blob> {
+    const response = await request.get('/customers/export', {
+      responseType: 'blob',
+    })
+    // When responseType is 'blob', axios response.data is the Blob
+    // But our interceptor returns response.data, so we get the Blob directly
+    return response as unknown as Blob
+  },
+
+  /**
+   * Import customers from parsed CSV rows.
+   */
+  importCsv(rows: Array<Record<string, string>>): Promise<ApiResponse<ImportResult>> {
+    return request.post('/customers/import', { rows })
   },
 }

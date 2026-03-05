@@ -47,6 +47,22 @@ export interface CreateArticleParams {
 
 export type UpdateArticleParams = Partial<CreateArticleParams>
 
+export interface AskQuestionParams {
+  question: string
+  topK?: number
+}
+
+export interface AskResultSource {
+  articleId: number
+  title: string
+  similarity: number
+}
+
+export interface AskResult {
+  answer: string
+  sources: AskResultSource[]
+}
+
 export interface CreateCategoryParams {
   name: string
   parentId?: number
@@ -102,5 +118,11 @@ export const knowledgeApi = {
 
   removeCategory(id: number): Promise<ApiResponse<null>> {
     return request.delete(`/knowledge/categories/${id}`)
+  },
+
+  // ---- RAG Q&A API ----
+
+  askQuestion(data: AskQuestionParams): Promise<ApiResponse<AskResult>> {
+    return request.post('/knowledge/ask', data)
   },
 }

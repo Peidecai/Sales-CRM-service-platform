@@ -106,4 +106,15 @@ export const opportunityApi = {
   getStats(): Promise<ApiResponse<OpportunityStageStats[]>> {
     return request.get('/opportunities/stats')
   },
+
+  /**
+   * Export all opportunities as CSV.
+   * Returns a Blob since the backend sends raw CSV (not JSON-wrapped).
+   */
+  async exportCsv(): Promise<Blob> {
+    const response = await request.get('/opportunities/export', {
+      responseType: 'blob',
+    })
+    return response as unknown as Blob
+  },
 }

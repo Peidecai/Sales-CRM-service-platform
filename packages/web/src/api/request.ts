@@ -18,6 +18,67 @@ const request: AxiosInstance = axios.create({
   },
 })
 
+// --- Error message mapping by HTTP status ---
+const HTTP_ERROR_MESSAGES: Record<number, string> = {
+  400: '请求参数有误',
+  403: '没有权限执行此操作',
+  404: '请求的资源不存在',
+  405: '请求方式不被允许',
+  408: '请求超时，请稍后重试',
+  409: '数据冲突，请检查后重试',
+  422: '提交的数据格式不正确',
+  429: '请求过于频繁，请稍后再试',
+  500: '服务器内部错误，请稍后重试',
+  502: '网关错误，请稍后重试',
+  503: '服务暂时不可用，请稍后重试',
+  504: '网关超时，请稍后重试',
+}
+
+/**
+ * Extract a user-friendly error message from an error response.
+ * Prioritises the backend `message` field, then validation errors,
+ * then falls back to a status-specific default.
+ */
+function resolveErrorMessage(error: { response?: AxiosResponse; message?: string }): string {
+  const status = error.response?.status
+  const data = error.response?.data as
+    | { message?: string; validationErrors?: Array<{ constraints?: Record<string, string> }> }
+    | undefined
+
+  // If backend returned validation errors, concatenate the first few
+  if (data?.validationErrors && Array.isArray(data.validationErrors)) {
+    const msgs: string[] = []
+    for (const err of data.validationErrors) {
+      if (err.constraints) {
+        msgs.push(...Object.values(err.constraints))
+      }
+    }
+    if (msgs.length > 0) {
+      return msgs.slice(0, 3).join('；')
+    }
+  }
+
+  // Backend message
+  if (data?.message && typeof data.message === 'string') {
+    return data.message
+  }
+
+  // Status-based fallback
+  if (status && HTTP_ERROR_MESSAGES[status]) {
+    return HTTP_ERROR_MESSAGES[status]
+  }
+
+  // Network / timeout
+  if (error.message?.includes('timeout')) {
+    return '请求超时，请检查网络后重试'
+  }
+  if (error.message?.includes('Network Error')) {
+    return '网络连接失败，请检查网络设置'
+  }
+
+  return '请求失败，请稍后重试'
+}
+
 // Request interceptor — attach Bearer token
 request.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
@@ -74,8 +135,14 @@ request.interceptors.response.use(
       }
     }
 
-    const message = error.response?.data?.message || error.message || '请求失败'
-    ElMessage.error(message)
+    // For 403 — also redirect non-admin trying to access admin API
+    if (error.response?.status === 403) {
+      ElMessage.warning(resolveErrorMessage(error))
+      return Promise.reject(error)
+    }
+
+    // General error handling
+    ElMessage.error(resolveErrorMessage(error))
     return Promise.reject(error)
   },
 )

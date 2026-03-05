@@ -33,6 +33,14 @@
         </el-form-item>
       </el-form>
       <div class="toolbar-right">
+        <el-button v-if="isAdminOrManager" :loading="exportLoading" @click="handleExport">
+          <el-icon><Download /></el-icon>
+          导出
+        </el-button>
+        <el-button v-if="isAdminOrManager" type="warning" @click="importDialogVisible = true">
+          <el-icon><Upload /></el-icon>
+          导入
+        </el-button>
         <el-button type="primary" @click="handleCreate">
           <el-icon><Plus /></el-icon>
           新建客户
@@ -43,27 +51,53 @@
     <!-- Table -->
     <el-card shadow="never" class="table-card">
       <el-table v-loading="loading" :data="tableData" row-key="id" stripe style="width: 100%">
-        <el-table-column prop="name" label="姓名" min-width="120" />
-        <el-table-column prop="company" label="公司" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="name" label="姓名" min-width="120" sortable>
+          <template #default="{ row }">
+            <el-button
+              type="primary"
+              link
+              size="small"
+              @click="$router.push(`/customer/${row.id}`)"
+            >
+              {{ row.name }}
+            </el-button>
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="company"
+          label="公司"
+          min-width="160"
+          show-overflow-tooltip
+          sortable
+        />
         <el-table-column prop="phone" label="手机" min-width="130" />
         <el-table-column prop="email" label="邮箱" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="status" label="状态" min-width="110">
+        <el-table-column prop="status" label="状态" min-width="110" sortable>
           <template #default="{ row }">
             <el-tag :type="getStatusTagType(row.status)" size="small">
               {{ getStatusLabel(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="assignedUserId" label="负责人ID" min-width="100" />
-        <el-table-column prop="createdAt" label="创建时间" min-width="170">
+        <el-table-column prop="industry" label="行业" min-width="100" show-overflow-tooltip />
+        <el-table-column prop="createdAt" label="创建时间" min-width="170" sortable>
           <template #default="{ row }">
             {{ formatDate(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="140" fixed="right">
+        <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
+            <el-button
+              type="primary"
+              link
+              size="small"
+              @click="$router.push(`/customer/${row.id}`)"
+            >
+              详情
+            </el-button>
             <el-button type="primary" link size="small" @click="handleEdit(row)"> 编辑 </el-button>
             <el-popconfirm
+              v-if="isAdminOrManager"
               title="确定要删除该客户吗？"
               confirm-button-text="确定"
               cancel-button-text="取消"
@@ -75,10 +109,15 @@
             </el-popconfirm>
           </template>
         </el-table-column>
+        <template #empty>
+          <el-empty description="暂无客户数据" :image-size="100">
+            <el-button type="primary" @click="handleCreate"> 新建客户 </el-button>
+          </el-empty>
+        </template>
       </el-table>
 
       <!-- Pagination -->
-      <div class="pagination-wrap">
+      <div v-if="pagination.total > 0" class="pagination-wrap">
         <el-pagination
           v-model:current-page="pagination.page"
           v-model:page-size="pagination.pageSize"
@@ -169,20 +208,119 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- Import Dialog -->
+    <el-dialog
+      v-model="importDialogVisible"
+      title="导入客户"
+      width="560px"
+      :close-on-click-modal="false"
+      @closed="handleImportDialogClosed"
+    >
+      <div class="import-content">
+        <el-alert type="info" :closable="false" show-icon style="margin-bottom: 16px">
+          <template #title>
+            请上传 CSV
+            文件，表头必须包含"姓名"列，支持的列：姓名、公司、手机、邮箱、状态、行业、来源、备注
+          </template>
+        </el-alert>
+
+        <el-upload
+          ref="uploadRef"
+          :auto-upload="false"
+          :limit="1"
+          accept=".csv"
+          :on-change="handleFileChange"
+          :on-remove="handleFileRemove"
+          drag
+        >
+          <el-icon class="el-icon--upload">
+            <Upload />
+          </el-icon>
+          <div class="el-upload__text">将 CSV 文件拖到此处，或 <em>点击上传</em></div>
+          <template #tip>
+            <div class="el-upload__tip">仅支持 .csv 文件，单次最多导入 1000 条</div>
+          </template>
+        </el-upload>
+
+        <!-- Preview parsed data -->
+        <div v-if="importPreview.length > 0" class="import-preview">
+          <div class="preview-header">预览（前 5 条）</div>
+          <el-table :data="importPreview.slice(0, 5)" size="small" border style="width: 100%">
+            <el-table-column
+              v-for="col in importColumns"
+              :key="col"
+              :prop="col"
+              :label="col"
+              min-width="80"
+              show-overflow-tooltip
+            />
+          </el-table>
+          <div class="preview-count">共解析 {{ importParsedRows.length }} 条记录</div>
+        </div>
+
+        <!-- Import result -->
+        <div v-if="importResult" class="import-result">
+          <el-alert
+            :type="importResult.errors.length > 0 ? 'warning' : 'success'"
+            :closable="false"
+            show-icon
+          >
+            <template #title>
+              成功导入 {{ importResult.imported }} 条客户
+              <template v-if="importResult.errors.length > 0">
+                ，{{ importResult.errors.length }} 条失败
+              </template>
+            </template>
+          </el-alert>
+          <div v-if="importResult.errors.length > 0" class="import-errors">
+            <div
+              v-for="(err, idx) in importResult.errors.slice(0, 10)"
+              :key="idx"
+              class="error-line"
+            >
+              {{ err }}
+            </div>
+            <div v-if="importResult.errors.length > 10" class="error-line">
+              ...还有 {{ importResult.errors.length - 10 }} 条错误
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="importDialogVisible = false"> 取消 </el-button>
+        <el-button
+          type="primary"
+          :loading="importLoading"
+          :disabled="importParsedRows.length === 0 || !!importResult"
+          @click="handleImportSubmit"
+        >
+          导入
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Download, Upload } from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/user'
 import {
   customerApi,
   CustomerStatus,
   type CustomerVO,
   type CreateCustomerParams,
   type UpdateCustomerParams,
+  type ImportResult,
 } from '@/api/customer'
+import { formatDate } from '@/utils/format'
+import { getStatusTagType, getStatusLabel } from '@/utils/tag-helpers'
+import { usePermission } from '@/composables/usePermission'
+
+const userStore = useUserStore()
+const { isAdminOrManager } = usePermission()
 
 // ---- Status helpers ----
 interface StatusOption {
@@ -199,31 +337,6 @@ const statusOptions: StatusOption[] = [
   { value: CustomerStatus.INACTIVE, label: '暂不合作' },
 ]
 
-type TagType = 'info' | 'primary' | 'warning' | 'success' | 'danger' | ''
-
-function getStatusTagType(status: CustomerStatus): TagType {
-  const map: Record<CustomerStatus, TagType> = {
-    [CustomerStatus.POTENTIAL]: 'info',
-    [CustomerStatus.FOLLOWING]: 'primary',
-    [CustomerStatus.NEGOTIATING]: 'warning',
-    [CustomerStatus.SIGNED]: 'success',
-    [CustomerStatus.LOST]: 'danger',
-    [CustomerStatus.INACTIVE]: '',
-  }
-  return map[status] ?? ''
-}
-
-function getStatusLabel(status: CustomerStatus): string {
-  return statusOptions.find((o) => o.value === status)?.label ?? status
-}
-
-function formatDate(dateStr: string): string {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
 // ---- Search ----
 const searchForm = reactive({
   keyword: '',
@@ -238,6 +351,8 @@ const pagination = reactive({
   pageSize: 20,
   total: 0,
 })
+
+let searchTimer: ReturnType<typeof setTimeout> | null = null
 
 async function fetchList() {
   loading.value = true
@@ -260,8 +375,11 @@ async function fetchList() {
 }
 
 function handleSearch() {
-  pagination.page = 1
-  fetchList()
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    pagination.page = 1
+    fetchList()
+  }, 300)
 }
 
 function handleReset() {
@@ -315,6 +433,8 @@ const formData = reactive<CustomerForm>(defaultForm())
 
 const formRules: FormRules = {
   name: [{ required: true, message: '请输入客户姓名', trigger: 'blur' }],
+  email: [{ type: 'email', message: '请输入有效的邮箱地址', trigger: 'blur' }],
+  phone: [{ pattern: /^1[3-9]\d{9}$/, message: '请输入有效的11位手机号', trigger: 'blur' }],
 }
 
 const dialogTitle = ref('新建客户')
@@ -375,7 +495,7 @@ async function handleSubmit() {
         phone: formData.phone || undefined,
         email: formData.email || undefined,
         status: formData.status,
-        assignedUserId: 1, // Default assigned user; extend with actual auth user
+        assignedUserId: userStore.userInfo?.id ?? 1,
         notes: formData.notes || undefined,
         industry: formData.industry || undefined,
         source: formData.source || undefined,
@@ -404,6 +524,146 @@ async function handleDelete(id: number) {
     fetchList()
   } catch {
     // Error handled by request interceptor
+  }
+}
+
+// ---- Export ----
+const exportLoading = ref(false)
+
+async function handleExport() {
+  exportLoading.value = true
+  try {
+    const blob = await customerApi.exportCsv()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `customers_${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    ElMessage.success('导出成功')
+  } catch {
+    // Error handled by request interceptor
+  } finally {
+    exportLoading.value = false
+  }
+}
+
+// ---- Import ----
+const importDialogVisible = ref(false)
+const importLoading = ref(false)
+const importParsedRows = ref<Array<Record<string, string>>>([])
+const importPreview = ref<Array<Record<string, string>>>([])
+const importColumns = ref<string[]>([])
+const importResult = ref<ImportResult | null>(null)
+
+function parseCsvText(text: string): { columns: string[]; rows: Array<Record<string, string>> } {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0)
+  if (lines.length < 2) return { columns: [], rows: [] }
+
+  const columns = parseCsvLine(lines[0])
+  const rows: Array<Record<string, string>> = []
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCsvLine(lines[i])
+    const row: Record<string, string> = {}
+    columns.forEach((col, idx) => {
+      row[col] = values[idx] ?? ''
+    })
+    rows.push(row)
+  }
+
+  return { columns, rows }
+}
+
+function parseCsvLine(line: string): string[] {
+  const result: string[] = []
+  let current = ''
+  let inQuotes = false
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (inQuotes) {
+      if (ch === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') {
+          current += '"'
+          i++
+        } else {
+          inQuotes = false
+        }
+      } else {
+        current += ch
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true
+      } else if (ch === ',') {
+        result.push(current.trim())
+        current = ''
+      } else {
+        current += ch
+      }
+    }
+  }
+  result.push(current.trim())
+  return result
+}
+
+interface UploadFile {
+  raw?: File
+}
+
+function handleFileChange(file: UploadFile) {
+  if (!file.raw) return
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    const text = e.target?.result as string
+    if (!text) return
+    const { columns, rows } = parseCsvText(text)
+    if (!columns.includes('姓名') && !columns.includes('name')) {
+      ElMessage.warning('CSV 文件必须包含"姓名"列')
+      importParsedRows.value = []
+      importPreview.value = []
+      importColumns.value = []
+      return
+    }
+    importColumns.value = columns
+    importParsedRows.value = rows
+    importPreview.value = rows.slice(0, 5)
+  }
+  reader.readAsText(file.raw, 'utf-8')
+}
+
+function handleFileRemove() {
+  importParsedRows.value = []
+  importPreview.value = []
+  importColumns.value = []
+  importResult.value = null
+}
+
+function handleImportDialogClosed() {
+  importParsedRows.value = []
+  importPreview.value = []
+  importColumns.value = []
+  importResult.value = null
+}
+
+async function handleImportSubmit() {
+  if (importParsedRows.value.length === 0) return
+
+  importLoading.value = true
+  try {
+    const res = await customerApi.importCsv(importParsedRows.value)
+    if (res?.data) {
+      importResult.value = res.data
+      ElMessage.success(`成功导入 ${res.data.imported} 条客户`)
+      fetchList()
+    }
+  } catch {
+    // Error handled by request interceptor
+  } finally {
+    importLoading.value = false
   }
 }
 
@@ -437,6 +697,7 @@ onMounted(() => {
 .toolbar-right {
   display: flex;
   align-items: center;
+  gap: 8px;
 }
 
 .table-card :deep(.el-card__body) {
@@ -451,5 +712,48 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   padding: 16px;
+}
+
+/* Import Dialog */
+.import-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.import-preview {
+  margin-top: 8px;
+}
+
+.preview-header {
+  font-size: 13px;
+  font-weight: 600;
+  color: #606266;
+  margin-bottom: 8px;
+}
+
+.preview-count {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 8px;
+}
+
+.import-result {
+  margin-top: 8px;
+}
+
+.import-errors {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #fef0f0;
+  border-radius: 4px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.error-line {
+  font-size: 12px;
+  color: #f56c6c;
+  line-height: 1.6;
 }
 </style>

@@ -8,6 +8,7 @@ import {
   IsPositive,
   IsArray,
   MaxLength,
+  Matches,
 } from 'class-validator'
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import { CustomerStatus } from '@crm/shared'
@@ -25,15 +26,16 @@ export class CreateCustomerDto {
   @MaxLength(200)
   company?: string
 
-  @ApiPropertyOptional({ description: 'Phone number', maxLength: 20 })
+  @ApiPropertyOptional({ description: 'Phone number (Chinese mobile format)', maxLength: 20 })
   @IsOptional()
   @IsString()
   @MaxLength(20)
+  @Matches(/^1[3-9]\d{9}$/, { message: '手机号格式不正确，应为11位中国大陆手机号' })
   phone?: string
 
   @ApiPropertyOptional({ description: 'Email address' })
   @IsOptional()
-  @IsEmail()
+  @IsEmail({}, { message: '邮箱格式不正确' })
   email?: string
 
   @ApiPropertyOptional({ description: 'Customer status', enum: CustomerStatus })

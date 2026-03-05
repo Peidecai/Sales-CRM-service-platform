@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
-import { OpportunityStage } from '@crm/shared'
+import { Repository, SelectQueryBuilder } from 'typeorm'
+import { OpportunityStage, UserRole } from '@crm/shared'
 import { Opportunity } from './opportunity.entity'
 import { CreateOpportunityDto } from './dto/create-opportunity.dto'
 import { UpdateOpportunityDto } from './dto/update-opportunity.dto'
@@ -9,6 +9,7 @@ import { QueryOpportunityDto } from './dto/query-opportunity.dto'
 import { UpdateStageDto } from './dto/update-stage.dto'
 import { RedisService } from '../../common/redis'
 import { CACHE_KEYS, CACHE_TTL } from '../../common/redis'
+import type { AuthUser } from '../../common/decorators/current-user.decorator'
 
 /** Default win probability for each stage */
 const STAGE_PROBABILITY: Record<OpportunityStage, number> = {
@@ -56,13 +57,15 @@ export class OpportunityService {
     return saved
   }
 
-  async findAll(query: QueryOpportunityDto): Promise<PageResult<Opportunity>> {
+  async findAll(query: QueryOpportunityDto, user: AuthUser): Promise<PageResult<Opportunity>> {
     const { page = 1, pageSize = 20, keyword, stage, customerId, assignedUserId } = query
 
     const qb = this.opportunityRepository
       .createQueryBuilder('opportunity')
       .leftJoinAndSelect('opportunity.customer', 'customer')
       .where('opportunity.deleted = :deleted', { deleted: false })
+
+    this.applyDataPermission(qb, user)
 
     if (keyword) {
       qb.andWhere('opportunity.title LIKE :kw', { kw: `%${keyword}%` })
@@ -76,7 +79,7 @@ export class OpportunityService {
       qb.andWhere('opportunity.customerId = :customerId', { customerId })
     }
 
-    if (assignedUserId) {
+    if (assignedUserId && user.role !== UserRole.SALES) {
       qb.andWhere('opportunity.assignedUserId = :assignedUserId', { assignedUserId })
     }
 
@@ -89,7 +92,15 @@ export class OpportunityService {
     return { list, total, page, pageSize }
   }
 
-  async findOne(id: number): Promise<Opportunity> {
+  async findOne(id: number, user?: AuthUser): Promise<Opportunity> {
+    const cacheKey = `${CACHE_KEYS.OPPORTUNITY_DETAIL}:${id}`
+    const cached = await this.redisService.get(cacheKey)
+    if (cached) {
+      const opportunity = JSON.parse(cached) as Opportunity
+      this.checkOwnership(opportunity, user)
+      return opportunity
+    }
+
     const opportunity = await this.opportunityRepository.findOne({
       where: { id, deleted: false },
       relations: ['customer'],
@@ -99,23 +110,28 @@ export class OpportunityService {
       throw new NotFoundException(`Opportunity with ID ${id} not found`)
     }
 
+    this.checkOwnership(opportunity, user)
+
+    await this.redisService.set(cacheKey, JSON.stringify(opportunity), CACHE_TTL.OPPORTUNITY_DETAIL)
     return opportunity
   }
 
-  async update(id: number, dto: UpdateOpportunityDto): Promise<Opportunity> {
-    const opportunity = await this.findOne(id)
+  async update(id: number, dto: UpdateOpportunityDto, user?: AuthUser): Promise<Opportunity> {
+    const opportunity = await this.findOne(id, user)
     Object.assign(opportunity, dto)
     const saved = await this.opportunityRepository.save(opportunity)
     await this.invalidateStatsCache()
+    await this.invalidateDetailCache(id)
     return saved
   }
 
-  async updateStage(id: number, dto: UpdateStageDto): Promise<Opportunity> {
-    const opportunity = await this.findOne(id)
+  async updateStage(id: number, dto: UpdateStageDto, user?: AuthUser): Promise<Opportunity> {
+    const opportunity = await this.findOne(id, user)
     opportunity.stage = dto.stage
     opportunity.probability = STAGE_PROBABILITY[dto.stage]
     const saved = await this.opportunityRepository.save(opportunity)
     await this.invalidateStatsCache()
+    await this.invalidateDetailCache(id)
     return saved
   }
 
@@ -124,23 +140,28 @@ export class OpportunityService {
     opportunity.deleted = true
     await this.opportunityRepository.save(opportunity)
     await this.invalidateStatsCache()
+    await this.invalidateDetailCache(id)
   }
 
-  async getStats(): Promise<OpportunityStageStats[]> {
-    // Check cache first
-    const cached = await this.redisService.get(CACHE_KEYS.OPPORTUNITY_STATS)
-    if (cached) {
-      return JSON.parse(cached) as OpportunityStageStats[]
-    }
-
-    const rows = await this.opportunityRepository
+  async getStats(user: AuthUser): Promise<OpportunityStageStats[]> {
+    const qb = this.opportunityRepository
       .createQueryBuilder('opportunity')
       .select('opportunity.stage', 'stage')
       .addSelect('COUNT(*)', 'count')
       .addSelect('SUM(opportunity.amount)', 'totalAmount')
       .where('opportunity.deleted = :deleted', { deleted: false })
-      .groupBy('opportunity.stage')
-      .getRawMany<{ stage: OpportunityStage; count: string; totalAmount: string }>()
+
+    if (user.role === UserRole.SALES) {
+      qb.andWhere('opportunity.assignedUserId = :currentUserId', { currentUserId: user.id })
+    }
+
+    qb.groupBy('opportunity.stage')
+
+    const rows = await qb.getRawMany<{
+      stage: OpportunityStage
+      count: string
+      totalAmount: string
+    }>()
 
     const result = rows.map((row) => ({
       stage: row.stage,
@@ -156,8 +177,76 @@ export class OpportunityService {
     return result
   }
 
+  /**
+   * Export all non-deleted opportunities as CSV string.
+   */
+  async exportCsv(user: AuthUser): Promise<string> {
+    const qb = this.opportunityRepository
+      .createQueryBuilder('opportunity')
+      .leftJoinAndSelect('opportunity.customer', 'customer')
+      .where('opportunity.deleted = :deleted', { deleted: false })
+
+    this.applyDataPermission(qb, user)
+    qb.orderBy('opportunity.updatedAt', 'DESC')
+
+    const opportunities = await qb.getMany()
+
+    const stageLabels: Record<string, string> = {
+      [OpportunityStage.LEAD]: '线索',
+      [OpportunityStage.QUALIFIED]: '意向客户',
+      [OpportunityStage.PROPOSAL]: '方案报价',
+      [OpportunityStage.NEGOTIATION]: '商务谈判',
+      [OpportunityStage.CLOSED_WON]: '成交',
+      [OpportunityStage.CLOSED_LOST]: '丢单',
+    }
+
+    const header = '标题,关联客户,阶段,金额,成交概率,预计成交日期,描述'
+    const rows = opportunities.map((o) => {
+      const customerName = o.customer ? o.customer.name : ''
+      const stageLabel = stageLabels[o.stage] ?? o.stage
+      return [
+        this.escapeCsvField(o.title),
+        this.escapeCsvField(customerName),
+        this.escapeCsvField(stageLabel),
+        String(o.amount ?? 0),
+        String(o.probability ?? 0),
+        this.escapeCsvField(o.expectedCloseDate ? String(o.expectedCloseDate) : ''),
+        this.escapeCsvField(o.description ?? ''),
+      ].join(',')
+    })
+
+    // Add BOM for Excel UTF-8 compatibility
+    return '\uFEFF' + [header, ...rows].join('\n')
+  }
+
+  /** Apply data permission: SALES users can only see their own records */
+  private applyDataPermission(qb: SelectQueryBuilder<Opportunity>, user: AuthUser): void {
+    if (user.role === UserRole.SALES) {
+      qb.andWhere('opportunity.assignedUserId = :currentUserId', { currentUserId: user.id })
+    }
+  }
+
+  /** Check ownership for single record access */
+  private checkOwnership(opportunity: Opportunity, user?: AuthUser): void {
+    if (user && user.role === UserRole.SALES && opportunity.assignedUserId !== user.id) {
+      throw new ForbiddenException('您无权访问此商机')
+    }
+  }
+
+  private escapeCsvField(value: string): string {
+    if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+      return `"${value.replace(/"/g, '""')}"`
+    }
+    return value
+  }
+
   /** Invalidate opportunity stats cache */
   private async invalidateStatsCache(): Promise<void> {
     await this.redisService.del(CACHE_KEYS.OPPORTUNITY_STATS)
+  }
+
+  /** Invalidate a single opportunity detail cache */
+  private async invalidateDetailCache(id: number): Promise<void> {
+    await this.redisService.del(`${CACHE_KEYS.OPPORTUNITY_DETAIL}:${id}`)
   }
 }

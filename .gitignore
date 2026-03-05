@@ -57,3 +57,10 @@ docker/redis/data/
 
 # SQLite vector database
 packages/server/data/
+
+# AI assistant
+.claude/
+
+# Test results
+test-results/
+/test-results/

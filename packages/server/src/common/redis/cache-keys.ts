@@ -5,8 +5,12 @@
 export const CACHE_KEYS = {
   /** Customer list — keyed by serialized query params */
   CUSTOMER_LIST: 'cache:customers:list',
+  /** Customer detail — suffix is :id */
+  CUSTOMER_DETAIL: 'cache:customers:detail',
   /** Opportunity stage stats */
   OPPORTUNITY_STATS: 'cache:opportunities:stats',
+  /** Opportunity detail — suffix is :id */
+  OPPORTUNITY_DETAIL: 'cache:opportunities:detail',
   /** Knowledge category tree */
   CATEGORY_TREE: 'cache:knowledge:categories',
   /** JWT blacklist — suffix is jti or token hash */
@@ -17,8 +21,12 @@ export const CACHE_KEYS = {
 export const CACHE_TTL = {
   /** Customer list cache: 60 s */
   CUSTOMER_LIST: 60,
+  /** Customer detail cache: 120 s */
+  CUSTOMER_DETAIL: 120,
   /** Opportunity stats cache: 300 s */
   OPPORTUNITY_STATS: 300,
+  /** Opportunity detail cache: 120 s */
+  OPPORTUNITY_DETAIL: 120,
   /** Category tree cache: 600 s */
   CATEGORY_TREE: 600,
 } as const

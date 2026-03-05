@@ -7,30 +7,44 @@ import {
   Body,
   Param,
   Query,
+  Res,
   ParseIntPipe,
   UseGuards,
+  UseInterceptors,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common'
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger'
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger'
+import type { Response } from 'express'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
+import { RolesGuard } from '../../common/guards/roles.guard'
+import { Roles } from '../../common/decorators/roles.decorator'
+import { CurrentUser, type AuthUser } from '../../common/decorators/current-user.decorator'
+import { AuditLogInterceptor } from '../../common/interceptors/audit-log.interceptor'
+import { UserRole } from '@crm/shared'
 import { CustomerService } from './customer.service'
+import { NotificationService } from '../notification/notification.service'
 import { CreateCustomerDto } from './dto/create-customer.dto'
 import { UpdateCustomerDto } from './dto/update-customer.dto'
 import { QueryCustomerDto } from './dto/query-customer.dto'
 
 @ApiTags('客户管理')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@UseInterceptors(AuditLogInterceptor)
 @Controller('customers')
 export class CustomerController {
-  constructor(private readonly customerService: CustomerService) {}
+  constructor(
+    private readonly customerService: CustomerService,
+    private readonly notificationService: NotificationService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Get customer list with pagination' })
   @ApiResponse({ status: 200, description: 'Returns paginated customer list' })
-  async findAll(@Query() query: QueryCustomerDto) {
-    const { list, total } = await this.customerService.findAll(query)
+  async findAll(@Query() query: QueryCustomerDto, @CurrentUser() user: AuthUser) {
+    const { list, total } = await this.customerService.findAll(query, user)
     return {
       list,
       total,
@@ -39,36 +53,84 @@ export class CustomerController {
     }
   }
 
+  @Get('export')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @ApiOperation({ summary: 'Export all customers as CSV' })
+  @ApiResponse({ status: 200, description: 'Returns CSV file' })
+  @ApiResponse({ status: 403, description: 'Forbidden — requires ADMIN or MANAGER role' })
+  async exportCsv(@Res() res: Response, @CurrentUser() user: AuthUser) {
+    const csv = await this.customerService.exportCsv(user)
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+    res.setHeader('Content-Disposition', 'attachment; filename=customers.csv')
+    res.send(csv)
+  }
+
+  @Post('import')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Import customers from CSV data' })
+  @ApiResponse({ status: 200, description: 'Import result with count and errors' })
+  @ApiResponse({ status: 403, description: 'Forbidden — requires ADMIN or MANAGER role' })
+  async importCsv(
+    @Body() body: { rows: Array<Record<string, string>> },
+    @CurrentUser() user: AuthUser,
+  ) {
+    if (!body.rows || !Array.isArray(body.rows) || body.rows.length === 0) {
+      throw new BadRequestException('请提供有效的 CSV 数据')
+    }
+    if (body.rows.length > 1000) {
+      throw new BadRequestException('单次导入不能超过 1000 条记录')
+    }
+    return this.customerService.importFromCsvRows(body.rows, user.id)
+  }
+
   @Post()
   @ApiOperation({ summary: 'Create a new customer' })
   @ApiResponse({ status: 201, description: 'Customer created successfully' })
-  create(@Body() dto: CreateCustomerDto) {
-    return this.customerService.create(dto)
+  async create(@Body() dto: CreateCustomerDto, @CurrentUser() user: AuthUser) {
+    const customer = await this.customerService.create(dto)
+    this.notificationService.customerCreated(user.id, user.username, customer.id, customer.name)
+    return customer
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get customer by ID' })
+  @ApiParam({ name: 'id', description: 'Customer ID', type: Number })
   @ApiResponse({ status: 200, description: 'Returns customer detail' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden — SALES can only access own customers' })
   @ApiResponse({ status: 404, description: 'Customer not found' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.customerService.findOne(id)
+  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.customerService.findOne(id, user)
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Update customer by ID' })
+  @ApiParam({ name: 'id', description: 'Customer ID', type: Number })
   @ApiResponse({ status: 200, description: 'Customer updated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden — SALES can only update own customers' })
   @ApiResponse({ status: 404, description: 'Customer not found' })
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCustomerDto) {
-    return this.customerService.update(id, dto)
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateCustomerDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.customerService.update(id, dto, user)
   }
 
   @Delete(':id')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Soft delete customer by ID' })
+  @ApiParam({ name: 'id', description: 'Customer ID', type: Number })
   @ApiResponse({ status: 200, description: 'Customer deleted successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden — requires ADMIN or MANAGER role' })
   @ApiResponse({ status: 404, description: 'Customer not found' })
-  async remove(@Param('id', ParseIntPipe) id: number) {
+  async remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
     await this.customerService.remove(id)
+    this.notificationService.customerDeleted(user.id, user.username, id)
     return null
   }
 }

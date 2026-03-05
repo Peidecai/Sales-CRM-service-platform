@@ -1,31 +1,12 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common'
+import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { ConfigService } from '@nestjs/config'
-import * as bcrypt from 'bcryptjs'
 import { LoginDto } from './dto/login.dto'
+import { UpdateProfileDto } from './dto/update-profile.dto'
+import { ChangePasswordDto } from './dto/change-password.dto'
 import { RedisService } from '../../common/redis'
 import { CACHE_KEYS } from '../../common/redis'
-
-// Temporary in-memory user for development/testing
-// Replace with actual UserService + database in production
-const DEMO_USERS = [
-  {
-    id: 1,
-    username: 'admin',
-    email: 'admin@crm.com',
-    password: bcrypt.hashSync('admin123', 10),
-    role: 'admin',
-    name: 'Admin',
-  },
-  {
-    id: 2,
-    username: 'sales01',
-    email: 'sales01@crm.com',
-    password: bcrypt.hashSync('sales123', 10),
-    role: 'sales',
-    name: 'Sales01',
-  },
-]
+import { UserService } from '../user/user.service'
 
 @Injectable()
 export class AuthService {
@@ -33,23 +14,32 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private redisService: RedisService,
+    private userService: UserService,
   ) {}
 
   async login(loginDto: LoginDto) {
-    const user = DEMO_USERS.find(
-      (u) => u.username === loginDto.username || u.email === loginDto.username,
-    )
+    // Look up user from database by username or email
+    const user = await this.userService.findByUsername(loginDto.username)
 
     if (!user) {
-      throw new UnauthorizedException('Invalid username or password')
+      throw new UnauthorizedException('用户名或密码错误')
     }
 
-    const isPasswordValid = await bcrypt.compare(loginDto.password, user.password)
+    if (!user.isActive) {
+      throw new UnauthorizedException('账户已被禁用')
+    }
+
+    const isPasswordValid = await this.userService.validatePassword(user, loginDto.password)
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid username or password')
+      throw new UnauthorizedException('用户名或密码错误')
     }
 
-    return this.generateTokens(user)
+    return this.generateTokens({
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      name: user.name,
+    })
   }
 
   async refreshToken(token: string) {
@@ -58,15 +48,55 @@ export class AuthService {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET', 'dev-refresh-secret-key'),
       }) as { sub: number; username: string; role: string }
 
-      const user = DEMO_USERS.find((u) => u.id === payload.sub)
-      if (!user) {
-        throw new UnauthorizedException('User not found')
+      const user = await this.userService.findByUsername(payload.username)
+      if (!user || !user.isActive) {
+        throw new UnauthorizedException('用户不存在或已被禁用')
       }
 
-      return this.generateTokens(user)
+      return this.generateTokens({
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        name: user.name,
+      })
     } catch {
-      throw new UnauthorizedException('Refresh token is invalid or expired')
+      throw new UnauthorizedException('Refresh Token 无效或已过期')
     }
+  }
+
+  /**
+   * Get current user profile
+   */
+  async getProfile(userId: number) {
+    return this.userService.findOne(userId)
+  }
+
+  /**
+   * Update current user profile (name, email, phone only)
+   */
+  async updateProfile(userId: number, dto: UpdateProfileDto) {
+    return this.userService.update(userId, dto)
+  }
+
+  /**
+   * Change password — requires old password verification
+   */
+  async changePassword(userId: number, dto: ChangePasswordDto) {
+    const user = await this.userService.findByUsername(
+      (await this.userService.findOne(userId)).username,
+    )
+
+    if (!user) {
+      throw new UnauthorizedException('用户不存在')
+    }
+
+    const isOldPasswordValid = await this.userService.validatePassword(user, dto.oldPassword)
+    if (!isOldPasswordValid) {
+      throw new BadRequestException('当前密码不正确')
+    }
+
+    await this.userService.update(userId, { password: dto.newPassword })
+    return null
   }
 
   /**

@@ -37,6 +37,14 @@
           <el-icon><Collection /></el-icon>
           <template #title> 知识库 </template>
         </el-menu-item>
+        <el-menu-item v-if="isAdmin" index="/audit-log">
+          <el-icon><Document /></el-icon>
+          <template #title> 审计日志 </template>
+        </el-menu-item>
+        <el-menu-item v-if="isAdmin" index="/user">
+          <el-icon><Setting /></el-icon>
+          <template #title> 用户管理 </template>
+        </el-menu-item>
       </el-menu>
     </el-aside>
 
@@ -47,6 +55,17 @@
           <el-button text @click="isCollapsed = !isCollapsed">
             <el-icon size="20"> <Fold v-if="!isCollapsed" /><Expand v-else /> </el-icon>
           </el-button>
+          <!-- Breadcrumb -->
+          <el-breadcrumb separator="/" class="header-breadcrumb">
+            <el-breadcrumb-item :to="{ path: '/' }"> 首页 </el-breadcrumb-item>
+            <el-breadcrumb-item
+              v-for="(crumb, index) in breadcrumbs"
+              :key="index"
+              :to="index < breadcrumbs.length - 1 ? getBreadcrumbRoute(crumb) : undefined"
+            >
+              {{ crumb }}
+            </el-breadcrumb-item>
+          </el-breadcrumb>
         </div>
         <div class="header-right">
           <el-dropdown @command="handleCommand">
@@ -59,7 +78,11 @@
             </div>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="logout"> 退出登录 </el-dropdown-item>
+                <el-dropdown-item disabled>
+                  {{ userStore.userInfo?.username ?? '' }} ({{ userStore.userRole }})
+                </el-dropdown-item>
+                <el-dropdown-item command="profile"> 个人中心 </el-dropdown-item>
+                <el-dropdown-item divided command="logout"> 退出登录 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -68,7 +91,13 @@
 
       <!-- Main content -->
       <el-main class="layout-main">
-        <RouterView />
+        <ErrorBoundary>
+          <RouterView v-slot="{ Component }">
+            <Transition name="fade-slide" mode="out-in">
+              <component :is="Component" />
+            </Transition>
+          </RouterView>
+        </ErrorBoundary>
       </el-main>
     </el-container>
   </el-container>
@@ -78,17 +107,71 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
+import {
+  HomeFilled,
+  User,
+  TrendCharts,
+  Phone,
+  Collection,
+  DataAnalysis,
+  Fold,
+  Expand,
+  ArrowDown,
+  Setting,
+  Document,
+} from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
+import ErrorBoundary from '@/components/ErrorBoundary.vue'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const isCollapsed = ref(false)
+const isAdmin = computed(() => userStore.userRole === 'admin')
 
-const activeRoute = computed(() => route.path)
+const activeRoute = computed(() => {
+  // For detail pages, highlight the parent menu item
+  const path = route.path
+  if (path.startsWith('/customer')) return '/customer'
+  if (path.startsWith('/opportunity')) return '/opportunity'
+  if (path.startsWith('/call-record')) return '/call-record'
+  if (path.startsWith('/knowledge')) return '/knowledge'
+  if (path.startsWith('/audit-log')) return '/audit-log'
+  if (path.startsWith('/user')) return '/user'
+  if (path.startsWith('/profile')) return '/profile'
+  return path
+})
+
+const breadcrumbs = computed(() => {
+  const meta = route.meta
+  if (meta?.breadcrumb && Array.isArray(meta.breadcrumb)) {
+    return meta.breadcrumb as string[]
+  }
+  if (meta?.title) {
+    return [meta.title as string]
+  }
+  return []
+})
+
+const breadcrumbRouteMap: Record<string, string> = {
+  客户管理: '/customer',
+  商机管理: '/opportunity',
+  通话记录: '/call-record',
+  知识库: '/knowledge',
+  审计日志: '/audit-log',
+  用户管理: '/user',
+  个人中心: '/profile',
+}
+
+function getBreadcrumbRoute(crumb: string): { path: string } | undefined {
+  const path = breadcrumbRouteMap[crumb]
+  return path ? { path } : undefined
+}
 
 async function handleCommand(command: string) {
-  if (command === 'logout') {
+  if (command === 'profile') {
+    router.push({ name: 'Profile' })
+  } else if (command === 'logout') {
     await ElMessageBox.confirm('确定要退出登录吗？', '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
@@ -142,7 +225,16 @@ async function handleCommand(command: string) {
   box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
 }
 
-.header-left,
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-breadcrumb {
+  margin-left: 4px;
+}
+
 .header-right {
   display: flex;
   align-items: center;
@@ -170,7 +262,24 @@ async function handleCommand(command: string) {
 
 .layout-main {
   background: #f5f7fa;
-  padding: 20px;
+  padding: 0;
   overflow-y: auto;
+}
+
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 </style>

@@ -22,13 +22,17 @@ export const useUserStore = defineStore(
 
     async function login(credentials: LoginDto) {
       const res = await authApi.login(credentials)
-      token.value = res.accessToken
-      refreshToken.value = res.refreshToken
-      userInfo.value = res.user
+      if (res.data) {
+        token.value = res.data.accessToken
+        refreshToken.value = res.data.refreshToken
+        userInfo.value = res.data.user
+      }
       return res
     }
 
     function logout() {
+      // Fire-and-forget: 通知服务器将 token 加入黑名单
+      authApi.logout().catch(() => {})
       token.value = null
       refreshToken.value = null
       userInfo.value = null
@@ -41,9 +45,13 @@ export const useUserStore = defineStore(
       }
       try {
         const res = await authApi.refreshToken(refreshToken.value)
-        token.value = res.accessToken
-        refreshToken.value = res.refreshToken
-        return res.accessToken
+        if (res.data) {
+          token.value = res.data.accessToken
+          refreshToken.value = res.data.refreshToken
+          return res.data.accessToken
+        }
+        logout()
+        return null
       } catch {
         logout()
         return null
@@ -65,7 +73,7 @@ export const useUserStore = defineStore(
     persist: {
       key: 'crm-user',
       storage: localStorage,
-      pick: ['token', 'refreshToken', 'userInfo'],
+      paths: ['token', 'refreshToken', 'userInfo'],
     },
   },
 )

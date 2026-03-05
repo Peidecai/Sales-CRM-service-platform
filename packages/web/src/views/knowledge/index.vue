@@ -25,9 +25,9 @@
             <el-icon><Folder /></el-icon>
             <span>{{ cat.name }}</span>
             <el-popconfirm
-              title="Confirm delete this category?"
-              confirm-button-text="OK"
-              cancel-button-text="Cancel"
+              title="确定要删除该分类吗？"
+              confirm-button-text="确定"
+              cancel-button-text="取消"
               @confirm.stop="handleDeleteCategory(cat.id)"
             >
               <template #reference>
@@ -83,6 +83,10 @@
             </el-form-item>
           </el-form>
           <div class="toolbar-right">
+            <el-button type="success" @click="handleOpenAskDrawer">
+              <el-icon><ChatDotSquare /></el-icon>
+              AI 问答
+            </el-button>
             <el-button type="primary" @click="handleCreateArticle">
               <el-icon><Plus /></el-icon>
               新建文章
@@ -93,7 +97,18 @@
         <!-- Article Table -->
         <el-card shadow="never" class="table-card">
           <el-table v-loading="loading" :data="tableData" row-key="id" stripe style="width: 100%">
-            <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
+            <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip>
+              <template #default="{ row }">
+                <el-button
+                  type="primary"
+                  link
+                  size="small"
+                  @click="$router.push(`/knowledge/${row.id}`)"
+                >
+                  {{ row.title }}
+                </el-button>
+              </template>
+            </el-table-column>
             <el-table-column prop="categoryId" label="分类" min-width="100">
               <template #default="{ row }">
                 {{ getCategoryName(row.categoryId) }}
@@ -120,9 +135,9 @@
                   编辑
                 </el-button>
                 <el-popconfirm
-                  title="Confirm delete this article?"
-                  confirm-button-text="OK"
-                  cancel-button-text="Cancel"
+                  title="确定要删除该文章吗？"
+                  confirm-button-text="确定"
+                  cancel-button-text="取消"
                   @confirm="handleDeleteArticle(row.id)"
                 >
                   <template #reference>
@@ -131,6 +146,13 @@
                 </el-popconfirm>
               </template>
             </el-table-column>
+            <template #empty>
+              <el-empty description="暂无文章" :image-size="80">
+                <el-button type="primary" size="small" @click="handleCreateArticle">
+                  新建文章
+                </el-button>
+              </el-empty>
+            </template>
           </el-table>
 
           <!-- Pagination -->
@@ -261,13 +283,87 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- AI Q&A Drawer -->
+    <el-drawer v-model="askDrawerVisible" title="AI 知识库问答" direction="rtl" size="520px">
+      <div class="ask-drawer-content">
+        <!-- Conversation History -->
+        <div ref="chatContainerRef" class="chat-container">
+          <div v-if="chatHistory.length === 0" class="chat-empty">
+            <el-empty description="暂无对话记录，试着提问吧" :image-size="60" />
+          </div>
+          <div v-for="(msg, idx) in chatHistory" :key="idx" class="chat-message" :class="msg.role">
+            <div class="chat-bubble">
+              <div v-if="msg.role === 'user'" class="chat-text">
+                {{ msg.content }}
+              </div>
+              <template v-else>
+                <div class="chat-text">
+                  {{ msg.content }}
+                </div>
+                <div v-if="msg.sources && msg.sources.length > 0" class="chat-sources">
+                  <div class="chat-sources-label">参考来源：</div>
+                  <div
+                    v-for="(source, sIdx) in msg.sources"
+                    :key="source.articleId"
+                    class="source-chip"
+                    @click="handleViewSourceArticle(source.articleId)"
+                  >
+                    [{{ sIdx + 1 }}] {{ source.title }}
+                    <span class="source-similarity"
+                      >{{ Math.round(source.similarity * 100) }}%</span
+                    >
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+          <!-- Loading indicator -->
+          <div v-if="askLoading" class="chat-message assistant">
+            <div class="chat-bubble">
+              <el-skeleton :rows="2" animated />
+            </div>
+          </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="chat-input-area">
+          <el-input
+            v-model="askQuestion"
+            type="textarea"
+            :rows="3"
+            placeholder="输入你的问题..."
+            resize="none"
+            @keydown.ctrl.enter="handleAskSubmit"
+          />
+          <div class="chat-input-actions">
+            <el-button text type="danger" size="small" @click="handleClearHistory">
+              清空记录
+            </el-button>
+            <div class="chat-input-right">
+              <span class="ask-hint">Ctrl+Enter 发送</span>
+              <el-button
+                type="primary"
+                :loading="askLoading"
+                :disabled="!askQuestion.trim()"
+                @click="handleAskSubmit"
+              >
+                提问
+              </el-button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { Plus, Files, Folder, Delete } from '@element-plus/icons-vue'
+import { Plus, Files, Folder, Delete, ChatDotSquare } from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/user'
 import {
   knowledgeApi,
   type ArticleVO,
@@ -275,6 +371,9 @@ import {
   type CreateArticleParams,
   type UpdateArticleParams,
 } from '@/api/knowledge'
+
+const userStore = useUserStore()
+const router = useRouter()
 
 // ---- Helpers ----
 
@@ -479,7 +578,7 @@ async function handleSubmitArticle() {
         title: articleForm.title,
         content: articleForm.content,
         categoryId: articleForm.categoryId,
-        authorId: 1, // Placeholder: replace with actual auth user id
+        authorId: userStore.userInfo?.id ?? 1,
         tags: tags.length > 0 ? tags : undefined,
         isPublished: articleForm.isPublished,
       }
@@ -564,6 +663,117 @@ async function handleSubmitCategory() {
   } finally {
     categorySubmitLoading.value = false
   }
+}
+
+// ---- AI Q&A Drawer with Conversation History ----
+
+const CHAT_STORAGE_KEY = 'crm-knowledge-chat-history'
+
+interface ChatSource {
+  articleId: number
+  title: string
+  similarity: number
+}
+
+interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+  sources?: ChatSource[]
+  timestamp: number
+}
+
+const askDrawerVisible = ref(false)
+const askQuestion = ref('')
+const askLoading = ref(false)
+const chatContainerRef = ref<HTMLDivElement>()
+
+// Load chat history from localStorage
+function loadChatHistory(): ChatMessage[] {
+  try {
+    const raw = localStorage.getItem(CHAT_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as ChatMessage[]
+      // Keep only last 50 messages to prevent storage bloat
+      return parsed.slice(-50)
+    }
+  } catch {
+    // Corrupted data — reset
+  }
+  return []
+}
+
+function saveChatHistory() {
+  try {
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chatHistory.value.slice(-50)))
+  } catch {
+    // Storage full — silently fail
+  }
+}
+
+const chatHistory = ref<ChatMessage[]>(loadChatHistory())
+
+function scrollToBottom() {
+  nextTick(() => {
+    if (chatContainerRef.value) {
+      chatContainerRef.value.scrollTop = chatContainerRef.value.scrollHeight
+    }
+  })
+}
+
+function handleOpenAskDrawer() {
+  askQuestion.value = ''
+  askDrawerVisible.value = true
+  scrollToBottom()
+}
+
+async function handleAskSubmit() {
+  const question = askQuestion.value.trim()
+  if (!question) return
+
+  // Add user message
+  chatHistory.value.push({
+    role: 'user',
+    content: question,
+    timestamp: Date.now(),
+  })
+  askQuestion.value = ''
+  saveChatHistory()
+  scrollToBottom()
+
+  askLoading.value = true
+  try {
+    const res = await knowledgeApi.askQuestion({ question })
+    if (res?.data) {
+      chatHistory.value.push({
+        role: 'assistant',
+        content: res.data.answer,
+        sources: res.data.sources,
+        timestamp: Date.now(),
+      })
+      saveChatHistory()
+    }
+  } catch {
+    chatHistory.value.push({
+      role: 'assistant',
+      content: '抱歉，获取回答时出现错误，请稍后重试。',
+      timestamp: Date.now(),
+    })
+    saveChatHistory()
+  } finally {
+    askLoading.value = false
+    scrollToBottom()
+  }
+}
+
+function handleClearHistory() {
+  chatHistory.value = []
+  localStorage.removeItem(CHAT_STORAGE_KEY)
+}
+
+async function handleViewSourceArticle(articleId: number) {
+  // Navigate to the article detail page
+  askDrawerVisible.value = false
+  router.push(`/knowledge/${articleId}`)
 }
 
 // ---- Init ----
@@ -677,6 +887,7 @@ onMounted(async () => {
 .toolbar-right {
   display: flex;
   align-items: center;
+  gap: 8px;
 }
 
 .table-card :deep(.el-card__body) {
@@ -691,5 +902,126 @@ onMounted(async () => {
   display: flex;
   justify-content: flex-end;
   padding: 16px;
+}
+
+/* AI Q&A Drawer — Chat Style */
+.ask-drawer-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.chat-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 4px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chat-empty {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  opacity: 0.6;
+}
+
+.chat-message {
+  display: flex;
+}
+
+.chat-message.user {
+  justify-content: flex-end;
+}
+
+.chat-message.assistant {
+  justify-content: flex-start;
+}
+
+.chat-bubble {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+.chat-message.user .chat-bubble {
+  background: #409eff;
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-message.assistant .chat-bubble {
+  background: #f5f7fa;
+  color: #303133;
+  border-bottom-left-radius: 4px;
+}
+
+.chat-text {
+  white-space: pre-wrap;
+}
+
+.chat-sources {
+  margin-top: 8px;
+  border-top: 1px solid #e4e7ed;
+  padding-top: 8px;
+}
+
+.chat-sources-label {
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 4px;
+}
+
+.source-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  margin: 2px 4px 2px 0;
+  background: #ecf5ff;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #409eff;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.source-chip:hover {
+  background: #d9ecff;
+}
+
+.source-chip .source-similarity {
+  color: #909399;
+  font-size: 11px;
+}
+
+.chat-input-area {
+  border-top: 1px solid #e4e7ed;
+  padding-top: 12px;
+  flex-shrink: 0;
+}
+
+.chat-input-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.chat-input-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ask-hint {
+  font-size: 12px;
+  color: #909399;
 }
 </style>

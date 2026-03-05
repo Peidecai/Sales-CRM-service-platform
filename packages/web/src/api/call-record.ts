@@ -1,5 +1,12 @@
 import request from './request'
 
+// Embedded opportunity summary (from backend eager-load)
+export interface CallRecordOpportunity {
+  id: number
+  title: string
+  stage: string
+}
+
 // Call record VO returned from backend
 export interface CallRecordVO {
   id: number
@@ -14,6 +21,7 @@ export interface CallRecordVO {
   createdAt: string
   updatedAt: string
   deleted: boolean
+  opportunity?: CallRecordOpportunity | null
 }
 
 // Query params
@@ -40,6 +48,11 @@ export interface CreateCallRecordParams {
 
 // Update params (all optional)
 export type UpdateCallRecordParams = Partial<CreateCallRecordParams>
+
+// Summarize result
+export interface SummarizeResult {
+  jobId: string
+}
 
 // Stats
 export interface CallRecordStats {
@@ -86,5 +99,20 @@ export const callRecordApi = {
 
   getStats(userId?: number): Promise<ApiResponse<CallRecordStats>> {
     return request.get('/call-records/stats', { params: userId ? { userId } : {} })
+  },
+
+  summarize(id: number): Promise<ApiResponse<SummarizeResult>> {
+    return request.post(`/call-records/${id}/summarize`)
+  },
+
+  /**
+   * Export all call records as CSV.
+   * Returns a Blob since the backend sends raw CSV (not JSON-wrapped).
+   */
+  async exportCsv(): Promise<Blob> {
+    const response = await request.get('/call-records/export', {
+      responseType: 'blob',
+    })
+    return response as unknown as Blob
   },
 }
