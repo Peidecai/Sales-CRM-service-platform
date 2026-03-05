@@ -1,4 +1,5 @@
 import request from './request'
+import type { ApiResponse, PageResult } from './types'
 
 // ---- Interfaces ----
 
@@ -68,19 +69,6 @@ export interface CreateCategoryParams {
   parentId?: number
   sort?: number
   description?: string
-}
-
-export interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T | null
-}
-
-export interface PageResult<T> {
-  list: T[]
-  total: number
-  page: number
-  pageSize: number
 }
 
 // ---- Article APIs ----

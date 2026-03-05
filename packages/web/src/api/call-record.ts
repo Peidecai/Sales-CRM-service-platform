@@ -1,4 +1,5 @@
 import request from './request'
+import type { ApiResponse, PageResult } from './types'
 
 // Embedded opportunity summary (from backend eager-load)
 export interface CallRecordOpportunity {
@@ -59,21 +60,6 @@ export interface CallRecordStats {
   totalCount: number
   totalDuration: number
   weekCount: number
-}
-
-// API response wrapper
-export interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T | null
-}
-
-// Paginated result
-export interface PageResult<T> {
-  list: T[]
-  total: number
-  page: number
-  pageSize: number
 }
 
 export const callRecordApi = {

@@ -1,4 +1,5 @@
 import request from './request'
+import type { ApiResponse } from './types'
 
 export interface LoginDto {
   username: string
@@ -37,12 +38,6 @@ export interface UpdateProfileDto {
 export interface ChangePasswordDto {
   oldPassword: string
   newPassword: string
-}
-
-export interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T | null
 }
 
 export const authApi = {

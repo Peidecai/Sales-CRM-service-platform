@@ -1,14 +1,8 @@
 import request from './request'
+import type { ApiResponse, PageResult } from './types'
+import { OpportunityStage } from '@crm/shared'
 
-// Opportunity stage enum matching backend
-export enum OpportunityStage {
-  LEAD = 'lead',
-  QUALIFIED = 'qualified',
-  PROPOSAL = 'proposal',
-  NEGOTIATION = 'negotiation',
-  CLOSED_WON = 'closed_won',
-  CLOSED_LOST = 'closed_lost',
-}
+export { OpportunityStage }
 
 // Opportunity VO returned from backend
 export interface OpportunityVO {
@@ -61,21 +55,6 @@ export interface OpportunityStageStats {
   stage: OpportunityStage
   count: number
   totalAmount: number
-}
-
-// API response wrapper
-export interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T | null
-}
-
-// Paginated result
-export interface PageResult<T> {
-  list: T[]
-  total: number
-  page: number
-  pageSize: number
 }
 
 export const opportunityApi = {

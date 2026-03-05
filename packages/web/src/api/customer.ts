@@ -1,14 +1,8 @@
 import request from './request'
+import type { ApiResponse, PageResult } from './types'
+import { CustomerStatus } from '@crm/shared'
 
-// Customer status enum matching backend
-export enum CustomerStatus {
-  POTENTIAL = 'potential',
-  FOLLOWING = 'following',
-  NEGOTIATING = 'negotiating',
-  SIGNED = 'signed',
-  LOST = 'lost',
-  INACTIVE = 'inactive',
-}
+export { CustomerStatus }
 
 // Customer VO returned from backend
 export interface CustomerVO {
@@ -53,21 +47,6 @@ export interface CreateCustomerParams {
 
 // Update params (all optional)
 export type UpdateCustomerParams = Partial<CreateCustomerParams>
-
-// API response wrapper
-export interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T | null
-}
-
-// Paginated result
-export interface PageResult<T> {
-  list: T[]
-  total: number
-  page: number
-  pageSize: number
-}
 
 // Import result
 export interface ImportResult {

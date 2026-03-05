@@ -1,4 +1,5 @@
 import request from './request'
+import type { ApiResponse, PageResult } from './types'
 
 export enum AuditAction {
   CREATE = 'CREATE',
@@ -25,19 +26,6 @@ export interface AuditLogQueryParams {
   userId?: number
   resource?: string
   action?: AuditAction
-}
-
-export interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T | null
-}
-
-export interface PageResult<T> {
-  list: T[]
-  total: number
-  page: number
-  pageSize: number
 }
 
 export const auditLogApi = {

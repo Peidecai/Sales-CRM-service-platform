@@ -1,11 +1,8 @@
 import request from './request'
+import type { ApiResponse, PageResult } from './types'
+import { UserRole } from '@crm/shared'
 
-// User role enum matching backend
-export enum UserRole {
-  ADMIN = 'admin',
-  MANAGER = 'manager',
-  SALES = 'sales',
-}
+export { UserRole }
 
 // User VO returned from backend
 export interface UserVO {
@@ -46,21 +43,6 @@ export interface UpdateUserParams {
   phone?: string
   isActive?: boolean
   password?: string
-}
-
-// API response wrapper
-export interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T | null
-}
-
-// Paginated result
-export interface PageResult<T> {
-  list: T[]
-  total: number
-  page: number
-  pageSize: number
 }
 
 export const userApi = {
