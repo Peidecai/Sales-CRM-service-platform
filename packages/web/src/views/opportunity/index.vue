@@ -33,6 +33,17 @@
         </el-form-item>
       </el-form>
       <div class="toolbar-right">
+        <!-- View Toggle -->
+        <el-radio-group v-model="viewMode" size="small">
+          <el-radio-button value="table">
+            <el-icon><Grid /></el-icon>
+            列表
+          </el-radio-button>
+          <el-radio-button value="kanban">
+            <el-icon><Operation /></el-icon>
+            看板
+          </el-radio-button>
+        </el-radio-group>
         <el-button v-if="isAdminOrManager" :loading="exportLoading" @click="handleExport">
           <el-icon><Download /></el-icon>
           导出
@@ -44,8 +55,8 @@
       </div>
     </el-card>
 
-    <!-- Table -->
-    <el-card shadow="never" class="table-card">
+    <!-- ==================== TABLE VIEW ==================== -->
+    <el-card v-if="viewMode === 'table'" shadow="never" class="table-card">
       <el-table v-loading="loading" :data="tableData" row-key="id" stripe style="width: 100%">
         <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip sortable>
           <template #default="{ row }">
@@ -97,7 +108,7 @@
             />
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="190" fixed="right">
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
             <el-button
               type="primary"
@@ -145,6 +156,67 @@
         />
       </div>
     </el-card>
+
+    <!-- ==================== KANBAN VIEW ==================== -->
+    <div v-if="viewMode === 'kanban'" v-loading="kanbanLoading" class="kanban-container">
+      <div v-for="col in kanbanColumns" :key="col.stage" class="kanban-column">
+        <!-- Column Header -->
+        <div class="kanban-column-header" :style="{ borderTopColor: col.color }">
+          <div class="column-title">
+            <el-tag :type="getStageTagType(col.stage)" size="small" effect="dark">
+              {{ col.label }}
+            </el-tag>
+            <span class="column-count">{{ col.items.length }}</span>
+          </div>
+          <div class="column-amount">¥{{ formatAmount(col.totalAmount) }}</div>
+        </div>
+
+        <!-- Column Body (Cards) -->
+        <div
+          class="kanban-column-body"
+          :data-stage="col.stage"
+          @dragover.prevent
+          @dragenter.prevent="onDragEnter($event, col.stage)"
+          @dragleave="onDragLeave($event)"
+          @drop="onDrop($event, col.stage)"
+        >
+          <div
+            v-for="item in col.items"
+            :key="item.id"
+            class="kanban-card"
+            draggable="true"
+            @dragstart="onDragStart($event, item)"
+            @dragend="onDragEnd"
+          >
+            <div class="card-title" @click="$router.push(`/opportunity/${item.id}`)">
+              {{ item.title }}
+            </div>
+            <div class="card-customer">
+              <el-icon><User /></el-icon>
+              <span>{{ customerMap[item.customerId] ?? `客户#${item.customerId}` }}</span>
+            </div>
+            <div class="card-meta">
+              <span class="card-amount">¥{{ formatAmount(item.amount) }}</span>
+              <el-progress
+                :percentage="item.probability"
+                :status="getProbabilityStatus(item.probability)"
+                :stroke-width="6"
+                :show-text="false"
+                style="width: 60px"
+              />
+              <span class="card-probability">{{ item.probability }}%</span>
+            </div>
+            <div v-if="item.expectedCloseDate" class="card-date">
+              <el-icon><Calendar /></el-icon>
+              {{ item.expectedCloseDate }}
+            </div>
+          </div>
+
+          <!-- Empty State -->
+          <div v-if="col.items.length === 0" class="kanban-empty">暂无商机</div>
+        </div>
+      </div>
+    </div>
 
     <!-- Create / Edit Dialog -->
     <el-dialog
@@ -294,10 +366,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { Plus, Download } from '@element-plus/icons-vue'
+import { Plus, Download, Grid, Operation, User, Calendar } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import {
   opportunityApi,
@@ -315,6 +387,9 @@ const route = useRoute()
 const userStore = useUserStore()
 const { isAdminOrManager } = usePermission()
 
+// ---- View Mode ----
+const viewMode = ref<'table' | 'kanban'>('table')
+
 // ---- Stage helpers ----
 interface StageOption {
   value: OpportunityStage
@@ -330,6 +405,15 @@ const stageOptions: StageOption[] = [
   { value: OpportunityStage.CLOSED_LOST, label: '丢单' },
 ]
 
+const stageColors: Record<string, string> = {
+  [OpportunityStage.LEAD]: '#909399',
+  [OpportunityStage.QUALIFIED]: '#e6a23c',
+  [OpportunityStage.PROPOSAL]: '#409eff',
+  [OpportunityStage.NEGOTIATION]: '#e6a23c',
+  [OpportunityStage.CLOSED_WON]: '#67c23a',
+  [OpportunityStage.CLOSED_LOST]: '#f56c6c',
+}
+
 function getProbabilityStatus(probability: number): '' | 'success' | 'exception' {
   if (probability >= 100) return 'success'
   if (probability === 0) return 'exception'
@@ -344,7 +428,6 @@ async function resolveCustomerNames(ids: number[]) {
   if (uniqueIds.length === 0) return
 
   try {
-    // Fetch customer list matching IDs by loading a page to get names
     const res = await customerApi.getList({ page: 1, pageSize: 100 })
     if (res?.data) {
       for (const c of res.data.list) {
@@ -407,7 +490,6 @@ async function fetchList() {
     if (res && res.data) {
       tableData.value = res.data.list
       pagination.total = res.data.total
-      // Resolve customer names
       const ids = res.data.list.map((o) => o.customerId)
       resolveCustomerNames(ids)
     }
@@ -423,6 +505,9 @@ function handleSearch() {
   searchTimer = setTimeout(() => {
     pagination.page = 1
     fetchList()
+    if (viewMode.value === 'kanban') {
+      fetchKanbanData()
+    }
   }, 300)
 }
 
@@ -431,6 +516,9 @@ function handleReset() {
   searchForm.stage = undefined
   pagination.page = 1
   fetchList()
+  if (viewMode.value === 'kanban') {
+    fetchKanbanData()
+  }
 }
 
 function handlePageChange(page: number) {
@@ -443,6 +531,138 @@ function handleSizeChange(size: number) {
   pagination.page = 1
   fetchList()
 }
+
+// ==================== KANBAN LOGIC ====================
+
+interface KanbanColumn {
+  stage: OpportunityStage
+  label: string
+  color: string
+  items: OpportunityVO[]
+  totalAmount: number
+}
+
+const kanbanLoading = ref(false)
+const kanbanAllItems = ref<OpportunityVO[]>([])
+
+const kanbanColumns = computed<KanbanColumn[]>(() => {
+  const activeStages = [
+    OpportunityStage.LEAD,
+    OpportunityStage.QUALIFIED,
+    OpportunityStage.PROPOSAL,
+    OpportunityStage.NEGOTIATION,
+    OpportunityStage.CLOSED_WON,
+    OpportunityStage.CLOSED_LOST,
+  ]
+
+  return activeStages.map((stage) => {
+    const opt = stageOptions.find((o) => o.value === stage)
+    const items = kanbanAllItems.value.filter((item) => item.stage === stage)
+    const totalAmount = items.reduce((sum, item) => sum + Number(item.amount || 0), 0)
+    return {
+      stage,
+      label: opt?.label ?? stage,
+      color: stageColors[stage] ?? '#909399',
+      items,
+      totalAmount,
+    }
+  })
+})
+
+async function fetchKanbanData() {
+  kanbanLoading.value = true
+  try {
+    // Fetch all opportunities (large page) for kanban board
+    const res = await opportunityApi.getList({
+      page: 1,
+      pageSize: 500,
+      keyword: searchForm.keyword || undefined,
+    })
+    if (res?.data) {
+      kanbanAllItems.value = res.data.list
+      const ids = res.data.list.map((o) => o.customerId)
+      resolveCustomerNames(ids)
+    }
+  } catch {
+    // Error handled by request interceptor
+  } finally {
+    kanbanLoading.value = false
+  }
+}
+
+// Drag-and-drop state
+let dragItem: OpportunityVO | null = null
+
+function onDragStart(e: DragEvent, item: OpportunityVO) {
+  dragItem = item
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(item.id))
+  }
+  // Add dragging class after a tick
+  const target = e.target as HTMLElement
+  requestAnimationFrame(() => {
+    target.classList.add('is-dragging')
+  })
+}
+
+function onDragEnd(e: DragEvent) {
+  const target = e.target as HTMLElement
+  target.classList.remove('is-dragging')
+  dragItem = null
+  // Remove all drag-over highlights
+  document.querySelectorAll('.kanban-column-body.drag-over').forEach((el) => {
+    el.classList.remove('drag-over')
+  })
+}
+
+function onDragEnter(e: DragEvent, _stage: OpportunityStage) {
+  const target = e.currentTarget as HTMLElement
+  target.classList.add('drag-over')
+}
+
+function onDragLeave(e: DragEvent) {
+  const target = e.currentTarget as HTMLElement
+  // Only remove if actually leaving the container
+  const related = e.relatedTarget as HTMLElement | null
+  if (related && target.contains(related)) return
+  target.classList.remove('drag-over')
+}
+
+async function onDrop(e: DragEvent, targetStage: OpportunityStage) {
+  e.preventDefault()
+  const target = e.currentTarget as HTMLElement
+  target.classList.remove('drag-over')
+
+  if (!dragItem || dragItem.stage === targetStage) return
+
+  const itemId = dragItem.id
+  const previousStage = dragItem.stage
+
+  // Optimistic update
+  dragItem.stage = targetStage
+  dragItem = null
+
+  try {
+    await opportunityApi.updateStage(itemId, { stage: targetStage })
+    ElMessage.success(`商机阶段已更新为「${getStageLabel(targetStage)}」`)
+    // Refresh table data too
+    fetchList()
+  } catch {
+    // Revert on failure
+    const item = kanbanAllItems.value.find((i) => i.id === itemId)
+    if (item) {
+      item.stage = previousStage
+    }
+  }
+}
+
+// Watch view mode to load data
+watch(viewMode, (mode) => {
+  if (mode === 'kanban') {
+    fetchKanbanData()
+  }
+})
 
 // ---- Create / Edit Dialog ----
 const dialogVisible = ref(false)
@@ -484,13 +704,11 @@ function handleCreate() {
   editId.value = null
   dialogTitle.value = '新建商机'
   const form = defaultForm()
-  // Check if coming from customer detail page
   const createForCustomer = route.query.createForCustomer
   if (createForCustomer) {
     form.customerId = Number(createForCustomer)
   }
   Object.assign(formData, form)
-  // Pre-load customer options
   searchCustomers('')
   dialogVisible.value = true
 }
@@ -508,7 +726,6 @@ function handleEdit(row: OpportunityVO) {
     probability: row.probability ?? 10,
     description: row.description ?? '',
   })
-  // Set customer options for the current customer
   customerApi
     .getDetail(row.customerId)
     .then((res) => {
@@ -559,6 +776,9 @@ async function handleSubmit() {
     }
     dialogVisible.value = false
     fetchList()
+    if (viewMode.value === 'kanban') {
+      fetchKanbanData()
+    }
   } catch {
     // Error handled by request interceptor
   } finally {
@@ -613,6 +833,9 @@ async function handleStageSubmit() {
     ElMessage.success('阶段更新成功')
     stageDialogVisible.value = false
     fetchList()
+    if (viewMode.value === 'kanban') {
+      fetchKanbanData()
+    }
   } catch {
     // Error handled by request interceptor
   } finally {
@@ -629,6 +852,9 @@ async function handleDelete(id: number) {
       pagination.page -= 1
     }
     fetchList()
+    if (viewMode.value === 'kanban') {
+      fetchKanbanData()
+    }
   } catch {
     // Error handled by request interceptor
   }
@@ -637,7 +863,6 @@ async function handleDelete(id: number) {
 // ---- Init ----
 onMounted(() => {
   fetchList()
-  // Check if should auto-open create dialog from customer page
   if (route.query.createForCustomer) {
     handleCreate()
   }
@@ -683,5 +908,157 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   padding: 16px;
+}
+
+/* ==================== KANBAN STYLES ==================== */
+.kanban-container {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  min-height: 500px;
+}
+
+.kanban-column {
+  flex: 0 0 280px;
+  display: flex;
+  flex-direction: column;
+  background: #f5f7fa;
+  border-radius: 8px;
+  border-top: 3px solid #dcdfe6;
+  min-height: 400px;
+}
+
+.kanban-column-header {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e4e7ed;
+  background: #fff;
+  border-radius: 8px 8px 0 0;
+}
+
+.column-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.column-count {
+  font-size: 12px;
+  color: #909399;
+  background: #ebeef5;
+  padding: 0 6px;
+  border-radius: 10px;
+  line-height: 18px;
+}
+
+.column-amount {
+  font-size: 13px;
+  color: #606266;
+  font-weight: 500;
+}
+
+.kanban-column-body {
+  flex: 1;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  max-height: calc(100vh - 280px);
+  transition: background-color 0.2s;
+}
+
+.kanban-column-body.drag-over {
+  background-color: #ecf5ff;
+  border-radius: 0 0 8px 8px;
+}
+
+.kanban-card {
+  background: #fff;
+  border-radius: 6px;
+  padding: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  cursor: grab;
+  transition:
+    box-shadow 0.2s,
+    opacity 0.2s,
+    transform 0.15s;
+  border: 1px solid transparent;
+}
+
+.kanban-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  border-color: #c6e2ff;
+}
+
+.kanban-card.is-dragging {
+  opacity: 0.5;
+  transform: rotate(2deg);
+  cursor: grabbing;
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+  margin-bottom: 8px;
+  cursor: pointer;
+  word-break: break-all;
+}
+
+.card-title:hover {
+  color: #409eff;
+}
+
+.card-customer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 8px;
+}
+
+.card-customer .el-icon {
+  font-size: 12px;
+}
+
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.card-amount {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e6a23c;
+}
+
+.card-probability {
+  font-size: 11px;
+  color: #909399;
+}
+
+.card-date {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #c0c4cc;
+  margin-top: 4px;
+}
+
+.card-date .el-icon {
+  font-size: 12px;
+}
+
+.kanban-empty {
+  text-align: center;
+  padding: 32px 0;
+  color: #c0c4cc;
+  font-size: 13px;
 }
 </style>
