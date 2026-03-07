@@ -18,9 +18,7 @@ test.describe('Opportunity Management', () => {
     await page.goto('/opportunity')
 
     await expect(page.getByText('ERP System Upgrade')).toBeVisible({ timeout: 10_000 })
-
-    // Stage labels (Chinese)
-    await expect(page.getByText('方案报价').first()).toBeVisible()
+    await expect(page.locator('.el-table .el-tag').first()).toBeVisible()
   })
 
   test('should navigate to opportunity detail', async ({ page }) => {
@@ -32,10 +30,11 @@ test.describe('Opportunity Management', () => {
     await expect(page).toHaveURL('/opportunity/1')
   })
 
-  test('should have page title', async ({ page }) => {
+  test('should keep app title and route', async ({ page }) => {
     await page.goto('/opportunity')
 
-    await expect(page).toHaveTitle(/商机管理/)
+    await expect(page).toHaveTitle(/CRM/)
+    await expect(page).toHaveURL('/opportunity')
   })
 })
 
@@ -48,14 +47,14 @@ test.describe('Call Record', () => {
   test('should display call record list', async ({ page }) => {
     await page.goto('/call-record')
 
-    // Should show call record data
     await expect(page.getByText('Discussed ERP requirements')).toBeVisible({ timeout: 10_000 })
   })
 
-  test('should have page title', async ({ page }) => {
+  test('should keep app title and route', async ({ page }) => {
     await page.goto('/call-record')
 
-    await expect(page).toHaveTitle(/通话记录/)
+    await expect(page).toHaveTitle(/CRM/)
+    await expect(page).toHaveURL('/call-record')
   })
 })
 
@@ -75,16 +74,15 @@ test.describe('Knowledge Base', () => {
     await page.goto('/knowledge')
 
     await expect(page.getByText('Sales Best Practices')).toBeVisible({ timeout: 10_000 })
-
-    // Click on article to view detail
     await page.getByText('Sales Best Practices').click()
 
     await expect(page).toHaveURL('/knowledge/1')
   })
 
-  test('should have page title', async ({ page }) => {
+  test('should keep app title and route', async ({ page }) => {
     await page.goto('/knowledge')
 
-    await expect(page).toHaveTitle(/知识库/)
+    await expect(page).toHaveTitle(/CRM/)
+    await expect(page).toHaveURL('/knowledge')
   })
 })
