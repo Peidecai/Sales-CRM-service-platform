@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { BullModule } from '@nestjs/bull'
 import { ThrottlerModule } from '@nestjs/throttler'
+import { ScheduleModule } from '@nestjs/schedule'
 import { databaseConfig } from './config/database.config'
 import { RedisModule } from './common/redis'
 import { AuthModule } from './modules/auth/auth.module'
@@ -53,6 +54,9 @@ import { NotificationModule } from './modules/notification/notification.module'
       }),
       inject: [ConfigService],
     }),
+
+    // Scheduled tasks
+    ScheduleModule.forRoot(),
 
     // Feature Modules
     AuditLogModule,
