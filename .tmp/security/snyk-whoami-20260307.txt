@@ -1,0 +1,101 @@
+2026-03-07T05:27:33.754Z: Executing: C:\Users\Administrator\AppData\Local\pnpm-cache\dlx\6b1607d9111bce07acbd27efaea56c19e95a20cbb4ffb14538a1abdfe1d950f0\19cc65aea92-64b4\node_modules\snyk\wrapper_dist\snyk-win.exe
+2026-03-07T05:27:33Z main - ⚠️ WARNING: Potentially Sensitive Information ⚠️
+These logs may contain sensitive data, including secrets or passwords. Snyk applies automated safeguards to redact commonly recognized secrets; however, full coverage cannot be guaranteed. We strongly recommend that you carefully review the logs before sharing to ensure no confidential or proprietary information is included.
+2026-03-07T05:27:33Z main - Using log level: debug
+2026-03-07T05:27:35Z main - > request [0xc0004217c0]: GET https://api.snyk.io/rest/self?version=2024-04-22
+2026-03-07T05:27:35Z main - > request [0xc0004217c0]: header: map[Authorization:[Bearer ***] Session-Token:[Bearer ***] Snyk-Interaction-Id:[urn:snyk:interaction:d7b6daf7-42dc-4f11-a485-4eb8c990222d] Snyk-Request-Id:[eeb306bb-2b28-4043-bdc8-0329c70a269e] User-Agent:[snyk-cli/1.1303.1 (windows;amd64) TS_BINARY_WRAPPER/1.1303.1 (node/25.2.1)] X-Snyk-Cli-Version:[1.1303.1]]
+2026-03-07T05:27:35Z main - < response [0xc000421900]: 200 OK
+2026-03-07T05:27:35Z main - < response [0xc000421900]: header: map[Akamai-Cache-Status:[Miss from child] Akamai-Grn:[0.640ed217.1772861254.207f7e0f] Content-Length:[485] Content-Type:[application/vnd.api+json; charset=utf-8] Date:[Sat, 07 Mar 2026 05:27:34 GMT] Deprecation:[2024-05-31] Server:[envoy] Snyk-Request-Id:[eeb306bb-2b28-4043-bdc8-0329c70a269e] Snyk-Version-Lifecycle-Stage:[ga] Snyk-Version-Requested:[2024-04-22] Snyk-Version-Served:[2024-04-22] Strict-Transport-Security:[max-age=31536000; preload] Sunset:[2024-10-19] Vary:[Accept-Encoding] X-Content-Type-Options:[nosniff] X-Envoy-Upstream-Service-Time:[14] X-Frame-Options:[SAMEORIGIN] X-Ratelimit-Limit:[160, 160;w=1;name="crd|generic_key^api-gateway.api-rest|generic_key^per_second|principal_id|ratelimit_bucket^high", 1620;w=60;name="crd|generic_key^api-gateway.api-rest|generic_key^per_minute|principal_id|ratelimit_bucket^high", 97200;w=3600;name="crd|generic_key^api-gateway.api-rest|generic_key^per_hour|principal_id|ratelimit_bucket^high"] X-Ratelimit-Remaining:[159] X-Ratelimit-Reset:[1]]
+2026-03-07T05:27:35Z main - Version:               1.1303.1 
+2026-03-07T05:27:35Z main - Platform:              windows amd64  TS_BINARY_WRAPPER/1.1303.1  node/25.2.1
+2026-03-07T05:27:35Z main - API:                   https://api.snyk.io
+2026-03-07T05:27:35Z main - Region:                snyk-us-01
+2026-03-07T05:27:35Z main - Cache:                 C:\Users\Administrator\AppData\Local/snyk/snyk-cli
+2026-03-07T05:27:35Z main - Organization:          7a199ca3-67b0-4c6d-972c-4da1d27c773f
+2026-03-07T05:27:35Z main - Insecure HTTPS:        false
+2026-03-07T05:27:35Z main - Analytics:             enabled
+2026-03-07T05:27:35Z main - Authorization:         31d1d45d***c5786501  (type=oauth; expiry=2026-03-07 06:23:21.7331114 +0000 UTC)
+2026-03-07T05:27:35Z main - Interaction:           urn:snyk:interaction:d7b6daf7-42dc-4f11-a485-4eb8c990222d
+2026-03-07T05:27:35Z main - Features:              
+2026-03-07T05:27:35Z main -   preview:             disabled
+2026-03-07T05:27:35Z main -   fips:                Not available
+2026-03-07T05:27:35Z main -   request attempts:    1
+2026-03-07T05:27:35Z main -   config cache:        enabled (ttl=no expiration)
+2026-03-07T05:27:35Z main - Checks:                
+2026-03-07T05:27:35Z main -   Configuration:       all good
+2026-03-07T05:27:35Z main - > request [0xc000420140]: GET https://api.snyk.io/rest/orgs/7a199ca3-67b0-4c6d-972c-4da1d27c773f?version=2024-03-12
+2026-03-07T05:27:35Z main - > request [0xc000420140]: header: map[Authorization:[Bearer ***] Session-Token:[Bearer ***] Snyk-Interaction-Id:[urn:snyk:interaction:d7b6daf7-42dc-4f11-a485-4eb8c990222d] Snyk-Request-Id:[1b9c5aaa-438d-4a4f-8209-2f41fb179fe1] User-Agent:[snyk-cli/1.1303.1 (windows;amd64) TS_BINARY_WRAPPER/1.1303.1 (node/25.2.1)] X-Snyk-Cli-Version:[1.1303.1]]
+2026-03-07T05:27:35Z main - < response [0xc000420500]: 200 OK
+2026-03-07T05:27:35Z main - < response [0xc000420500]: header: map[Akamai-Cache-Status:[Miss from child] Akamai-Grn:[0.640ed217.1772861255.207f84f2] Content-Type:[application/vnd.api+json] Date:[Sat, 07 Mar 2026 05:27:35 GMT] Deprecation:[2024-10-15] Server:[envoy] Snyk-Request-Id:[1b9c5aaa-438d-4a4f-8209-2f41fb179fe1] Snyk-Version-Lifecycle-Stage:[ga] Snyk-Version-Requested:[2024-03-12] Snyk-Version-Served:[2023-05-29] Strict-Transport-Security:[max-age=31536000; preload] Sunset:[2024-08-26] Vary:[Accept-Encoding] X-Content-Type-Options:[nosniff] X-Envoy-Upstream-Service-Time:[1] X-Frame-Options:[SAMEORIGIN] X-Ratelimit-Limit:[160, 160;w=1;name="crd|generic_key^api-gateway.api-rest|generic_key^per_second|principal_id|ratelimit_bucket^high", 1620;w=60;name="crd|generic_key^api-gateway.api-rest|generic_key^per_minute|principal_id|ratelimit_bucket^high", 97200;w=3600;name="crd|generic_key^api-gateway.api-rest|generic_key^per_hour|principal_id|ratelimit_bucket^high"] X-Ratelimit-Remaining:[158] X-Ratelimit-Reset:[1]]
+2026-03-07T05:27:35Z main - Running whoami
+2026-03-07T05:27:35Z whoami:1 - Workflow Start
+2026-03-07T05:27:36Z main - > request [0xc0004da500]: GET https://api.snyk.io/rest/self?version=2024-04-22
+2026-03-07T05:27:36Z main - > request [0xc0004da500]: header: map[Authorization:[Bearer ***] Session-Token:[Bearer ***] Snyk-Interaction-Id:[urn:snyk:interaction:d7b6daf7-42dc-4f11-a485-4eb8c990222d] Snyk-Request-Id:[a7150df1-47da-4599-a0dd-edb1748614fa] User-Agent:[snyk-cli/*** (windows;amd64) ***/*** (node/***)] X-Snyk-Cli-Version:[***]]
+2026-03-07T05:27:36Z main - < response [0xc0004da640]: 200 OK
+2026-03-07T05:27:36Z main - < response [0xc0004da640]: header: map[Akamai-Cache-Status:[Miss from child] Akamai-Grn:[0.640ed217.1772861256.207f8bbe] Content-Length:[485] Content-Type:[application/vnd.api+json; charset=utf-8] Date:[Sat, 07 Mar 2026 05:27:36 GMT] Deprecation:[2024-05-31] Server:[envoy] Snyk-Request-Id:[a7150df1-47da-4599-a0dd-edb1748614fa] Snyk-Version-Lifecycle-Stage:[ga] Snyk-Version-Requested:[2024-04-22] Snyk-Version-Served:[2024-04-22] Strict-Transport-Security:[max-age=31536000; preload] Sunset:[2024-10-19] Vary:[Accept-Encoding] X-Content-Type-Options:[nosniff] X-Envoy-Upstream-Service-Time:[19] X-Frame-Options:[SAMEORIGIN] X-Ratelimit-Limit:[160, 160;w=1;name="crd|generic_key^api-gateway.api-rest|generic_key^per_second|principal_id|ratelimit_bucket^high", 1620;w=60;name="crd|generic_key^api-gateway.api-rest|generic_key^per_minute|principal_id|ratelimit_bucket^high", 97200;w=3600;name="crd|generic_key^api-gateway.api-rest|generic_key^per_hour|principal_id|ratelimit_bucket^high"] X-Ratelimit-Remaining:[159] X-Ratelimit-Reset:[1]]
+2026-03-07T05:27:36Z whoami:1 - Workflow End
+2026-03-07T05:27:36Z findings.filter:2 - Workflow Start
+2026-03-07T05:27:36Z findings.filter:2 - Workflow End
+2026-03-07T05:27:36Z output:3 - Workflow Start
+2026-03-07T05:27:36Z output:3 - Available writers (count: 1):
+2026-03-07T05:27:36Z output:3 - WriterMap: (default -> text/cli) 
+2026-03-07T05:27:36Z output:3 - UFM - No data to process
+2026-03-07T05:27:36Z output:3 - LFM - No findings to process
+2026-03-07T05:27:36Z output:3 - Other - Processing 'did://whoami/whoami#746980900' based on 'unknown' of type 'text/plain'
+2026-03-07T05:27:36Z output:3 - Other - Using 'default' writer for: text/plain
+2026-03-07T05:27:36Z output:3 - Other - [default] Rendering text/cli
+Peidecai2026-03-07T05:27:36Z output:3 - Other - [default] Rendering done
+
+2026-03-07T05:27:36Z output:3 - Other - All Rendering done
+2026-03-07T05:27:36Z output:3 - Workflow End
+2026-03-07T05:27:36Z main - Deriving Exit Code 0 (cause: <nil>)
+2026-03-07T05:27:36Z main - Sending Analytics
+2026-03-07T05:27:37Z main - > request [0xc00071b7c0]: POST https://api.snyk.io/v1/analytics/cli?org=7a199ca3-67b0-4c6d-972c-4da1d27c773f
+2026-03-07T05:27:37Z main - > request [0xc00071b7c0]: header: map[Authorization:[Bearer ***] Content-Type:[application/json; charset=utf-8] Session-Token:[Bearer ***] Snyk-Interaction-Id:[urn:snyk:interaction:d7b6daf7-42dc-4f11-a485-4eb8c990222d] Snyk-Request-Id:[aa708a86-b8c0-4d3c-8bcc-182ab971b97d] User-Agent:[snyk-cli/*** (windows;amd64) ***/*** (node/***)] X-Snyk-Cli-Version:[***]]
+2026-03-07T05:27:37Z main - < response [0xc00071b900]: 200 OK
+2026-03-07T05:27:37Z main - < response [0xc00071b900]: header: map[Akamai-Cache-Status:[Miss from child] Akamai-Grn:[0.640ed217.1772861257.207f91cc] Content-Length:[11] Content-Security-Policy:[base-uri https://app.snyk.io; script-src 'self' 'nonce-XkBi43S2swhgUQjLdE7jIA==' 'unsafe-inline' 'unsafe-eval' 'strict-dynamic' 'report-sample'; img-src https: data:; object-src 'none'; frame-ancestors https://app.snyk.io https://learn.snyk.io https://login.snyk.io https://security.snyk.io; report-to csp-report-group; report-uri https://web-reports.snyk.io/csp?version=dc849e619aed6f3fa5de3f77becd2b4f5af35b23;] Content-Type:[application/json; charset=utf-8] Date:[Sat, 07 Mar 2026 05:27:37 GMT] Report-To:[{"group":"csp-report-group","max_age":1800,"endpoints":[{"url":"https://web-reports.snyk.io/csp?version=dc849e619aed6f3fa5de3f77becd2b4f5af35b23"}],"include_subdomains":true}] Snyk-Request-Id:[aa708a86-b8c0-4d3c-8bcc-182ab971b97d] Strict-Transport-Security:[max-age=31536000; preload] Vary:[X-HTTP-Method-Override, Accept-Encoding] X-Content-Type-Options:[nosniff] X-Frame-Options:[SAMEORIGIN] X-Ratelimit-Limit:[200, 200;w=1;name="crd|generic_key^api-gateway.api-v1|generic_key^per_second|principal_id|ratelimit_bucket^high", 2000;w=60;name="crd|generic_key^api-gateway.api-v1|generic_key^per_minute|principal_id|ratelimit_bucket^high", 60000;w=3600;name="crd|generic_key^api-gateway.api-v1|generic_key^per_hour|principal_id|ratelimit_bucket^high"] X-Ratelimit-Remaining:[199] X-Ratelimit-Reset:[1]]
+2026-03-07T05:27:37Z main - Analytics successfully send
+2026-03-07T05:27:37Z main - Sending Instrumentation
+2026-03-07T05:27:37Z analytics.report:4 - Workflow Start
+2026-03-07T05:27:37Z analytics.report:4 - adding command line input
+2026-03-07T05:27:37Z analytics.report:4 - [0] Processing element
+2026-03-07T05:27:37Z analytics.report:4 - [0] Schema Version: 2
+2026-03-07T05:27:37Z analytics.report:4 - [0] Data: {"data":{"attributes":{"interaction":{"categories":["whoami","experimental","debug"],"errors":[],"extension":{"exitcode":0,"network-request-attempts":1},"id":"urn:snyk:interaction:d7b6daf7-42dc-4f11-a485-4eb8c990222d","results":[],"stage":"dev","status":"success","target":{"id":"pkg:git/github.com/Peidecai/Sales-CRM-***-platform@49f1011bf45f3c643b11c1574b8a067d6925357f?branch=develop"},"timestamp_ms":1772861255229,"type":""},"runtime":{"application":{"name":"snyk-cli","version":"***"},"environment":{"name":"node","version":"***"},"integration":{"name":"***","version":"***"},"performance":{"duration_ms":2973},"platform":{"arch":"amd64","os":"windows"}}},"type":""}}
+2026-03-07T05:27:38Z main - > request [0xc0004da3c0]: POST https://api.snyk.io/hidden/orgs/7a199ca3-67b0-4c6d-972c-4da1d27c773f/analytics?version=2024-03-07~experimental
+2026-03-07T05:27:38Z main - > request [0xc0004da3c0]: header: map[Authorization:[Bearer ***] Content-Type:[application/json] Session-Token:[Bearer ***] Snyk-Interaction-Id:[urn:snyk:interaction:d7b6daf7-42dc-4f11-a485-4eb8c990222d] Snyk-Request-Id:[81e6db7f-506b-44e7-a9b1-770ebf4b6b40] User-Agent:[snyk-cli/*** (windows;amd64) ***/*** (node/***)] X-Snyk-Cli-Version:[***]]
+2026-03-07T05:27:38Z main - < response [0xc0004da500]: 201 Created
+2026-03-07T05:27:38Z main - < response [0xc0004da500]: header: map[Akamai-Cache-Status:[Miss from child] Akamai-Grn:[0.640ed217.1772861257.207f97f9] Content-Length:[2] Content-Type:[application/json] Date:[Sat, 07 Mar 2026 05:27:37 GMT] Deprecation:[2024-10-15] Server:[envoy] Snyk-Request-Id:[81e6db7f-506b-44e7-a9b1-770ebf4b6b40] Snyk-Version-Lifecycle-Stage:[experimental] Snyk-Version-Requested:[2024-03-07~experimental] Snyk-Version-Served:[2024-03-07~experimental] Strict-Transport-Security:[max-age=31536000; preload] Sunset:[2024-04-06] X-Content-Type-Options:[nosniff] X-Envoy-Upstream-Service-Time:[1] X-Frame-Options:[SAMEORIGIN] X-Ratelimit-Limit:[160, 160;w=1;name="crd|generic_key^api-gateway.api-rest|generic_key^per_second|principal_id|ratelimit_bucket^high", 1620;w=60;name="crd|generic_key^api-gateway.api-rest|generic_key^per_minute|principal_id|ratelimit_bucket^high", 97200;w=3600;name="crd|generic_key^api-gateway.api-rest|generic_key^per_hour|principal_id|ratelimit_bucket^high"] X-Ratelimit-Remaining:[159] X-Ratelimit-Reset:[1]]
+2026-03-07T05:27:38Z analytics.report:4 - Workflow End
+2026-03-07T05:27:38Z main - Instrumentation successfully sent
+2026-03-07T05:27:38Z internal.cleanup:5 - Workflow Start
+2026-03-07T05:27:38Z internal.cleanup:5 - Deleted temporary directory: C:\Users\***\AppData\Local/snyk/snyk-cli/***/tmp/pid23176
+2026-03-07T05:27:38Z internal.cleanup:5 - Workflow End
+2026-03-07T05:27:38Z main -
+2026-03-07T05:27:38Z main - ------------ Summary ------------
+2026-03-07T05:27:38Z main - Version:               *** 
+2026-03-07T05:27:38Z main - Platform:              windows amd64  ***/***  node/***
+2026-03-07T05:27:38Z main - API:                   https://api.snyk.io
+2026-03-07T05:27:38Z main - Region:                snyk-us-01
+2026-03-07T05:27:38Z main - Cache:                 C:\Users\***\AppData\Local/snyk/snyk-cli
+2026-03-07T05:27:38Z main - Organization:          7a199ca3-67b0-4c6d-972c-4da1d27c773f
+2026-03-07T05:27:38Z main - Insecure HTTPS:        false
+2026-03-07T05:27:38Z main - Analytics:             enabled
+2026-03-07T05:27:38Z main - Authorization:         31d1d45d***c5786501  (type=oauth; expiry=2026-03-07 06:23:21.7331114 +0000 UTC)
+2026-03-07T05:27:38Z main - Interaction:           urn:snyk:interaction:d7b6daf7-42dc-4f11-a485-4eb8c990222d
+2026-03-07T05:27:38Z main - Features:              
+2026-03-07T05:27:38Z main -   preview:             disabled
+2026-03-07T05:27:38Z main -   fips:                Not available
+2026-03-07T05:27:38Z main -   request attempts:    1
+2026-03-07T05:27:38Z main -   config cache:        enabled (ttl=no expiration)
+2026-03-07T05:27:38Z main - Checks:                
+2026-03-07T05:27:38Z main -   Configuration:       all good
+2026-03-07T05:27:38Z main -
+2026-03-07T05:27:38Z main - Exit Code:             0
+2026-03-07T05:27:38.313Z: {
+  status: 0,
+  signal: null,
+  output: [ null, null, null ],
+  pid: 23176,
+  stdout: null,
+  stderr: null
+}

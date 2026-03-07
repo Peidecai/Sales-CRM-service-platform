@@ -1,0 +1,76 @@
+
+Testing D:\Develop\Sales CRM service platform\crm-sales-platform...
+
+Organization:      peidecai
+Package manager:   pnpm
+Target file:       package.json
+Project name:      crm-sales-platform
+Open source:       no
+Project path:      D:\Develop\Sales CRM service platform\crm-sales-platform
+Licenses:          enabled
+
+✔ Tested D:\Develop\Sales CRM service platform\crm-sales-platform for known issues, no vulnerable paths found.
+
+Next steps:
+- Run `snyk monitor` to be notified about new related vulnerabilities.
+- Run `snyk test` as part of your CI/test.
+
+-------------------------------------------------------
+
+Testing D:\Develop\Sales CRM service platform\crm-sales-platform...
+
+Organization:      peidecai
+Package manager:   pnpm
+Target file:       packages\server\package.json
+Project name:      @crm/server
+Open source:       no
+Project path:      D:\Develop\Sales CRM service platform\crm-sales-platform
+Licenses:          enabled
+
+✔ Tested 335 dependencies for known issues, no vulnerable paths found.
+
+Next steps:
+- Run `snyk monitor` to be notified about new related vulnerabilities.
+- Run `snyk test` as part of your CI/test.
+
+-------------------------------------------------------
+
+Testing D:\Develop\Sales CRM service platform\crm-sales-platform...
+
+Organization:      peidecai
+Package manager:   pnpm
+Target file:       packages\shared\package.json
+Project name:      @crm/shared
+Open source:       no
+Project path:      D:\Develop\Sales CRM service platform\crm-sales-platform
+Licenses:          enabled
+
+✔ Tested D:\Develop\Sales CRM service platform\crm-sales-platform for known issues, no vulnerable paths found.
+
+Next steps:
+- Run `snyk monitor` to be notified about new related vulnerabilities.
+- Run `snyk test` as part of your CI/test.
+
+-------------------------------------------------------
+
+Testing D:\Develop\Sales CRM service platform\crm-sales-platform...
+
+Organization:      peidecai
+Package manager:   pnpm
+Target file:       packages\web\package.json
+Project name:      @crm/web
+Open source:       no
+Project path:      D:\Develop\Sales CRM service platform\crm-sales-platform
+Licenses:          enabled
+
+✔ Tested 93 dependencies for known issues, no vulnerable paths found.
+
+Next steps:
+- Run `snyk monitor` to be notified about new related vulnerabilities.
+- Run `snyk test` as part of your CI/test.
+
+
+Tested 4 projects, no vulnerable paths were found.
+
+
+

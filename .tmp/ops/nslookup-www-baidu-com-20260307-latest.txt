@@ -1,0 +1,11 @@
+Non-authoritative answer:
+Server:  UnKnown
+Address:  fd00::2
+
+Name:    www.a.shifen.com
+Addresses:  2408:871a:2100:1b23:0:ff:b07a:7ebc
+	  2408:871a:2100:186c:0:ff:b07e:3fbc
+	  110.242.69.21
+	  110.242.70.57
+Aliases:  www.baidu.com
+
