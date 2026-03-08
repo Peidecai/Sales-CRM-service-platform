@@ -49,10 +49,12 @@ export class UserController {
   }
 
   @Get(':id')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: '用户详情' })
   @ApiParam({ name: 'id', description: 'User ID', type: Number })
   @ApiResponse({ status: 200, description: '用户详情' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - requires ADMIN or MANAGER role' })
   @ApiResponse({ status: 404, description: 'User not found' })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.userService.findOne(id)

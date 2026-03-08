@@ -22,7 +22,14 @@ export class HealthController {
   @HealthCheck()
   @ApiOperation({ summary: '健康检查' })
   check() {
-    return this.health.check([() => this.db.pingCheck('database'), () => this.checkRedis()])
+    return this.health.check(this.indicators())
+  }
+
+  @Get('ready')
+  @HealthCheck()
+  @ApiOperation({ summary: 'Readiness health check' })
+  readiness() {
+    return this.health.check(this.indicators())
   }
 
   private async checkRedis(): Promise<HealthIndicatorResult> {
@@ -36,5 +43,9 @@ export class HealthController {
       }
       throw new HealthCheckError('Redis health check failed', result)
     }
+  }
+
+  private indicators() {
+    return [() => this.db.pingCheck('database'), () => this.checkRedis()]
   }
 }

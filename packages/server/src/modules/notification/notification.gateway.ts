@@ -6,8 +6,27 @@ import {
   OnGatewayInit,
 } from '@nestjs/websockets'
 import { Logger } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
+import { JwtService } from '@nestjs/jwt'
 import { Server, Socket } from 'socket.io'
 import { NotificationPayload } from './notification.types'
+import { AuthService } from '../auth/auth.service'
+
+function resolveWsCorsOrigins(): string[] {
+  const raw = process.env.CORS_ORIGINS ?? 'http://localhost:5173,http://localhost:3001'
+  return raw
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0)
+}
+
+interface NotificationJwtPayload {
+  sub: number
+  username: string
+  role: string
+  iat?: number
+  exp?: number
+}
 
 /**
  * WebSocket gateway for real-time notifications.
@@ -15,12 +34,13 @@ import { NotificationPayload } from './notification.types'
  * Clients connect via Socket.IO and receive push events for
  * business actions (customer/opportunity/call-record changes).
  *
- * Authentication: clients must send `token` in the handshake query.
- * If absent the connection is still allowed (for dev convenience),
- * but a warning is logged.
+ * Authentication: clients must provide a valid JWT token in handshake auth/query.
  */
 @WebSocketGateway({
-  cors: { origin: '*' },
+  cors: {
+    origin: resolveWsCorsOrigins(),
+    credentials: true,
+  },
   namespace: '/ws/notifications',
 })
 export class NotificationGateway
@@ -31,34 +51,55 @@ export class NotificationGateway
   @WebSocketServer()
   server!: Server
 
-  /** Map of userId → Set<socketId> for targeted notifications */
+  /** Map of userId -> Set<socketId> for targeted notifications */
   private userSockets = new Map<number, Set<string>>()
+
+  /** Map of socketId -> userId for cleanup on disconnect */
+  private socketUsers = new Map<string, number>()
+
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+    private readonly authService: AuthService,
+  ) {}
 
   afterInit() {
     this.logger.log('Notification WebSocket gateway initialized')
   }
 
-  handleConnection(client: Socket) {
-    const userId = this.extractUserId(client)
-    if (userId) {
-      if (!this.userSockets.has(userId)) {
-        this.userSockets.set(userId, new Set())
-      }
-      this.userSockets.get(userId)!.add(client.id)
+  async handleConnection(client: Socket) {
+    const token = this.extractToken(client)
+    if (!token) {
+      this.logger.warn(`WebSocket rejected (missing token): ${client.id}`)
+      client.disconnect(true)
+      return
     }
-    this.logger.debug(
-      `Client connected: ${client.id} (userId: ${userId ?? 'anonymous'}) — total: ${this.server?.sockets?.sockets?.size ?? 0}`,
-    )
+
+    const userId = await this.validateTokenAndGetUserId(token)
+    if (!userId) {
+      this.logger.warn(`WebSocket rejected (invalid token): ${client.id}`)
+      client.disconnect(true)
+      return
+    }
+
+    if (!this.userSockets.has(userId)) {
+      this.userSockets.set(userId, new Set())
+    }
+    this.userSockets.get(userId)!.add(client.id)
+    this.socketUsers.set(client.id, userId)
+
+    this.logger.debug(`Client connected: ${client.id} (userId: ${userId})`)
   }
 
   handleDisconnect(client: Socket) {
-    const userId = this.extractUserId(client)
+    const userId = this.socketUsers.get(client.id)
     if (userId && this.userSockets.has(userId)) {
       this.userSockets.get(userId)!.delete(client.id)
       if (this.userSockets.get(userId)!.size === 0) {
         this.userSockets.delete(userId)
       }
     }
+    this.socketUsers.delete(client.id)
     this.logger.debug(`Client disconnected: ${client.id}`)
   }
 
@@ -67,7 +108,7 @@ export class NotificationGateway
    */
   broadcast(payload: NotificationPayload) {
     this.server.emit('notification', payload)
-    this.logger.debug(`Broadcast: ${payload.type} — ${payload.message}`)
+    this.logger.debug(`Broadcast: ${payload.type} - ${payload.message}`)
   }
 
   /**
@@ -90,14 +131,38 @@ export class NotificationGateway
     return this.server?.sockets?.sockets?.size ?? 0
   }
 
-  private extractUserId(client: Socket): number | null {
-    // userId can be passed in handshake query or auth
-    const rawId =
-      (client.handshake.auth as Record<string, unknown>)?.userId ?? client.handshake.query?.userId
-    if (rawId) {
-      const num = Number(rawId)
-      return Number.isNaN(num) ? null : num
+  private extractToken(client: Socket): string | null {
+    const auth = client.handshake.auth as Record<string, unknown> | undefined
+    const tokenFromAuth = auth?.token
+    if (typeof tokenFromAuth === 'string' && tokenFromAuth.trim()) {
+      return tokenFromAuth.trim()
     }
+
+    const tokenFromQuery = client.handshake.query?.token
+    if (typeof tokenFromQuery === 'string' && tokenFromQuery.trim()) {
+      return tokenFromQuery.trim()
+    }
+
     return null
+  }
+
+  private async validateTokenAndGetUserId(token: string): Promise<number | null> {
+    try {
+      const payload = this.jwtService.verify<NotificationJwtPayload>(token, {
+        secret: this.configService.get<string>('JWT_SECRET', 'dev-secret-key'),
+      })
+      if (!payload?.sub) {
+        return null
+      }
+
+      const isBlacklisted = await this.authService.isTokenBlacklisted(token)
+      if (isBlacklisted) {
+        return null
+      }
+
+      return payload.sub
+    } catch {
+      return null
+    }
   }
 }

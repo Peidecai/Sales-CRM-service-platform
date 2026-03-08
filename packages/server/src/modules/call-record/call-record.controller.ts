@@ -22,6 +22,7 @@ import { Roles } from '../../common/decorators/roles.decorator'
 import { CurrentUser, type AuthUser } from '../../common/decorators/current-user.decorator'
 import { UserRole } from '@crm/shared'
 import { AuditLogInterceptor } from '../../common/interceptors/audit-log.interceptor'
+import { NotificationService } from '../notification/notification.service'
 import { CallRecordService } from './call-record.service'
 import { CreateCallRecordDto } from './dto/create-call-record.dto'
 import { UpdateCallRecordDto } from './dto/update-call-record.dto'
@@ -33,7 +34,10 @@ import { QueryCallRecordDto } from './dto/query-call-record.dto'
 @UseInterceptors(AuditLogInterceptor)
 @Controller('call-records')
 export class CallRecordController {
-  constructor(private readonly callRecordService: CallRecordService) {}
+  constructor(
+    private readonly callRecordService: CallRecordService,
+    private readonly notificationService: NotificationService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Get call record list with pagination' })
@@ -45,8 +49,10 @@ export class CallRecordController {
   @Post()
   @ApiOperation({ summary: 'Create a new call record' })
   @ApiResponse({ status: 201, description: 'Call record created successfully' })
-  create(@Body() dto: CreateCallRecordDto) {
-    return this.callRecordService.create(dto)
+  async create(@Body() dto: CreateCallRecordDto, @CurrentUser() user: AuthUser) {
+    const record = await this.callRecordService.create(dto)
+    this.notificationService.callRecordCreated(user.id, user.username, record.id)
+    return record
   }
 
   @Get('export')
@@ -103,8 +109,9 @@ export class CallRecordController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden — requires ADMIN or MANAGER role' })
   @ApiResponse({ status: 404, description: 'Call record not found' })
-  async remove(@Param('id', ParseIntPipe) id: number) {
+  async remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
     await this.callRecordService.remove(id)
+    this.notificationService.callRecordDeleted(user.id, user.username, id)
     return null
   }
 

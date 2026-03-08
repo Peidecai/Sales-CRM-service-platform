@@ -17,6 +17,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam } from '@ne
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { Roles } from '../../common/decorators/roles.decorator'
+import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import { UserRole } from '@crm/shared'
 import { AuditLogInterceptor } from '../../common/interceptors/audit-log.interceptor'
 import { KnowledgeService } from './knowledge.service'
@@ -24,6 +25,8 @@ import { CreateArticleDto } from './dto/create-article.dto'
 import { UpdateArticleDto } from './dto/update-article.dto'
 import { QueryArticleDto } from './dto/query-article.dto'
 import { CreateCategoryDto } from './dto/create-category.dto'
+import { ArticleActionResponseDto } from './dto/article-action-response.dto'
+import { KnowledgeArticle } from './entities/knowledge-article.entity'
 import { AskQuestionDto } from '../ai/dto/ask-question.dto'
 
 @ApiTags('知识库')
@@ -66,6 +69,50 @@ export class KnowledgeController {
   @ApiResponse({ status: 404, description: 'Article not found' })
   findOneArticle(@Param('id', ParseIntPipe) id: number) {
     return this.knowledgeService.findOneArticle(id)
+  }
+
+  @Post('articles/:id/like')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.SALES)
+  @ApiOperation({ summary: 'Toggle like/unlike for current user' })
+  @ApiParam({ name: 'id', description: 'Article ID', type: Number })
+  @ApiResponse({ status: 200, description: 'Returns latest like/favorite status' })
+  toggleLike(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser('id') userId: number,
+  ): Promise<ArticleActionResponseDto> {
+    return this.knowledgeService.toggleLike(id, userId)
+  }
+
+  @Post('articles/:id/favorite')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.SALES)
+  @ApiOperation({ summary: 'Toggle favorite/unfavorite for current user' })
+  @ApiParam({ name: 'id', description: 'Article ID', type: Number })
+  @ApiResponse({ status: 200, description: 'Returns latest like/favorite status' })
+  toggleFavorite(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser('id') userId: number,
+  ): Promise<ArticleActionResponseDto> {
+    return this.knowledgeService.toggleFavorite(id, userId)
+  }
+
+  @Get('articles/:id/status')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.SALES)
+  @ApiOperation({ summary: 'Get current user like/favorite status for article' })
+  @ApiParam({ name: 'id', description: 'Article ID', type: Number })
+  @ApiResponse({ status: 200, description: 'Returns latest like/favorite status' })
+  getArticleStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser('id') userId: number,
+  ): Promise<ArticleActionResponseDto> {
+    return this.knowledgeService.getArticleActionStatus(id, userId)
+  }
+
+  @Get('favorites')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.SALES)
+  @ApiOperation({ summary: 'Get favorite articles for current user' })
+  @ApiResponse({ status: 200, description: 'Returns favorite article list' })
+  getUserFavorites(@CurrentUser('id') userId: number): Promise<KnowledgeArticle[]> {
+    return this.knowledgeService.getUserFavorites(userId)
   }
 
   @Put('articles/:id')

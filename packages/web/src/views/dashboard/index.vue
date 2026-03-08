@@ -1,6 +1,5 @@
 <template>
   <div class="dashboard-page">
-    <!-- Header -->
     <div class="dashboard-header">
       <div>
         <h2 class="dashboard-title">工作台</h2>
@@ -9,7 +8,6 @@
       <el-button :icon="Refresh" circle :loading="statsLoading" @click="fetchAllStats" />
     </div>
 
-    <!-- Stats Cards -->
     <el-row :gutter="16" class="stats-row">
       <el-col :xs="24" :sm="12" :md="6">
         <el-card
@@ -21,14 +19,10 @@
             <template #default>
               <div class="stat-card-inner">
                 <div class="stat-icon customer-icon">
-                  <el-icon :size="28">
-                    <User />
-                  </el-icon>
+                  <el-icon :size="28"><User /></el-icon>
                 </div>
                 <div class="stat-content">
-                  <div class="stat-value">
-                    {{ customerTotal }}
-                  </div>
+                  <div class="stat-value">{{ customerTotal }}</div>
                   <div class="stat-label">客户总数</div>
                 </div>
               </div>
@@ -36,6 +30,7 @@
           </el-skeleton>
         </el-card>
       </el-col>
+
       <el-col :xs="24" :sm="12" :md="6">
         <el-card
           shadow="hover"
@@ -46,14 +41,10 @@
             <template #default>
               <div class="stat-card-inner">
                 <div class="stat-icon call-icon">
-                  <el-icon :size="28">
-                    <Phone />
-                  </el-icon>
+                  <el-icon :size="28"><Phone /></el-icon>
                 </div>
                 <div class="stat-content">
-                  <div class="stat-value">
-                    {{ weekCallCount }}
-                  </div>
+                  <div class="stat-value">{{ weekCallCount }}</div>
                   <div class="stat-label">本周通话</div>
                 </div>
               </div>
@@ -61,6 +52,7 @@
           </el-skeleton>
         </el-card>
       </el-col>
+
       <el-col :xs="24" :sm="12" :md="6">
         <el-card
           shadow="hover"
@@ -71,14 +63,10 @@
             <template #default>
               <div class="stat-card-inner">
                 <div class="stat-icon amount-icon">
-                  <el-icon :size="28">
-                    <TrendCharts />
-                  </el-icon>
+                  <el-icon :size="28"><TrendCharts /></el-icon>
                 </div>
                 <div class="stat-content">
-                  <div class="stat-value">
-                    {{ formatShortAmount(totalOpportunityAmount) }}
-                  </div>
+                  <div class="stat-value">{{ formatShortAmount(totalOpportunityAmount) }}</div>
                   <div class="stat-label">商机总额</div>
                 </div>
               </div>
@@ -86,6 +74,7 @@
           </el-skeleton>
         </el-card>
       </el-col>
+
       <el-col :xs="24" :sm="12" :md="6">
         <el-card
           shadow="hover"
@@ -96,14 +85,10 @@
             <template #default>
               <div class="stat-card-inner">
                 <div class="stat-icon opp-icon">
-                  <el-icon :size="28">
-                    <DataAnalysis />
-                  </el-icon>
+                  <el-icon :size="28"><DataAnalysis /></el-icon>
                 </div>
                 <div class="stat-content">
-                  <div class="stat-value">
-                    {{ totalOpportunityCount }}
-                  </div>
+                  <div class="stat-value">{{ totalOpportunityCount }}</div>
                   <div class="stat-label">商机总数</div>
                 </div>
               </div>
@@ -113,56 +98,50 @@
       </el-col>
     </el-row>
 
-    <!-- Middle: Charts -->
-    <el-row :gutter="16">
-      <el-col :xs="24" :md="14">
-        <!-- Pipeline Funnel Chart (ECharts) -->
-        <el-card shadow="never" class="stage-card">
-          <template #header>
-            <span class="card-header-title">商机管道漏斗</span>
-          </template>
-          <el-skeleton :loading="statsLoading" animated :rows="6">
-            <template #default>
-              <div v-if="stageStats.length === 0" class="empty-tip">暂无商机数据</div>
-              <v-chart v-else :option="funnelChartOption" class="echart-box" autoresize />
+    <DashboardCharts
+      v-if="showCharts"
+      :stats-loading="statsLoading"
+      :stage-stats="stageStats"
+      :customer-status-data="customerStatusData"
+      :stage-label="stageLabel"
+    />
+    <template v-else>
+      <el-row :gutter="16">
+        <el-col :xs="24" :md="14">
+          <el-card shadow="never" class="chart-placeholder-card">
+            <template #header>
+              <span class="card-header-title">{{ chartText.pipelineTitle }}</span>
             </template>
-          </el-skeleton>
-        </el-card>
-      </el-col>
-      <el-col :xs="24" :md="10">
-        <!-- Customer Status Pie Chart -->
-        <el-card shadow="never" class="funnel-card">
-          <template #header>
-            <span class="card-header-title">客户状态分布</span>
-          </template>
-          <el-skeleton :loading="statsLoading" animated :rows="6">
-            <template #default>
-              <div v-if="customerStatusData.length === 0" class="empty-tip">暂无数据</div>
-              <v-chart v-else :option="pieChartOption" class="echart-box" autoresize />
+            <div class="chart-placeholder-body">
+              <el-skeleton animated :rows="6" />
+            </div>
+          </el-card>
+        </el-col>
+        <el-col :xs="24" :md="10">
+          <el-card shadow="never" class="chart-placeholder-card">
+            <template #header>
+              <span class="card-header-title">{{ chartText.customerStatusTitle }}</span>
             </template>
-          </el-skeleton>
-        </el-card>
-      </el-col>
-    </el-row>
+            <div class="chart-placeholder-body">
+              <el-skeleton animated :rows="6" />
+            </div>
+          </el-card>
+        </el-col>
+      </el-row>
+      <el-row :gutter="16">
+        <el-col :span="24">
+          <el-card shadow="never" class="chart-placeholder-card">
+            <template #header>
+              <span class="card-header-title">{{ chartText.stageAmountTitle }}</span>
+            </template>
+            <div class="chart-placeholder-body">
+              <el-skeleton animated :rows="4" />
+            </div>
+          </el-card>
+        </el-col>
+      </el-row>
+    </template>
 
-    <!-- Stage Distribution Bar -->
-    <el-row :gutter="16">
-      <el-col :span="24">
-        <el-card shadow="never" class="stage-card">
-          <template #header>
-            <span class="card-header-title">商机阶段金额分布</span>
-          </template>
-          <el-skeleton :loading="statsLoading" animated :rows="4">
-            <template #default>
-              <div v-if="stageStats.length === 0" class="empty-tip">暂无商机数据</div>
-              <v-chart v-else :option="barChartOption" class="echart-box" autoresize />
-            </template>
-          </el-skeleton>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- Bottom: Recent Records -->
     <el-row :gutter="16">
       <el-col :xs="24" :md="8">
         <el-card shadow="never" class="recent-card">
@@ -197,6 +176,7 @@
           </el-skeleton>
         </el-card>
       </el-col>
+
       <el-col :xs="24" :md="8">
         <el-card shadow="never" class="recent-card">
           <template #header>
@@ -219,7 +199,7 @@
                 >
                   <div class="recent-main">
                     <span class="recent-name">{{ o.title }}</span>
-                    <span class="recent-sub">¥{{ formatAmount(o.amount) }}</span>
+                    <span class="recent-sub">￥{{ formatAmount(o.amount) }}</span>
                   </div>
                   <el-tag :type="getStageTagType(o.stage)" size="small">
                     {{ stageLabel(o.stage) }}
@@ -230,6 +210,7 @@
           </el-skeleton>
         </el-card>
       </el-col>
+
       <el-col :xs="24" :md="8">
         <el-card shadow="never" class="recent-card">
           <template #header>
@@ -251,9 +232,9 @@
                   @click="$router.push(`/call-record/${r.id}`)"
                 >
                   <div class="recent-main">
-                    <span class="recent-name">{{
-                      callRecordCustomerMap[r.customerId] ?? `客户ID: ${r.customerId}`
-                    }}</span>
+                    <span class="recent-name">
+                      {{ callRecordCustomerMap[r.customerId] ?? `客户ID: ${r.customerId}` }}
+                    </span>
                     <span class="recent-sub">{{ formatDuration(r.duration) }}</span>
                   </div>
                   <span class="recent-date">{{ formatShortDate(r.callAt) }}</span>
@@ -265,7 +246,6 @@
       </el-col>
     </el-row>
 
-    <!-- Quick Actions -->
     <el-card shadow="never" class="quick-actions-card">
       <template #header>
         <span class="card-header-title">快捷操作</span>
@@ -293,7 +273,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
 import {
   User,
   Phone,
@@ -302,16 +282,6 @@ import {
   ChatDotSquare,
   Refresh,
 } from '@element-plus/icons-vue'
-import { use } from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import { FunnelChart, PieChart, BarChart } from 'echarts/charts'
-import {
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent,
-} from 'echarts/components'
-import VChart from 'vue-echarts'
 import { useUserStore } from '@/stores/user'
 import { customerApi, CustomerStatus, type CustomerVO } from '@/api/customer'
 import { callRecordApi, type CallRecordVO } from '@/api/call-record'
@@ -324,22 +294,16 @@ import {
 import { formatAmount, formatDuration } from '@/utils/format'
 import { getStatusTagType, getStatusLabel, getStageTagType } from '@/utils/tag-helpers'
 
-// Register ECharts components
-use([
-  CanvasRenderer,
-  FunnelChart,
-  PieChart,
-  BarChart,
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent,
-])
-
 const userStore = useUserStore()
+const DashboardCharts = defineAsyncComponent(() => import('./components/DashboardCharts.vue'))
 const userName = computed(() => userStore.userInfo?.name ?? userStore.userInfo?.username ?? '用户')
+const chartText = {
+  pipelineTitle: '\u5546\u673A\u7BA1\u9053\u6F0F\u6597',
+  customerStatusTitle: '\u5BA2\u6237\u72B6\u6001\u5206\u5E03',
+  stageAmountTitle: '\u5546\u673A\u9636\u6BB5\u91D1\u989D\u5206\u5E03',
+} as const
 
-// ---- State ----
+const showCharts = ref(false)
 const statsLoading = ref(true)
 const recentLoading = ref(true)
 const customerTotal = ref(0)
@@ -356,166 +320,9 @@ const totalOpportunityAmount = computed(() =>
   stageStats.value.reduce((sum, s) => sum + s.totalAmount, 0),
 )
 
-// ---- ECharts Options ----
-const stageColorArray = ['#409eff', '#67c23a', '#e6a23c', '#f56c6c', '#529b2e', '#c0c4cc']
-
-const funnelChartOption = computed(() => {
-  const funnelStages = [
-    OpportunityStage.LEAD,
-    OpportunityStage.QUALIFIED,
-    OpportunityStage.PROPOSAL,
-    OpportunityStage.NEGOTIATION,
-    OpportunityStage.CLOSED_WON,
-  ]
-  const data = funnelStages.map((stage, idx) => {
-    const found = stageStats.value.find((s) => s.stage === stage)
-    return {
-      name: stageLabel(stage),
-      value: found?.count ?? 0,
-      itemStyle: { color: stageColorArray[idx] },
-    }
-  })
-
-  return {
-    tooltip: {
-      trigger: 'item' as const,
-      formatter: '{b}: {c}个 ({d}%)',
-    },
-    series: [
-      {
-        type: 'funnel',
-        left: '10%',
-        top: 20,
-        bottom: 20,
-        width: '80%',
-        min: 0,
-        max: Math.max(...data.map((d) => d.value), 1),
-        minSize: '20%',
-        maxSize: '100%',
-        sort: 'descending',
-        gap: 4,
-        label: {
-          show: true,
-          position: 'inside',
-          formatter: '{b}: {c}',
-          fontSize: 13,
-        },
-        data,
-      },
-    ],
-  }
-})
-
-const customerStatusColorMap: Record<string, string> = {
-  潜在客户: '#409eff',
-  跟进中: '#e6a23c',
-  谈判中: '#f56c6c',
-  已签约: '#67c23a',
-  已流失: '#909399',
-  暂不合作: '#c0c4cc',
-}
-
-const pieChartOption = computed(() => ({
-  tooltip: {
-    trigger: 'item',
-    formatter: '{b}: {c}个 ({d}%)',
-  },
-  legend: {
-    orient: 'vertical',
-    right: 10,
-    top: 'center',
-    textStyle: { fontSize: 12 },
-  },
-  series: [
-    {
-      type: 'pie',
-      radius: ['40%', '70%'],
-      center: ['40%', '50%'],
-      avoidLabelOverlap: true,
-      itemStyle: {
-        borderRadius: 6,
-        borderColor: '#fff',
-        borderWidth: 2,
-      },
-      label: { show: false },
-      emphasis: {
-        label: { show: true, fontSize: 14, fontWeight: 'bold' },
-      },
-      data: customerStatusData.value.map((item) => ({
-        ...item,
-        itemStyle: { color: customerStatusColorMap[item.name] ?? '#409eff' },
-      })),
-    },
-  ],
-}))
-
-const barChartOption = computed(() => {
-  const allStages = [
-    OpportunityStage.LEAD,
-    OpportunityStage.QUALIFIED,
-    OpportunityStage.PROPOSAL,
-    OpportunityStage.NEGOTIATION,
-    OpportunityStage.CLOSED_WON,
-    OpportunityStage.CLOSED_LOST,
-  ]
-  const categories = allStages.map((s) => stageLabel(s))
-  const countData = allStages.map((stage) => {
-    const found = stageStats.value.find((s) => s.stage === stage)
-    return found?.count ?? 0
-  })
-  const amountData = allStages.map((stage) => {
-    const found = stageStats.value.find((s) => s.stage === stage)
-    return Number(((found?.totalAmount ?? 0) / 10000).toFixed(1))
-  })
-
-  return {
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
-    },
-    legend: {
-      data: ['商机数量', '金额(万元)'],
-      top: 0,
-    },
-    grid: { left: '3%', right: '4%', bottom: '3%', top: 40, containLabel: true },
-    xAxis: {
-      type: 'category',
-      data: categories,
-      axisLabel: { fontSize: 12 },
-    },
-    yAxis: [
-      { type: 'value', name: '数量', position: 'left' },
-      { type: 'value', name: '万元', position: 'right' },
-    ],
-    series: [
-      {
-        name: '商机数量',
-        type: 'bar',
-        data: countData.map((v, i) => ({
-          value: v,
-          itemStyle: { color: stageColorArray[i] ?? '#409eff' },
-        })),
-        barWidth: '35%',
-        yAxisIndex: 0,
-      },
-      {
-        name: '金额(万元)',
-        type: 'bar',
-        data: amountData.map((v, i) => ({
-          value: v,
-          itemStyle: { color: stageColorArray[i] ?? '#409eff', opacity: 0.6 },
-        })),
-        barWidth: '35%',
-        yAxisIndex: 1,
-      },
-    ],
-  }
-})
-
-// ---- Helpers ----
 function formatShortAmount(value: number): string {
   if (value >= 10000) {
-    return (value / 10000).toFixed(1) + '万'
+    return `${(value / 10000).toFixed(1)}万`
   }
   return String(value)
 }
@@ -540,8 +347,6 @@ function stageLabel(stage: string): string {
   return stageLabelMap[stage] ?? stage
 }
 
-// ---- Data Fetching ----
-
 const statusLabelMap: Record<string, string> = {
   [CustomerStatus.POTENTIAL]: '潜在客户',
   [CustomerStatus.FOLLOWING]: '跟进中',
@@ -551,21 +356,16 @@ const statusLabelMap: Record<string, string> = {
   [CustomerStatus.INACTIVE]: '暂不合作',
 }
 
-/**
- * Resolve customer names for recent call records.
- * First reuses names from recentCustomers, then fetches remaining.
- */
 async function resolveCallRecordCustomerNames(records: CallRecordVO[]) {
   const map: Record<number, string> = {}
-  // Reuse names from already-loaded recent customers
+
   for (const c of recentCustomers.value) {
     map[c.id] = c.name
   }
-  // Find IDs still missing
+
   const missingIds = [...new Set(records.map((r) => r.customerId))].filter((id) => !(id in map))
   if (missingIds.length > 0) {
     try {
-      // Fetch customer details for missing IDs
       const results = await Promise.all(
         missingIds.map((id) => customerApi.getDetail(id).catch(() => null)),
       )
@@ -575,17 +375,18 @@ async function resolveCallRecordCustomerNames(records: CallRecordVO[]) {
         }
       }
     } catch {
-      // Silently fail
+      // noop
     }
   }
+
   callRecordCustomerMap.value = map
 }
 
 async function fetchAllStats() {
   statsLoading.value = true
   recentLoading.value = true
+
   try {
-    // Fetch customer counts by status for pie chart
     const statusCounts: Array<{ name: string; value: number }> = []
     const allStatuses = [
       CustomerStatus.POTENTIAL,
@@ -631,11 +432,9 @@ async function fetchAllStats() {
     }
     if (recentCallRes?.data) {
       recentCallRecords.value = recentCallRes.data.list
-      // Resolve customer names for call records
       resolveCallRecordCustomerNames(recentCallRes.data.list)
     }
 
-    // Build customer status pie data
     for (let i = 0; i < allStatuses.length; i++) {
       const res = statusResults[i]
       if (res?.data && res.data.total > 0) {
@@ -645,17 +444,47 @@ async function fetchAllStats() {
         })
       }
     }
+
     customerStatusData.value = statusCounts
   } catch {
-    // Error handled by request interceptor
+    // request interceptor handles toasts
   } finally {
     statsLoading.value = false
     recentLoading.value = false
   }
 }
 
+function scheduleChartsMount() {
+  if (typeof window === 'undefined') {
+    showCharts.value = true
+    return
+  }
+
+  const idleWindow = window as Window & {
+    requestIdleCallback?: (
+      callback: (...args: unknown[]) => void,
+      options?: { timeout: number },
+    ) => number
+  }
+
+  if (typeof idleWindow.requestIdleCallback === 'function') {
+    idleWindow.requestIdleCallback(
+      () => {
+        showCharts.value = true
+      },
+      { timeout: 1200 },
+    )
+    return
+  }
+
+  window.setTimeout(() => {
+    showCharts.value = true
+  }, 180)
+}
+
 onMounted(() => {
   fetchAllStats()
+  scheduleChartsMount()
 })
 </script>
 
@@ -687,7 +516,6 @@ onMounted(() => {
   color: #909399;
 }
 
-/* Stats Cards */
 .stats-row {
   margin-bottom: 0;
 }
@@ -728,14 +556,17 @@ onMounted(() => {
   background: #ecf5ff;
   color: #409eff;
 }
+
 .call-icon {
   background: #fdf6ec;
   color: #e6a23c;
 }
+
 .amount-icon {
   background: #f0f9eb;
   color: #67c23a;
 }
+
 .opp-icon {
   background: #fef0f0;
   color: #f56c6c;
@@ -759,11 +590,6 @@ onMounted(() => {
   margin-top: 4px;
 }
 
-/* Stage Distribution Card */
-.stage-card :deep(.el-card__body) {
-  padding: 20px;
-}
-
 .card-header-title {
   font-size: 15px;
   font-weight: 600;
@@ -776,6 +602,14 @@ onMounted(() => {
   justify-content: space-between;
 }
 
+.chart-placeholder-card :deep(.el-card__body) {
+  padding: 20px;
+}
+
+.chart-placeholder-body {
+  min-height: 320px;
+}
+
 .empty-tip {
   text-align: center;
   padding: 32px 0;
@@ -783,18 +617,6 @@ onMounted(() => {
   font-size: 14px;
 }
 
-/* ECharts container */
-.echart-box {
-  width: 100%;
-  height: 320px;
-}
-
-/* Funnel Card */
-.funnel-card :deep(.el-card__body) {
-  padding: 20px;
-}
-
-/* Recent Records */
 .recent-card :deep(.el-card__body) {
   padding: 0;
 }
@@ -850,7 +672,6 @@ onMounted(() => {
   margin-left: 8px;
 }
 
-/* Quick Actions */
 .quick-actions-card :deep(.el-card__body) {
   padding: 20px;
 }

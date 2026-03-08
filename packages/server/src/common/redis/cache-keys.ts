@@ -15,6 +15,8 @@ export const CACHE_KEYS = {
   CATEGORY_TREE: 'cache:knowledge:categories',
   /** JWT blacklist — suffix is jti or token hash */
   JWT_BLACKLIST: 'auth:blacklist',
+  /** Follow-up list by customer — suffix is :customerId */
+  FOLLOW_UP_LIST: 'cache:follow-ups:customer',
 } as const
 
 /** TTL values in seconds */
@@ -29,4 +31,6 @@ export const CACHE_TTL = {
   OPPORTUNITY_DETAIL: 120,
   /** Category tree cache: 600 s */
   CATEGORY_TREE: 600,
+  /** Follow-up list cache: 60 s */
+  FOLLOW_UP_LIST: 60,
 } as const

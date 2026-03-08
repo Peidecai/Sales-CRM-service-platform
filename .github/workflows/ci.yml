@@ -38,6 +38,40 @@ jobs:
       - name: Lint web
         run: pnpm --filter @crm/web lint
 
+  # ---- Security ----
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Run dependency audit (high)
+        run: pnpm audit --audit-level high
+
+      - name: Run license policy check
+        run: pnpm dlx license-checker --failOn 'GPL-2.0;GPL-3.0;AGPL-3.0'
+
+      - name: Run Snyk scan (optional)
+        if: ${{ env.SNYK_TOKEN != '' }}
+        run: pnpm dlx snyk test --severity-threshold=high
+
+      - name: Skip Snyk when token is missing
+        if: ${{ env.SNYK_TOKEN == '' }}
+        run: echo "SNYK_TOKEN is missing, skip Snyk scan."
+
   # ---- Backend Tests ----
   test-server:
     name: Server Tests (Node ${{ matrix.node-version }})
@@ -178,7 +212,7 @@ jobs:
   docker-validate:
     name: Docker Build Validate
     runs-on: ubuntu-latest
-    needs: [lint, test-server, build-web, build-server, test-e2e]
+    needs: [lint, security, test-server, build-web, build-server, test-e2e]
     steps:
       - uses: actions/checkout@v4
 

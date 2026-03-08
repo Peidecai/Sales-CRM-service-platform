@@ -70,6 +70,18 @@ describe('CallRecordService', () => {
 
   /* ---------- findAll ---------- */
   describe('findAll', () => {
+    it('should use default page and pageSize when omitted', async () => {
+      const qb = createMockQueryBuilder([], 0)
+      repo.createQueryBuilder.mockReturnValue(qb)
+
+      const result = await service.findAll({} as never, adminUser)
+
+      expect(qb.skip).toHaveBeenCalledWith(0)
+      expect(qb.take).toHaveBeenCalledWith(20)
+      expect(result.page).toBe(1)
+      expect(result.pageSize).toBe(20)
+    })
+
     it('should return paginated list', async () => {
       const records = [fixtures.callRecord()]
       const qb = createMockQueryBuilder(records, 1)
@@ -263,6 +275,33 @@ describe('CallRecordService', () => {
 
   /* ---------- getStats ---------- */
   describe('getStats', () => {
+    it('should calculate week start from Sunday correctly', async () => {
+      jest.useFakeTimers()
+      jest.setSystemTime(new Date('2026-03-08T10:00:00.000Z')) // Sunday
+
+      const totalQb = createMockQueryBuilder([], 0)
+      totalQb.getCount.mockResolvedValue(3)
+      totalQb.getRawOne.mockResolvedValue({ total: '600' })
+
+      const weekQb = createMockQueryBuilder([], 0)
+      weekQb.getCount.mockResolvedValue(2)
+
+      repo.createQueryBuilder
+        .mockReturnValueOnce(totalQb)
+        .mockReturnValueOnce(weekQb)
+
+      const result = await service.getStats(adminUser)
+
+      const weekStartArg = weekQb.andWhere.mock.calls.find(
+        (c: unknown[]) => c[0] === 'cr.callAt >= :weekStart',
+      )?.[1] as { weekStart: Date }
+      expect(weekStartArg.weekStart.getDay()).toBe(1) // Monday
+      expect(weekStartArg.weekStart.getHours()).toBe(0)
+      expect(result.weekCount).toBe(2)
+
+      jest.useRealTimers()
+    })
+
     it('should return stats for admin (all records)', async () => {
       const qb = createMockQueryBuilder([], 5)
       qb.getCount.mockResolvedValue(5)
@@ -325,6 +364,48 @@ describe('CallRecordService', () => {
         'cr.userId = :currentUserId',
         { currentUserId: salesUser.id },
       )
+    })
+
+    it('should fallback empty relation/date/note fields and escape CSV content', async () => {
+      const records = [
+        fixtures.callRecord({
+          customer: null,
+          opportunity: null,
+          callAt: null,
+          duration: undefined,
+          notes: 'note,\nline',
+          aiSummary: 'summary "q"',
+        }),
+      ]
+      const qb = createMockQueryBuilder(records, 1)
+      repo.createQueryBuilder.mockReturnValue(qb)
+
+      const csv = await service.exportCsv(adminUser)
+
+      expect(csv).toContain(',,,' )
+      expect(csv).toContain(',0,')
+      expect(csv).toContain('"note,\nline"')
+      expect(csv).toContain('"summary ""q"""')
+    })
+
+    it('should fallback null notes and summary to empty CSV fields', async () => {
+      const records = [
+        fixtures.callRecord({
+          customer: null,
+          opportunity: null,
+          callAt: null,
+          duration: 10,
+          notes: null,
+          aiSummary: null,
+        }),
+      ]
+      const qb = createMockQueryBuilder(records, 1)
+      repo.createQueryBuilder.mockReturnValue(qb)
+
+      const csv = await service.exportCsv(adminUser)
+      const row = csv.split('\n')[1]
+
+      expect(row).toMatch(/^,,,10,,$/)
     })
   })
 

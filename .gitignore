@@ -64,3 +64,7 @@ packages/server/data/
 # Test results
 test-results/
 /test-results/
+playwright-report/
+
+# Temp files
+.tmp/

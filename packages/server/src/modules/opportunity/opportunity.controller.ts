@@ -113,16 +113,20 @@ export class OpportunityController {
     @Body() dto: UpdateStageDto,
     @CurrentUser() user: AuthUser,
   ) {
-    const opp = await this.opportunityService.updateStage(id, dto, user)
+    const { opportunity, previousStage, currentStage } = await this.opportunityService.updateStage(
+      id,
+      dto,
+      user,
+    )
     this.notificationService.opportunityStageChanged(
       user.id,
       user.username,
-      opp.id,
-      opp.title,
-      dto.stage,
-      opp.stage,
+      opportunity.id,
+      opportunity.title,
+      previousStage,
+      currentStage,
     )
-    return opp
+    return opportunity
   }
 
   @Delete(':id')

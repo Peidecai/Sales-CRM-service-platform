@@ -20,6 +20,8 @@ export enum NotificationType {
 
   /** A new call record has been created */
   CALL_RECORD_CREATED = 'call_record:created',
+  /** A call record has been deleted */
+  CALL_RECORD_DELETED = 'call_record:deleted',
   /** AI summary completed for a call record */
   CALL_SUMMARY_COMPLETED = 'call_record:summary_completed',
 

@@ -18,7 +18,7 @@ COPY packages/shared/ ./packages/shared/
 COPY packages/web/ ./packages/web/
 
 # Build shared package
-RUN cd packages/shared && pnpm build 2>/dev/null || true
+RUN cd packages/shared && pnpm build
 
 # Build Vue frontend
 RUN cd packages/web && pnpm build

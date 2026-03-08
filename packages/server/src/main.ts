@@ -55,7 +55,7 @@ async function bootstrap() {
   )
 
   // Swagger
-  const swaggerEnabled = configService.get<string>('SWAGGER_ENABLED', 'true') === 'true'
+  const swaggerEnabled = configService.get<string>('SWAGGER_ENABLED', 'false') === 'true'
   if (swaggerEnabled) {
     const swaggerPath = configService.get<string>('SWAGGER_PATH', 'api/docs')
     const config = new DocumentBuilder()

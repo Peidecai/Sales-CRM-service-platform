@@ -34,6 +34,12 @@ export interface OpportunityStageStats {
   totalAmount: number
 }
 
+export interface OpportunityStageUpdateResult {
+  opportunity: Opportunity
+  previousStage: OpportunityStage
+  currentStage: OpportunityStage
+}
+
 @Injectable()
 export class OpportunityService {
   constructor(
@@ -125,14 +131,23 @@ export class OpportunityService {
     return saved
   }
 
-  async updateStage(id: number, dto: UpdateStageDto, user?: AuthUser): Promise<Opportunity> {
+  async updateStage(
+    id: number,
+    dto: UpdateStageDto,
+    user?: AuthUser,
+  ): Promise<OpportunityStageUpdateResult> {
     const opportunity = await this.findOne(id, user)
+    const previousStage = opportunity.stage
     opportunity.stage = dto.stage
     opportunity.probability = STAGE_PROBABILITY[dto.stage]
     const saved = await this.opportunityRepository.save(opportunity)
     await this.invalidateStatsCache()
     await this.invalidateDetailCache(id)
-    return saved
+    return {
+      opportunity: saved,
+      previousStage,
+      currentStage: saved.stage,
+    }
   }
 
   async remove(id: number): Promise<void> {
@@ -144,6 +159,12 @@ export class OpportunityService {
   }
 
   async getStats(user: AuthUser): Promise<OpportunityStageStats[]> {
+    const cacheKey = this.getStatsCacheKey(user)
+    const cached = await this.redisService.get(cacheKey)
+    if (cached) {
+      return JSON.parse(cached) as OpportunityStageStats[]
+    }
+
     const qb = this.opportunityRepository
       .createQueryBuilder('opportunity')
       .select('opportunity.stage', 'stage')
@@ -169,11 +190,7 @@ export class OpportunityService {
       totalAmount: Number(row.totalAmount) || 0,
     }))
 
-    await this.redisService.set(
-      CACHE_KEYS.OPPORTUNITY_STATS,
-      JSON.stringify(result),
-      CACHE_TTL.OPPORTUNITY_STATS,
-    )
+    await this.redisService.set(cacheKey, JSON.stringify(result), CACHE_TTL.OPPORTUNITY_STATS)
     return result
   }
 
@@ -242,11 +259,16 @@ export class OpportunityService {
 
   /** Invalidate opportunity stats cache */
   private async invalidateStatsCache(): Promise<void> {
-    await this.redisService.del(CACHE_KEYS.OPPORTUNITY_STATS)
+    await this.redisService.delByPattern(`${CACHE_KEYS.OPPORTUNITY_STATS}:*`)
   }
 
   /** Invalidate a single opportunity detail cache */
   private async invalidateDetailCache(id: number): Promise<void> {
     await this.redisService.del(`${CACHE_KEYS.OPPORTUNITY_DETAIL}:${id}`)
+  }
+
+  private getStatsCacheKey(user: AuthUser): string {
+    const scope = user.role === UserRole.SALES ? `sales:${user.id}` : user.role
+    return `${CACHE_KEYS.OPPORTUNITY_STATS}:${scope}`
   }
 }

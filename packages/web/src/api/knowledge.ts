@@ -64,6 +64,12 @@ export interface AskResult {
   sources: AskResultSource[]
 }
 
+export interface ArticleActionResponse {
+  liked: boolean
+  favorited: boolean
+  likeCount: number
+}
+
 export interface CreateCategoryParams {
   name: string
   parentId?: number
@@ -92,6 +98,22 @@ export const knowledgeApi = {
 
   removeArticle(id: number): Promise<ApiResponse<null>> {
     return request.delete(`/knowledge/articles/${id}`)
+  },
+
+  toggleArticleLike(id: number): Promise<ApiResponse<ArticleActionResponse>> {
+    return request.post(`/knowledge/articles/${id}/like`)
+  },
+
+  toggleArticleFavorite(id: number): Promise<ApiResponse<ArticleActionResponse>> {
+    return request.post(`/knowledge/articles/${id}/favorite`)
+  },
+
+  getArticleStatus(id: number): Promise<ApiResponse<ArticleActionResponse>> {
+    return request.get(`/knowledge/articles/${id}/status`)
+  },
+
+  getUserFavorites(): Promise<ApiResponse<ArticleVO[]>> {
+    return request.get('/knowledge/favorites')
   },
 
   // ---- Category APIs ----

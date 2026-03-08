@@ -16,6 +16,7 @@ import { CallRecordModule } from './modules/call-record/call-record.module'
 import { AiModule } from './modules/ai/ai.module'
 import { AuditLogModule } from './modules/audit-log/audit-log.module'
 import { NotificationModule } from './modules/notification/notification.module'
+import { FollowUpModule } from './modules/follow-up/follow-up.module'
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { NotificationModule } from './modules/notification/notification.module'
     OpportunityModule,
     CallRecordModule,
     KnowledgeModule,
+    FollowUpModule,
   ],
 })
 export class AppModule {}

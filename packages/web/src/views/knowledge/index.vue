@@ -176,7 +176,7 @@
     <el-dialog
       v-model="articleDialogVisible"
       :title="isEditArticle ? '编辑文章' : '新建文章'"
-      width="700px"
+      width="1100px"
       :close-on-click-modal="false"
       @closed="handleArticleDialogClosed"
     >
@@ -215,19 +215,42 @@
           <el-switch v-model="articleForm.isPublished" active-text="已发布" inactive-text="草稿" />
         </el-form-item>
         <el-form-item label="内容" prop="content">
-          <el-input
+          <MarkdownEditor
             v-model="articleForm.content"
-            type="textarea"
-            :rows="10"
+            :height="380"
             placeholder="请输入文章内容（支持 Markdown）"
           />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="articleDialogVisible = false"> 取消 </el-button>
-        <el-button type="primary" :loading="submitLoading" @click="handleSubmitArticle">
-          {{ isEditArticle ? '保存' : '创建' }}
-        </el-button>
+        <div class="article-dialog-footer">
+          <div class="article-dialog-actions">
+            <el-button
+              v-if="isEditArticle && editArticleId !== null"
+              :type="articleStatus.liked ? 'primary' : 'default'"
+              :icon="articleStatus.liked ? StarFilled : Star"
+              :loading="likeLoading"
+              @click="handleToggleLike"
+            >
+              {{ articleStatus.liked ? '已点赞' : '点赞' }} ({{ articleStatus.likeCount }})
+            </el-button>
+            <el-button
+              v-if="isEditArticle && editArticleId !== null"
+              :type="articleStatus.favorited ? 'warning' : 'default'"
+              :icon="articleStatus.favorited ? CollectionTag : Collection"
+              :loading="favoriteLoading"
+              @click="handleToggleFavorite"
+            >
+              {{ articleStatus.favorited ? '已收藏' : '收藏' }}
+            </el-button>
+          </div>
+          <div class="article-dialog-submit">
+            <el-button @click="articleDialogVisible = false"> 取消 </el-button>
+            <el-button type="primary" :loading="submitLoading" @click="handleSubmitArticle">
+              {{ isEditArticle ? '保存' : '创建' }}
+            </el-button>
+          </div>
+        </div>
       </template>
     </el-dialog>
 
@@ -362,11 +385,23 @@
 import { ref, reactive, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { Plus, Files, Folder, Delete, ChatDotSquare } from '@element-plus/icons-vue'
+import {
+  Plus,
+  Files,
+  Folder,
+  Delete,
+  ChatDotSquare,
+  Star,
+  StarFilled,
+  Collection,
+  CollectionTag,
+} from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
+import MarkdownEditor from '@/components/MarkdownEditor.vue'
 import {
   knowledgeApi,
   type ArticleVO,
+  type ArticleActionResponse,
   type CategoryVO,
   type CreateArticleParams,
   type UpdateArticleParams,
@@ -523,9 +558,78 @@ const articleFormRules: FormRules = {
   content: [{ required: true, message: '请输入文章内容', trigger: 'blur' }],
 }
 
+const articleStatus = ref<ArticleActionResponse>({
+  liked: false,
+  favorited: false,
+  likeCount: 0,
+})
+const likeLoading = ref(false)
+const favoriteLoading = ref(false)
+
+function resetArticleActionStatus() {
+  articleStatus.value = {
+    liked: false,
+    favorited: false,
+    likeCount: 0,
+  }
+}
+
+async function loadArticleStatus(id: number) {
+  try {
+    const res = await knowledgeApi.getArticleStatus(id)
+    if (res?.data) {
+      articleStatus.value = res.data
+    }
+  } catch {
+    resetArticleActionStatus()
+  }
+}
+
+function syncArticleLikeCount(articleId: number, likeCount: number) {
+  const target = tableData.value.find((article) => article.id === articleId)
+  if (target) {
+    target.likeCount = likeCount
+  }
+}
+
+async function handleToggleLike() {
+  if (editArticleId.value === null) return
+
+  likeLoading.value = true
+  try {
+    const res = await knowledgeApi.toggleArticleLike(editArticleId.value)
+    if (res?.data) {
+      articleStatus.value = res.data
+      syncArticleLikeCount(editArticleId.value, res.data.likeCount)
+    }
+  } catch {
+    // Error handled by request interceptor
+  } finally {
+    likeLoading.value = false
+  }
+}
+
+async function handleToggleFavorite() {
+  if (editArticleId.value === null) return
+
+  favoriteLoading.value = true
+  try {
+    const res = await knowledgeApi.toggleArticleFavorite(editArticleId.value)
+    if (res?.data) {
+      articleStatus.value = res.data
+      syncArticleLikeCount(editArticleId.value, res.data.likeCount)
+    }
+  } catch {
+    // Error handled by request interceptor
+  } finally {
+    favoriteLoading.value = false
+  }
+}
+
 function handleCreateArticle() {
   isEditArticle.value = false
   editArticleId.value = null
+  resetArticleActionStatus()
   Object.assign(articleForm, defaultArticleForm())
   articleDialogVisible.value = true
 }
@@ -541,9 +645,13 @@ function handleEditArticle(row: ArticleVO) {
     isPublished: row.isPublished ?? false,
   })
   articleDialogVisible.value = true
+  loadArticleStatus(row.id)
 }
 
 function handleArticleDialogClosed() {
+  likeLoading.value = false
+  favoriteLoading.value = false
+  resetArticleActionStatus()
   articleFormRef.value?.clearValidate()
 }
 
@@ -902,6 +1010,25 @@ onMounted(async () => {
   display: flex;
   justify-content: flex-end;
   padding: 16px;
+}
+
+.article-dialog-footer {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.article-dialog-actions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.article-dialog-submit {
+  align-items: center;
+  display: flex;
+  gap: 8px;
 }
 
 /* AI Q&A Drawer — Chat Style */

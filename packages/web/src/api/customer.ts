@@ -54,6 +54,11 @@ export interface ImportResult {
   errors: string[]
 }
 
+// Allocate params
+export interface AllocateCustomerParams {
+  assignedUserId: number
+}
+
 export const customerApi = {
   getList(params: CustomerQueryParams): Promise<ApiResponse<PageResult<CustomerVO>>> {
     return request.get('/customers', { params })
@@ -93,5 +98,12 @@ export const customerApi = {
    */
   importCsv(rows: Array<Record<string, string>>): Promise<ApiResponse<ImportResult>> {
     return request.post('/customers/import', { rows })
+  },
+
+  /**
+   * Reassign a customer to a different sales user (ADMIN/MANAGER only).
+   */
+  allocate(id: number, data: AllocateCustomerParams): Promise<ApiResponse<CustomerVO>> {
+    return request.put(`/customers/${id}/assign`, data)
   },
 }

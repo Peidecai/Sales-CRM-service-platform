@@ -10,6 +10,9 @@ export type MockRepository<T = unknown> = Record<
   | 'findOne'
   | 'create'
   | 'save'
+  | 'delete'
+  | 'increment'
+  | 'decrement'
   | 'createQueryBuilder'
   | 'count',
   jest.Mock
@@ -21,6 +24,9 @@ export function createMockRepository<T = unknown>(): MockRepository<T> {
     findOne: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
+    delete: jest.fn(),
+    increment: jest.fn(),
+    decrement: jest.fn(),
     count: jest.fn(),
     createQueryBuilder: jest.fn(),
   }

@@ -1,14 +1,17 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { In, QueryFailedError, Repository } from 'typeorm'
 import { InjectQueue } from '@nestjs/bull'
 import { Queue } from 'bull'
 import { KnowledgeArticle } from './entities/knowledge-article.entity'
 import { KnowledgeCategory } from './entities/knowledge-category.entity'
+import { ArticleLike } from './entities/article-like.entity'
+import { ArticleFavorite } from './entities/article-favorite.entity'
 import { CreateArticleDto } from './dto/create-article.dto'
 import { UpdateArticleDto } from './dto/update-article.dto'
 import { QueryArticleDto } from './dto/query-article.dto'
 import { CreateCategoryDto } from './dto/create-category.dto'
+import { ArticleActionResponseDto } from './dto/article-action-response.dto'
 import { RedisService } from '../../common/redis'
 import { CACHE_KEYS, CACHE_TTL } from '../../common/redis'
 import { AiService } from '../ai/ai.service'
@@ -40,6 +43,10 @@ export class KnowledgeService {
     private readonly articleRepository: Repository<KnowledgeArticle>,
     @InjectRepository(KnowledgeCategory)
     private readonly categoryRepository: Repository<KnowledgeCategory>,
+    @InjectRepository(ArticleLike)
+    private readonly likeRepository: Repository<ArticleLike>,
+    @InjectRepository(ArticleFavorite)
+    private readonly favoriteRepository: Repository<ArticleFavorite>,
     private readonly redisService: RedisService,
     private readonly aiService: AiService,
     private readonly vectorService: VectorService,
@@ -126,6 +133,88 @@ export class KnowledgeService {
 
     // Remove vectors for deleted article
     this.vectorService.deleteArticleVectors(id)
+  }
+
+  async toggleLike(articleId: number, userId: number): Promise<ArticleActionResponseDto> {
+    await this.getArticleOrFail(articleId)
+
+    const existing = await this.likeRepository.findOne({ where: { articleId, userId } })
+    if (existing) {
+      const deleteResult = await this.likeRepository.delete({ id: existing.id })
+      if (deleteResult.affected && deleteResult.affected > 0) {
+        await this.decrementLikeCount(articleId)
+      }
+      return this.getArticleActionStatus(articleId, userId)
+    }
+
+    try {
+      await this.likeRepository.save(this.likeRepository.create({ articleId, userId }))
+      await this.articleRepository.increment({ id: articleId }, 'likeCount', 1)
+    } catch (error) {
+      if (!this.isDuplicateEntryError(error)) {
+        throw error
+      }
+    }
+
+    return this.getArticleActionStatus(articleId, userId)
+  }
+
+  async toggleFavorite(articleId: number, userId: number): Promise<ArticleActionResponseDto> {
+    await this.getArticleOrFail(articleId)
+
+    const existing = await this.favoriteRepository.findOne({ where: { articleId, userId } })
+    if (existing) {
+      await this.favoriteRepository.delete({ id: existing.id })
+      return this.getArticleActionStatus(articleId, userId)
+    }
+
+    try {
+      await this.favoriteRepository.save(this.favoriteRepository.create({ articleId, userId }))
+    } catch (error) {
+      if (!this.isDuplicateEntryError(error)) {
+        throw error
+      }
+    }
+
+    return this.getArticleActionStatus(articleId, userId)
+  }
+
+  async getArticleActionStatus(
+    articleId: number,
+    userId: number,
+  ): Promise<ArticleActionResponseDto> {
+    const article = await this.getArticleOrFail(articleId)
+    const [liked, favorited] = await Promise.all([
+      this.isLiked(articleId, userId),
+      this.isFavorited(articleId, userId),
+    ])
+
+    return {
+      liked,
+      favorited,
+      likeCount: article.likeCount,
+    }
+  }
+
+  async getUserFavorites(userId: number): Promise<KnowledgeArticle[]> {
+    const favorites = await this.favoriteRepository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    })
+
+    if (favorites.length === 0) {
+      return []
+    }
+
+    const articleIds = favorites.map((favorite) => favorite.articleId)
+    const articles = await this.articleRepository.find({
+      where: { id: In(articleIds), deleted: false },
+    })
+    const articleMap = new Map(articles.map((article) => [article.id, article]))
+
+    return articleIds
+      .map((id) => articleMap.get(id))
+      .filter((article): article is KnowledgeArticle => Boolean(article))
   }
 
   // ---- Category Methods ----
@@ -232,6 +321,48 @@ export class KnowledgeService {
   }
 
   // ---- Private Helpers ----
+
+  private async getArticleOrFail(articleId: number): Promise<KnowledgeArticle> {
+    const article = await this.articleRepository.findOne({
+      where: { id: articleId, deleted: false },
+    })
+
+    if (!article) {
+      throw new NotFoundException(`Article with ID ${articleId} not found`)
+    }
+
+    return article
+  }
+
+  private async isLiked(articleId: number, userId: number): Promise<boolean> {
+    const like = await this.likeRepository.findOne({ where: { articleId, userId } })
+    return Boolean(like)
+  }
+
+  private async isFavorited(articleId: number, userId: number): Promise<boolean> {
+    const favorite = await this.favoriteRepository.findOne({ where: { articleId, userId } })
+    return Boolean(favorite)
+  }
+
+  private async decrementLikeCount(articleId: number): Promise<void> {
+    await this.articleRepository
+      .createQueryBuilder()
+      .update(KnowledgeArticle)
+      .set({
+        likeCount: () => 'CASE WHEN like_count > 0 THEN like_count - 1 ELSE 0 END',
+      })
+      .where('id = :id', { id: articleId })
+      .execute()
+  }
+
+  private isDuplicateEntryError(error: unknown): boolean {
+    if (!(error instanceof QueryFailedError)) {
+      return false
+    }
+
+    const mysqlError = error as QueryFailedError & { code?: string; errno?: number }
+    return mysqlError.code === 'ER_DUP_ENTRY' || mysqlError.errno === 1062
+  }
 
   /** Invalidate category tree cache */
   private async invalidateCategoryCache(): Promise<void> {

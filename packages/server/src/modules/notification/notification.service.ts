@@ -148,6 +148,17 @@ export class NotificationService {
     })
   }
 
+  callRecordDeleted(actorId: number, actorName: string, recordId: number) {
+    this.notify({
+      type: NotificationType.CALL_RECORD_DELETED,
+      actorId,
+      actorName,
+      resource: 'call_record',
+      resourceId: recordId,
+      message: `${actorName} 删除了通话记录 #${recordId}`,
+    })
+  }
+
   callSummaryCompleted(recordId: number) {
     this.notify({
       type: NotificationType.CALL_SUMMARY_COMPLETED,

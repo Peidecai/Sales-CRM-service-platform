@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia'
+﻿import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authApi } from '@/api/auth'
 import type { LoginDto } from '@/api/auth'
@@ -31,8 +31,16 @@ export const useUserStore = defineStore(
     }
 
     function logout() {
-      // Fire-and-forget: 通知服务器将 token 加入黑名单
+      // Fire-and-forget: notify server to blacklist current token.
       authApi.logout().catch(() => {})
+
+      // Disconnect notification websocket without introducing static circular imports.
+      import('@/composables/useNotification')
+        .then(({ disconnectNotificationSocket }) => {
+          disconnectNotificationSocket()
+        })
+        .catch(() => {})
+
       token.value = null
       refreshToken.value = null
       userInfo.value = null

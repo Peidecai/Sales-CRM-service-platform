@@ -28,6 +28,7 @@ import { NotificationService } from '../notification/notification.service'
 import { CreateCustomerDto } from './dto/create-customer.dto'
 import { UpdateCustomerDto } from './dto/update-customer.dto'
 import { QueryCustomerDto } from './dto/query-customer.dto'
+import { AllocateCustomerDto } from './dto/allocate-customer.dto'
 
 @ApiTags('客户管理')
 @ApiBearerAuth()
@@ -111,12 +112,33 @@ export class CustomerController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden — SALES can only update own customers' })
   @ApiResponse({ status: 404, description: 'Customer not found' })
-  update(
+  async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateCustomerDto,
     @CurrentUser() user: AuthUser,
   ) {
-    return this.customerService.update(id, dto, user)
+    const customer = await this.customerService.update(id, dto, user)
+    this.notificationService.customerUpdated(user.id, user.username, customer.id, customer.name)
+    return customer
+  }
+
+  @Put(':id/assign')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reassign customer to a different sales user' })
+  @ApiParam({ name: 'id', description: 'Customer ID', type: Number })
+  @ApiResponse({ status: 200, description: 'Customer reassigned successfully' })
+  @ApiResponse({ status: 400, description: 'Target user is not active' })
+  @ApiResponse({ status: 403, description: 'Forbidden — requires ADMIN or MANAGER role' })
+  @ApiResponse({ status: 404, description: 'Customer or target user not found' })
+  async allocate(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AllocateCustomerDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const customer = await this.customerService.allocate(id, dto)
+    this.notificationService.customerUpdated(user.id, user.username, customer.id, customer.name)
+    return customer
   }
 
   @Delete(':id')

@@ -45,14 +45,20 @@
           <div class="card-header">
             <span class="card-header-title">商机信息</span>
             <div class="card-header-actions">
-              <el-button type="warning" size="small" @click="handleAdvanceStage">
+              <el-button
+                v-if="isAdminOrManager"
+                type="warning"
+                size="small"
+                @click="handleAdvanceStage"
+              >
                 推进阶段
               </el-button>
-              <el-button type="primary" size="small" @click="handleEdit">
+              <el-button v-if="isAdminOrManager" type="primary" size="small" @click="handleEdit">
                 <el-icon><Edit /></el-icon>
                 编辑
               </el-button>
               <el-popconfirm
+                v-if="isAdminOrManager"
                 title="确定要删除该商机吗？"
                 confirm-button-text="确定"
                 cancel-button-text="取消"
@@ -147,6 +153,133 @@
         </el-table>
         <el-empty v-else description="暂无通话记录" :image-size="80" />
       </el-card>
+
+      <!-- Follow-up Records -->
+      <el-card shadow="never" class="related-card">
+        <template #header>
+          <div class="card-header">
+            <span class="card-header-title">
+              跟进记录
+              <el-tag size="small" type="info" class="count-tag">{{ followUpTotal }}</el-tag>
+            </span>
+            <el-button type="primary" size="small" plain @click="openFollowUpDialog()">
+              <el-icon><Plus /></el-icon>
+              新建跟进
+            </el-button>
+          </div>
+        </template>
+
+        <div v-if="followUps.length > 0" class="follow-up-timeline">
+          <el-timeline>
+            <el-timeline-item
+              v-for="item in followUps"
+              :key="item.id"
+              :timestamp="formatDate(item.createdAt)"
+              placement="top"
+            >
+              <el-card shadow="never" class="follow-up-item">
+                <div class="follow-up-header">
+                  <el-tag :type="getFollowUpTypeTag(item.type)" size="small">
+                    {{ getFollowUpTypeLabel(item.type) }}
+                  </el-tag>
+                  <span class="follow-up-user">{{
+                    item.user?.realName || item.user?.username || `用户 ${item.userId}`
+                  }}</span>
+                  <div class="follow-up-actions">
+                    <el-button type="primary" link size="small" @click="openFollowUpDialog(item)">
+                      编辑
+                    </el-button>
+                    <el-popconfirm
+                      title="确定要删除该跟进记录吗？"
+                      confirm-button-text="确定"
+                      cancel-button-text="取消"
+                      @confirm="handleDeleteFollowUp(item.id)"
+                    >
+                      <template #reference>
+                        <el-button type="danger" link size="small">删除</el-button>
+                      </template>
+                    </el-popconfirm>
+                  </div>
+                </div>
+                <div class="follow-up-content">{{ item.content }}</div>
+                <div v-if="item.nextFollowUpDate" class="follow-up-next">
+                  <el-icon><Calendar /></el-icon>
+                  下次跟进：{{ item.nextFollowUpDate }}
+                  <span v-if="item.nextFollowUpNote" class="follow-up-next-note"
+                    >— {{ item.nextFollowUpNote }}</span
+                  >
+                </div>
+              </el-card>
+            </el-timeline-item>
+          </el-timeline>
+          <div v-if="followUpTotal > followUps.length" class="load-more">
+            <el-button text :loading="followUpLoading" @click="loadMoreFollowUps">
+              加载更多
+            </el-button>
+          </div>
+        </div>
+        <el-empty v-else description="暂无跟进记录" :image-size="80" />
+      </el-card>
+
+      <!-- Follow-up Dialog -->
+      <el-dialog
+        v-model="followUpDialogVisible"
+        :title="followUpEditId ? '编辑跟进记录' : '新建跟进记录'"
+        width="520px"
+        :close-on-click-modal="false"
+        @closed="handleFollowUpDialogClosed"
+      >
+        <el-form
+          ref="followUpFormRef"
+          :model="followUpForm"
+          :rules="followUpRules"
+          label-width="90px"
+        >
+          <el-form-item label="跟进方式" prop="type">
+            <el-select v-model="followUpForm.type" placeholder="请选择" style="width: 100%">
+              <el-option
+                v-for="opt in followUpTypeOptions"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="跟进内容" prop="content">
+            <el-input
+              v-model="followUpForm.content"
+              type="textarea"
+              :rows="4"
+              placeholder="请输入本次跟进内容"
+              maxlength="2000"
+              show-word-limit
+            />
+          </el-form-item>
+          <el-form-item label="下次跟进日" prop="nextFollowUpDate">
+            <el-date-picker
+              v-model="followUpForm.nextFollowUpDate"
+              type="date"
+              placeholder="选择日期（可选）"
+              format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
+              style="width: 100%"
+            />
+          </el-form-item>
+          <el-form-item label="下次备注" prop="nextFollowUpNote">
+            <el-input
+              v-model="followUpForm.nextFollowUpNote"
+              placeholder="下次跟进备注（可选）"
+              maxlength="500"
+            />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="followUpDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="followUpSubmitLoading" @click="handleFollowUpSubmit">
+            {{ followUpEditId ? '保存' : '创建' }}
+          </el-button>
+        </template>
+      </el-dialog>
 
       <!-- Advance Stage Dialog -->
       <el-dialog
@@ -272,8 +405,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { ArrowLeft, Edit, Delete } from '@element-plus/icons-vue'
+import { ElMessage, type FormInstance, type FormRules, type TagProps } from 'element-plus'
+import { ArrowLeft, Edit, Delete, Plus, Calendar } from '@element-plus/icons-vue'
 import {
   opportunityApi,
   OpportunityStage,
@@ -282,17 +415,29 @@ import {
 } from '@/api/opportunity'
 import { customerApi, type CustomerVO } from '@/api/customer'
 import { callRecordApi, type CallRecordVO } from '@/api/call-record'
+import {
+  followUpApi,
+  FollowUpType,
+  type FollowUpVO,
+  type CreateFollowUpParams,
+} from '@/api/follow-up'
 import { formatDate, formatDuration } from '@/utils/format'
 import { getStageTagType, getStageLabel } from '@/utils/tag-helpers'
+import { usePermission } from '@/composables/usePermission'
 
 const route = useRoute()
 const router = useRouter()
+const { isAdminOrManager } = usePermission()
 
 // ---- State ----
 const loading = ref(true)
 const opportunity = ref<OpportunityVO | null>(null)
 const customerInfo = ref<CustomerVO | null>(null)
 const callRecords = ref<CallRecordVO[]>([])
+const followUps = ref<FollowUpVO[]>([])
+const followUpTotal = ref(0)
+const followUpPage = ref(1)
+const followUpLoading = ref(false)
 
 const opportunityId = Number(route.params.id)
 
@@ -327,7 +472,7 @@ async function fetchOpportunity() {
       opportunity.value = res.data
 
       // Fetch related data in parallel
-      const [custRes, callRes] = await Promise.all([
+      const [custRes, callRes, followUpRes] = await Promise.all([
         customerApi.getDetail(res.data.customerId).catch(() => null),
         callRecordApi
           .getList({
@@ -336,12 +481,20 @@ async function fetchOpportunity() {
             pageSize: 100,
           })
           .catch(() => null),
+        followUpApi
+          .getList({ customerId: res.data.customerId, page: 1, pageSize: 20 })
+          .catch(() => null),
       ])
       if (custRes?.data) {
         customerInfo.value = custRes.data
       }
       if (callRes?.data) {
         callRecords.value = callRes.data.list
+      }
+      if (followUpRes?.data) {
+        followUps.value = followUpRes.data.list
+        followUpTotal.value = followUpRes.data.total
+        followUpPage.value = 1
       }
     }
   } catch {
@@ -405,7 +558,7 @@ function handleEdit() {
   if (!opportunity.value) return
   Object.assign(formData, {
     title: opportunity.value.title ?? '',
-    amount: Number(opportunity.value.amount) ?? 0,
+    amount: Number(opportunity.value.amount) || 0,
     expectedCloseDate: opportunity.value.expectedCloseDate ?? '',
     probability: opportunity.value.probability ?? 10,
     description: opportunity.value.description ?? '',
@@ -448,6 +601,153 @@ async function handleDelete() {
     await opportunityApi.remove(opportunityId)
     ElMessage.success('删除成功')
     router.push('/opportunity')
+  } catch {
+    // Error handled by request interceptor
+  }
+}
+
+// ---- Follow-up Helpers ----
+const followUpTypeOptions = [
+  { value: FollowUpType.CALL, label: '电话' },
+  { value: FollowUpType.VISIT, label: '拜访' },
+  { value: FollowUpType.EMAIL, label: '邮件' },
+  { value: FollowUpType.WECHAT, label: '微信' },
+  { value: FollowUpType.OTHER, label: '其他' },
+]
+
+function getFollowUpTypeLabel(type: FollowUpType): string {
+  return followUpTypeOptions.find((o) => o.value === type)?.label ?? type
+}
+
+function getFollowUpTypeTag(type: FollowUpType): TagProps['type'] {
+  const map: Record<FollowUpType, TagProps['type']> = {
+    [FollowUpType.CALL]: 'primary',
+    [FollowUpType.VISIT]: 'success',
+    [FollowUpType.EMAIL]: 'info',
+    [FollowUpType.WECHAT]: 'warning',
+    [FollowUpType.OTHER]: undefined,
+  }
+  return map[type]
+}
+
+async function loadMoreFollowUps() {
+  if (!opportunity.value) return
+  followUpLoading.value = true
+  try {
+    const res = await followUpApi.getList({
+      customerId: opportunity.value.customerId,
+      page: followUpPage.value + 1,
+      pageSize: 20,
+    })
+    if (res?.data) {
+      followUps.value.push(...res.data.list)
+      followUpPage.value += 1
+    }
+  } catch {
+    // Error handled by request interceptor
+  } finally {
+    followUpLoading.value = false
+  }
+}
+
+// ---- Follow-up Dialog ----
+const followUpDialogVisible = ref(false)
+const followUpSubmitLoading = ref(false)
+const followUpEditId = ref<number | null>(null)
+const followUpFormRef = ref<FormInstance>()
+
+interface FollowUpForm {
+  type: FollowUpType
+  content: string
+  nextFollowUpDate: string | null
+  nextFollowUpNote: string
+}
+
+const defaultFollowUpForm = (): FollowUpForm => ({
+  type: FollowUpType.CALL,
+  content: '',
+  nextFollowUpDate: null,
+  nextFollowUpNote: '',
+})
+
+const followUpForm = reactive<FollowUpForm>(defaultFollowUpForm())
+
+const followUpRules = {
+  type: [{ required: true, message: '请选择跟进方式', trigger: 'change' }],
+  content: [{ required: true, message: '请输入跟进内容', trigger: 'blur' }],
+}
+
+function openFollowUpDialog(item?: FollowUpVO) {
+  if (item) {
+    followUpEditId.value = item.id
+    Object.assign(followUpForm, {
+      type: item.type,
+      content: item.content,
+      nextFollowUpDate: item.nextFollowUpDate ?? null,
+      nextFollowUpNote: item.nextFollowUpNote ?? '',
+    })
+  } else {
+    followUpEditId.value = null
+    Object.assign(followUpForm, defaultFollowUpForm())
+  }
+  followUpDialogVisible.value = true
+}
+
+function handleFollowUpDialogClosed() {
+  followUpFormRef.value?.clearValidate()
+}
+
+async function handleFollowUpSubmit() {
+  if (!followUpFormRef.value || !opportunity.value) return
+  const valid = await followUpFormRef.value.validate().catch(() => false)
+  if (!valid) return
+
+  followUpSubmitLoading.value = true
+  try {
+    if (followUpEditId.value) {
+      await followUpApi.update(followUpEditId.value, {
+        type: followUpForm.type,
+        content: followUpForm.content,
+        nextFollowUpDate: followUpForm.nextFollowUpDate ?? undefined,
+        nextFollowUpNote: followUpForm.nextFollowUpNote || undefined,
+      })
+      ElMessage.success('跟进记录更新成功')
+    } else {
+      const params: CreateFollowUpParams = {
+        customerId: opportunity.value.customerId,
+        type: followUpForm.type,
+        content: followUpForm.content,
+        nextFollowUpDate: followUpForm.nextFollowUpDate ?? undefined,
+        nextFollowUpNote: followUpForm.nextFollowUpNote || undefined,
+      }
+      await followUpApi.create(params)
+      ElMessage.success('跟进记录创建成功')
+    }
+    followUpDialogVisible.value = false
+    // Refresh follow-up list
+    const res = await followUpApi.getList({
+      customerId: opportunity.value.customerId,
+      page: 1,
+      pageSize: 20,
+    })
+    if (res?.data) {
+      followUps.value = res.data.list
+      followUpTotal.value = res.data.total
+      followUpPage.value = 1
+    }
+  } catch {
+    // Error handled by request interceptor
+  } finally {
+    followUpSubmitLoading.value = false
+  }
+}
+
+async function handleDeleteFollowUp(id: number) {
+  try {
+    await followUpApi.remove(id)
+    ElMessage.success('删除成功')
+    followUps.value = followUps.value.filter((f) => f.id !== id)
+    followUpTotal.value -= 1
   } catch {
     // Error handled by request interceptor
   }
@@ -612,5 +912,61 @@ onMounted(() => {
 
 .related-card :deep(.el-table) {
   border-radius: 0;
+}
+
+.follow-up-timeline {
+  padding: 8px 0;
+}
+
+.follow-up-item {
+  border: none;
+  background: #f8f9fa;
+}
+
+.follow-up-item :deep(.el-card__body) {
+  padding: 12px 16px;
+}
+
+.follow-up-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.follow-up-user {
+  font-size: 13px;
+  color: #606266;
+  flex: 1;
+}
+
+.follow-up-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.follow-up-content {
+  font-size: 14px;
+  color: #303133;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  margin-bottom: 8px;
+}
+
+.follow-up-next {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.follow-up-next-note {
+  color: #606266;
+}
+
+.load-more {
+  text-align: center;
+  padding: 8px 0;
 }
 </style>

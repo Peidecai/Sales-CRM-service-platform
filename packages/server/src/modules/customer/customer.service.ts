@@ -7,9 +7,11 @@ import {
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, SelectQueryBuilder } from 'typeorm'
 import { Customer } from './customer.entity'
+import { User } from '../user/user.entity'
 import { CreateCustomerDto } from './dto/create-customer.dto'
 import { UpdateCustomerDto } from './dto/update-customer.dto'
 import { QueryCustomerDto } from './dto/query-customer.dto'
+import { AllocateCustomerDto } from './dto/allocate-customer.dto'
 import { RedisService } from '../../common/redis'
 import { CACHE_KEYS, CACHE_TTL } from '../../common/redis'
 import { CustomerStatus, UserRole } from '@crm/shared'
@@ -20,6 +22,8 @@ export class CustomerService {
   constructor(
     @InjectRepository(Customer)
     private readonly customerRepository: Repository<Customer>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     private readonly redisService: RedisService,
   ) {}
 
@@ -89,7 +93,6 @@ export class CustomerService {
 
     const customer = await this.customerRepository.findOne({
       where: { id, deleted: false },
-      relations: ['opportunities', 'callRecords'],
     })
 
     if (!customer) {
@@ -117,6 +120,29 @@ export class CustomerService {
     await this.customerRepository.save(customer)
     await this.invalidateListCache()
     await this.invalidateDetailCache(id)
+  }
+
+  async allocate(id: number, dto: AllocateCustomerDto): Promise<Customer> {
+    const customer = await this.customerRepository.findOne({ where: { id, deleted: false } })
+    if (!customer) {
+      throw new NotFoundException(`Customer with ID ${id} not found`)
+    }
+
+    const targetUser = await this.userRepository.findOne({
+      where: { id: dto.assignedUserId, deleted: false },
+    })
+    if (!targetUser) {
+      throw new NotFoundException(`User with ID ${dto.assignedUserId} not found`)
+    }
+    if (!targetUser.isActive) {
+      throw new BadRequestException(`User with ID ${dto.assignedUserId} is not active`)
+    }
+
+    customer.assignedUserId = dto.assignedUserId
+    const saved = await this.customerRepository.save(customer)
+    await this.invalidateListCache()
+    await this.invalidateDetailCache(id)
+    return saved
   }
 
   /** Invalidate all customer list caches */

@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { getRepositoryToken } from '@nestjs/typeorm'
-import { NotFoundException, BadRequestException } from '@nestjs/common'
+import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common'
 import { CustomerService } from '../../src/modules/customer/customer.service'
 import { Customer } from '../../src/modules/customer/customer.entity'
+import { User } from '../../src/modules/user/user.entity'
 import { RedisService } from '../../src/common/redis'
 import { CustomerStatus, UserRole } from '@crm/shared'
 import {
@@ -21,16 +22,19 @@ const salesUser: AuthUser = { id: 1, username: 'sales1', role: UserRole.SALES }
 describe('CustomerService', () => {
   let service: CustomerService
   let repo: MockRepository<Customer>
+  let userRepo: MockRepository<User>
   let redis: MockRedisService
 
   beforeEach(async () => {
     repo = createMockRepository<Customer>()
+    userRepo = createMockRepository<User>()
     redis = createMockRedisService()
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CustomerService,
         { provide: getRepositoryToken(Customer), useValue: repo },
+        { provide: getRepositoryToken(User), useValue: userRepo },
         { provide: RedisService, useValue: redis },
       ],
     }).compile()
@@ -65,6 +69,17 @@ describe('CustomerService', () => {
 
   /* ---------- findAll ---------- */
   describe('findAll', () => {
+    it('should use default page and pageSize when omitted', async () => {
+      redis.get.mockResolvedValue(null)
+      const qb = createMockQueryBuilder([], 0)
+      repo.createQueryBuilder.mockReturnValue(qb)
+
+      await service.findAll({} as never, adminUser)
+
+      expect(qb.skip).toHaveBeenCalledWith(0)
+      expect(qb.take).toHaveBeenCalledWith(20)
+    })
+
     it('should return cached result on cache hit', async () => {
       const cached = { list: [fixtures.customer()], total: 1 }
       redis.get.mockResolvedValue(JSON.stringify(cached))
@@ -156,7 +171,17 @@ describe('CustomerService', () => {
 
   /* ---------- findOne ---------- */
   describe('findOne', () => {
-    it('should return customer with relations', async () => {
+    it('should return customer from cache without DB lookup', async () => {
+      const customer = fixtures.customer({ id: 8 })
+      redis.get.mockResolvedValue(JSON.stringify(customer))
+
+      const result = await service.findOne(8, adminUser)
+
+      expect(result.id).toBe(8)
+      expect(repo.findOne).not.toHaveBeenCalled()
+    })
+
+    it('should return customer detail without loading heavy relations', async () => {
       const customer = fixtures.customer()
       repo.findOne.mockResolvedValue(customer)
 
@@ -164,7 +189,6 @@ describe('CustomerService', () => {
 
       expect(repo.findOne).toHaveBeenCalledWith({
         where: { id: 1, deleted: false },
-        relations: ['opportunities', 'callRecords'],
       })
       expect(result.name).toBe('Test Customer')
     })
@@ -173,6 +197,30 @@ describe('CustomerService', () => {
       repo.findOne.mockResolvedValue(null)
 
       await expect(service.findOne(999)).rejects.toThrow(NotFoundException)
+    })
+
+    it('should allow SALES user to access own customer', async () => {
+      redis.get.mockResolvedValue(null)
+      const customer = fixtures.customer({ assignedUserId: salesUser.id })
+      repo.findOne.mockResolvedValue(customer)
+
+      await expect(service.findOne(1, salesUser)).resolves.toEqual(customer)
+    })
+
+    it('should throw ForbiddenException for SALES accessing other customer', async () => {
+      redis.get.mockResolvedValue(null)
+      const customer = fixtures.customer({ assignedUserId: 99 })
+      repo.findOne.mockResolvedValue(customer)
+
+      await expect(service.findOne(1, salesUser)).rejects.toThrow(ForbiddenException)
+    })
+
+    it('should enforce ownership check for cached customer too', async () => {
+      const customer = fixtures.customer({ assignedUserId: 99 })
+      redis.get.mockResolvedValue(JSON.stringify(customer))
+
+      await expect(service.findOne(1, salesUser)).rejects.toThrow(ForbiddenException)
+      expect(repo.findOne).not.toHaveBeenCalled()
     })
   })
 
@@ -259,6 +307,25 @@ describe('CustomerService', () => {
         { currentUserId: salesUser.id },
       )
     })
+
+    it('should fallback optional fields to empty values', async () => {
+      const customer = fixtures.customer({
+        name: 'NoExtras',
+        company: null,
+        phone: null,
+        email: null,
+        status: null,
+        industry: null,
+        source: null,
+        notes: null,
+      })
+      const qb = createMockQueryBuilder([customer], 1)
+      repo.createQueryBuilder.mockReturnValue(qb)
+
+      const csv = await service.exportCsv(adminUser)
+
+      expect(csv).toContain('NoExtras,,,,,,,')
+    })
   })
 
   /* ---------- importFromCsvRows ---------- */
@@ -297,6 +364,54 @@ describe('CustomerService', () => {
 
     it('should throw BadRequestException if no valid rows', async () => {
       const rows = [{ '姓名': '' }] // all invalid
+
+      await expect(service.importFromCsvRows(rows, 1)).rejects.toThrow(BadRequestException)
+    })
+  })
+
+  describe('importFromCsvRows english headers', () => {
+    it('should support english headers and default status', async () => {
+      const rows = [{ name: 'English Name', company: 'Corp EN', status: '' }]
+      repo.create.mockImplementation((items) => items)
+      repo.save.mockResolvedValue([])
+
+      const result = await service.importFromCsvRows(rows, 5)
+
+      expect(result.imported).toBe(1)
+      expect(result.errors).toEqual([])
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: 'English Name',
+            status: CustomerStatus.POTENTIAL,
+            assignedUserId: 5,
+          }),
+        ]),
+      )
+    })
+
+    it('should treat missing header keys as empty values during import parsing', async () => {
+      const rows: Array<Record<string, string>> = [{}, { name: 'Only Name' }]
+      repo.create.mockImplementation((items) => items)
+      repo.save.mockResolvedValue([])
+
+      const result = await service.importFromCsvRows(rows, 6)
+
+      expect(result.imported).toBe(1)
+      expect(result.errors).toHaveLength(1)
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: 'Only Name',
+            status: CustomerStatus.POTENTIAL,
+            assignedUserId: 6,
+          }),
+        ]),
+      )
+    })
+
+    it('should reject invalid status provided in english header', async () => {
+      const rows = [{ name: 'Bad Status', status: 'bad-status' }]
 
       await expect(service.importFromCsvRows(rows, 1)).rejects.toThrow(BadRequestException)
     })

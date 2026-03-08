@@ -1,97 +1,73 @@
-import { describe, it, expect } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import type { DirectiveBinding, ObjectDirective } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
-import { defineComponent } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { setupPermissionDirective } from './permission'
 
-/**
- * Helper to mount a component with the v-permission directive registered.
- */
-function mountWithPermission(template: string, role: string) {
-  const pinia = createPinia()
-  setActivePinia(pinia)
-
-  // Set user role
-  const userStore = useUserStore(pinia)
-  if (role) {
-    userStore.userInfo = { id: 1, username: 'test', name: 'Test', role }
+function getRegisteredDirective() {
+  const app = {
+    directive: vi.fn(),
   }
-
-  const TestComponent = defineComponent({
-    template,
-  })
-
-  return mount(TestComponent, {
-    global: {
-      plugins: [pinia],
-      directives: {
-        permission: {
-          mounted(el: HTMLElement, binding: { value: string | string[] }) {
-            const requiredRoles = Array.isArray(binding.value) ? binding.value : [binding.value]
-            const currentRole = useUserStore(pinia).userRole
-            if (requiredRoles.length > 0 && !requiredRoles.includes(currentRole)) {
-              el.parentNode?.removeChild(el)
-            }
-          },
-          updated(el: HTMLElement, binding: { value: string | string[] }) {
-            const requiredRoles = Array.isArray(binding.value) ? binding.value : [binding.value]
-            const currentRole = useUserStore(pinia).userRole
-            if (requiredRoles.length > 0 && !requiredRoles.includes(currentRole)) {
-              el.parentNode?.removeChild(el)
-            }
-          },
-        },
-      },
-    },
-  })
+  setupPermissionDirective(app as never)
+  expect(app.directive).toHaveBeenCalledWith('permission', expect.any(Object))
+  return app.directive.mock.calls[0][1] as ObjectDirective<HTMLElement, string | string[]>
 }
 
-describe('v-permission directive', () => {
-  it('should keep element when user has matching role (string)', () => {
-    const wrapper = mountWithPermission(
-      '<div><span v-permission="\'admin\'">Secret</span></div>',
-      'admin',
-    )
-    expect(wrapper.find('span').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Secret')
+describe('permission directive', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
   })
 
-  it('should remove element when user does not have matching role (string)', () => {
-    const wrapper = mountWithPermission(
-      '<div><span v-permission="\'admin\'">Secret</span></div>',
-      'sales',
-    )
-    expect(wrapper.find('span').exists()).toBe(false)
+  it('removes element in mounted hook when role does not match', () => {
+    const directive = getRegisteredDirective()
+    const userStore = useUserStore()
+    userStore.userInfo = { id: 1, username: 'sales', name: 'Sales User', role: 'sales' }
+
+    const removeChild = vi.fn()
+    const el = { parentNode: { removeChild } } as unknown as HTMLElement
+    const binding = { value: 'admin' } as DirectiveBinding<string | string[]>
+
+    directive.mounted?.(el, binding, null as never, null as never)
+
+    expect(removeChild).toHaveBeenCalledWith(el)
   })
 
-  it('should keep element when user has one of the matching roles (array)', () => {
-    const wrapper = mountWithPermission(
-      `<div><span v-permission="['admin', 'manager']">Manage</span></div>`,
-      'manager',
-    )
-    expect(wrapper.find('span').exists()).toBe(true)
+  it('keeps element in mounted hook when role matches', () => {
+    const directive = getRegisteredDirective()
+    const userStore = useUserStore()
+    userStore.userInfo = { id: 2, username: 'admin', name: 'Admin', role: 'admin' }
+
+    const removeChild = vi.fn()
+    const el = { parentNode: { removeChild } } as unknown as HTMLElement
+    const binding = { value: 'admin' } as DirectiveBinding<string | string[]>
+
+    directive.mounted?.(el, binding, null as never, null as never)
+
+    expect(removeChild).not.toHaveBeenCalled()
   })
 
-  it('should remove element when user does not have any matching role (array)', () => {
-    const wrapper = mountWithPermission(
-      `<div><span v-permission="['admin', 'manager']">Manage</span></div>`,
-      'sales',
-    )
-    expect(wrapper.find('span').exists()).toBe(false)
+  it('removes element in updated hook for array role mismatch', () => {
+    const directive = getRegisteredDirective()
+    const userStore = useUserStore()
+    userStore.userInfo = { id: 3, username: 'sales', name: 'Sales', role: 'sales' }
+
+    const removeChild = vi.fn()
+    const el = { parentNode: { removeChild } } as unknown as HTMLElement
+    const binding = { value: ['admin', 'manager'] } as DirectiveBinding<string | string[]>
+
+    directive.updated?.(el, binding, null as never, null as never)
+
+    expect(removeChild).toHaveBeenCalledWith(el)
   })
 
-  it('should remove element when no user info', () => {
-    const wrapper = mountWithPermission(
-      '<div><span v-permission="\'admin\'">Secret</span></div>',
-      '',
-    )
-    expect(wrapper.find('span').exists()).toBe(false)
-  })
-})
+  it('does not throw when parentNode is missing', () => {
+    const directive = getRegisteredDirective()
+    const userStore = useUserStore()
+    userStore.userInfo = { id: 4, username: 'sales', name: 'Sales', role: 'sales' }
 
-describe('setupPermissionDirective', () => {
-  it('should be a function', () => {
-    expect(typeof setupPermissionDirective).toBe('function')
+    const el = { parentNode: null } as unknown as HTMLElement
+    const binding = { value: 'admin' } as DirectiveBinding<string | string[]>
+
+    expect(() => directive.mounted?.(el, binding, null as never, null as never)).not.toThrow()
   })
 })

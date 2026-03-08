@@ -63,7 +63,7 @@ describe('OpportunityService', () => {
         probability: 10,
       }))
       expect(repo.save).toHaveBeenCalled()
-      expect(redis.del).toHaveBeenCalledWith('cache:opportunities:stats')
+      expect(redis.delByPattern).toHaveBeenCalledWith('cache:opportunities:stats:*')
       expect(result.title).toBe('New Deal')
     })
 
@@ -84,6 +84,18 @@ describe('OpportunityService', () => {
 
   /* ---------- findAll ---------- */
   describe('findAll', () => {
+    it('should use default page and pageSize when omitted', async () => {
+      const qb = createMockQueryBuilder([], 0)
+      repo.createQueryBuilder.mockReturnValue(qb)
+
+      const result = await service.findAll({} as never, adminUser)
+
+      expect(qb.skip).toHaveBeenCalledWith(0)
+      expect(qb.take).toHaveBeenCalledWith(20)
+      expect(result.page).toBe(1)
+      expect(result.pageSize).toBe(20)
+    })
+
     it('should return paginated list', async () => {
       const opps = [fixtures.opportunity()]
       const qb = createMockQueryBuilder(opps, 1)
@@ -245,7 +257,7 @@ describe('OpportunityService', () => {
       const result = await service.update(1, { title: 'Updated Deal' } as never, adminUser)
 
       expect(result.title).toBe('Updated Deal')
-      expect(redis.del).toHaveBeenCalledWith('cache:opportunities:stats')
+      expect(redis.delByPattern).toHaveBeenCalledWith('cache:opportunities:stats:*')
       expect(redis.del).toHaveBeenCalledWith(expect.stringContaining('cache:opportunities:detail:1'))
     })
 
@@ -273,10 +285,16 @@ describe('OpportunityService', () => {
       repo.findOne.mockResolvedValue({ ...opp })
       repo.save.mockImplementation(async (o) => o)
 
-      const result = await service.updateStage(1, { stage: OpportunityStage.NEGOTIATION } as never, adminUser)
+      const result = await service.updateStage(
+        1,
+        { stage: OpportunityStage.NEGOTIATION } as never,
+        adminUser,
+      )
 
-      expect(result.stage).toBe(OpportunityStage.NEGOTIATION)
-      expect(result.probability).toBe(75)
+      expect(result.previousStage).toBe(OpportunityStage.LEAD)
+      expect(result.currentStage).toBe(OpportunityStage.NEGOTIATION)
+      expect(result.opportunity.stage).toBe(OpportunityStage.NEGOTIATION)
+      expect(result.opportunity.probability).toBe(75)
     })
 
     it('should set probability to 100 for CLOSED_WON', async () => {
@@ -285,9 +303,13 @@ describe('OpportunityService', () => {
       repo.findOne.mockResolvedValue({ ...opp })
       repo.save.mockImplementation(async (o) => o)
 
-      const result = await service.updateStage(1, { stage: OpportunityStage.CLOSED_WON } as never, adminUser)
+      const result = await service.updateStage(
+        1,
+        { stage: OpportunityStage.CLOSED_WON } as never,
+        adminUser,
+      )
 
-      expect(result.probability).toBe(100)
+      expect(result.opportunity.probability).toBe(100)
     })
 
     it('should set probability to 0 for CLOSED_LOST', async () => {
@@ -296,9 +318,13 @@ describe('OpportunityService', () => {
       repo.findOne.mockResolvedValue({ ...opp })
       repo.save.mockImplementation(async (o) => o)
 
-      const result = await service.updateStage(1, { stage: OpportunityStage.CLOSED_LOST } as never, adminUser)
+      const result = await service.updateStage(
+        1,
+        { stage: OpportunityStage.CLOSED_LOST } as never,
+        adminUser,
+      )
 
-      expect(result.probability).toBe(0)
+      expect(result.opportunity.probability).toBe(0)
     })
   })
 
@@ -313,7 +339,7 @@ describe('OpportunityService', () => {
       await service.remove(1)
 
       expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ deleted: true }))
-      expect(redis.del).toHaveBeenCalledWith('cache:opportunities:stats')
+      expect(redis.delByPattern).toHaveBeenCalledWith('cache:opportunities:stats:*')
     })
 
     it('should throw NotFoundException if not found', async () => {
@@ -326,6 +352,16 @@ describe('OpportunityService', () => {
 
   /* ---------- getStats ---------- */
   describe('getStats', () => {
+    it('should return cached stats when cache hit', async () => {
+      const cached = [{ stage: OpportunityStage.LEAD, count: 2, totalAmount: 10000 }]
+      redis.get.mockResolvedValue(JSON.stringify(cached))
+
+      const result = await service.getStats(adminUser)
+
+      expect(result).toEqual(cached)
+      expect(repo.createQueryBuilder).not.toHaveBeenCalled()
+    })
+
     it('should return stage statistics for admin', async () => {
       const rawData = [
         { stage: OpportunityStage.LEAD, count: '5', totalAmount: '250000' },
@@ -341,6 +377,11 @@ describe('OpportunityService', () => {
       expect(result[0].stage).toBe(OpportunityStage.LEAD)
       expect(result[0].count).toBe(5)
       expect(result[0].totalAmount).toBe(250000)
+      expect(redis.set).toHaveBeenCalledWith(
+        'cache:opportunities:stats:admin',
+        expect.any(String),
+        300,
+      )
     })
 
     it('should filter by userId for SALES user', async () => {
@@ -354,6 +395,28 @@ describe('OpportunityService', () => {
         'opportunity.assignedUserId = :currentUserId',
         { currentUserId: salesUser.id },
       )
+      expect(redis.set).toHaveBeenCalledWith(
+        `cache:opportunities:stats:sales:${salesUser.id}`,
+        expect.any(String),
+        300,
+      )
+    })
+
+    it('should map empty totalAmount to 0', async () => {
+      const rawData = [
+        { stage: OpportunityStage.LEAD, count: '1', totalAmount: null as unknown as string },
+      ]
+      const qb = createMockQueryBuilder([], 0)
+      qb.getRawMany.mockResolvedValue(rawData)
+      repo.createQueryBuilder.mockReturnValue(qb)
+
+      const result = await service.getStats(adminUser)
+
+      expect(result[0]).toEqual({
+        stage: OpportunityStage.LEAD,
+        count: 1,
+        totalAmount: 0,
+      })
     })
   })
 
@@ -389,6 +452,41 @@ describe('OpportunityService', () => {
         'opportunity.assignedUserId = :currentUserId',
         { currentUserId: salesUser.id },
       )
+    })
+
+    it('should fallback optional fields and escape CSV special characters', async () => {
+      const opp = fixtures.opportunity({
+        title: 'Deal "X", Inc',
+        customer: null,
+        stage: 'custom_stage' as never,
+        amount: undefined,
+        probability: undefined,
+        expectedCloseDate: undefined,
+        description: 'line1,\nline2',
+      })
+      const qb = createMockQueryBuilder([opp], 1)
+      repo.createQueryBuilder.mockReturnValue(qb)
+
+      const csv = await service.exportCsv(adminUser)
+
+      expect(csv).toContain('"Deal ""X"", Inc"')
+      expect(csv).toContain(',,custom_stage,0,0,,')
+      expect(csv).toContain('"line1,\nline2"')
+    })
+
+    it('should fallback null description to an empty CSV field', async () => {
+      const opp = fixtures.opportunity({
+        title: 'Desc Null Deal',
+        description: null,
+      })
+      const qb = createMockQueryBuilder([opp], 1)
+      repo.createQueryBuilder.mockReturnValue(qb)
+
+      const csv = await service.exportCsv(adminUser)
+      const row = csv.split('\n')[1]
+
+      expect(row).toContain('Desc Null Deal')
+      expect(row.endsWith(',')).toBe(true)
     })
   })
 })
