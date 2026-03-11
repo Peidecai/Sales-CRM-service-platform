@@ -25,6 +25,11 @@ import { CreateArticleDto } from './dto/create-article.dto'
 import { UpdateArticleDto } from './dto/update-article.dto'
 import { QueryArticleDto } from './dto/query-article.dto'
 import { CreateCategoryDto } from './dto/create-category.dto'
+import { UpdateCategoryDto } from './dto/update-category.dto'
+import { ReviewArticleDto } from './dto/review-article.dto'
+import { SetTopRecommendDto } from './dto/set-top-recommend.dto'
+import { CreateCommentDto } from './dto/create-comment.dto'
+import { ArticleCommentService } from './article-comment.service'
 import { ArticleActionResponseDto } from './dto/article-action-response.dto'
 import { KnowledgeArticle } from './entities/knowledge-article.entity'
 import { AskQuestionDto } from '../ai/dto/ask-question.dto'
@@ -35,21 +40,43 @@ import { AskQuestionDto } from '../ai/dto/ask-question.dto'
 @UseInterceptors(AuditLogInterceptor)
 @Controller('knowledge')
 export class KnowledgeController {
-  constructor(private readonly knowledgeService: KnowledgeService) {}
+  constructor(
+    private readonly knowledgeService: KnowledgeService,
+    private readonly articleCommentService: ArticleCommentService,
+  ) {}
 
   // ---- Article Endpoints ----
 
   @Get('articles')
-  @ApiOperation({ summary: 'Get article list with pagination' })
+  @ApiOperation({
+    summary: 'Get article list with pagination (keyword triggers fulltext search + history)',
+  })
   @ApiResponse({ status: 200, description: 'Returns paginated article list' })
-  async findAllArticles(@Query() query: QueryArticleDto) {
+  async findAllArticles(@Query() query: QueryArticleDto, @CurrentUser('id') userId: number) {
     const { list, total } = await this.knowledgeService.findAllArticles(query)
+    if (query.keyword?.trim()) {
+      void this.knowledgeService.pushSearchHistory(userId, query.keyword.trim())
+    }
     return {
       list,
       total,
       page: query.page ?? 1,
       pageSize: query.pageSize ?? 20,
     }
+  }
+
+  @Get('search/history')
+  @ApiOperation({ summary: 'Get current user search history (last 50)' })
+  @ApiResponse({ status: 200, description: 'Returns array of search keywords' })
+  getSearchHistory(@CurrentUser('id') userId: number) {
+    return this.knowledgeService.getSearchHistory(userId)
+  }
+
+  @Get('search/suggestions')
+  @ApiOperation({ summary: 'Get search suggestions by prefix' })
+  @ApiResponse({ status: 200, description: 'Returns up to 10 suggestion strings' })
+  getSearchSuggestions(@Query('q') q: string, @CurrentUser('id') userId: number) {
+    return this.knowledgeService.getSearchSuggestions(userId, q ?? '')
   }
 
   @Post('articles')
@@ -126,6 +153,66 @@ export class KnowledgeController {
     return this.knowledgeService.updateArticle(id, dto)
   }
 
+  @Post('articles/:id/submit')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @ApiOperation({ summary: 'Submit article for review (draft → submitted)' })
+  @ApiParam({ name: 'id', description: 'Article ID', type: Number })
+  submitArticle(@Param('id', ParseIntPipe) id: number) {
+    return this.knowledgeService.submitArticle(id)
+  }
+
+  @Post('articles/:id/review')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @ApiOperation({ summary: 'Review article (submitted → published/rejected)' })
+  @ApiParam({ name: 'id', description: 'Article ID', type: Number })
+  reviewArticle(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ReviewArticleDto,
+    @CurrentUser('id') userId: number,
+  ) {
+    return this.knowledgeService.reviewArticle(id, dto.approved, dto.remark, userId)
+  }
+
+  @Post('articles/:id/publish')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @ApiOperation({ summary: 'Publish article directly' })
+  @ApiParam({ name: 'id', description: 'Article ID', type: Number })
+  publishArticle(@Param('id', ParseIntPipe) id: number) {
+    return this.knowledgeService.publishArticle(id)
+  }
+
+  @Post('articles/:id/reject')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @ApiOperation({ summary: 'Reject submitted article' })
+  @ApiParam({ name: 'id', description: 'Article ID', type: Number })
+  rejectArticle(@Param('id', ParseIntPipe) id: number, @Body('remark') remark?: string) {
+    return this.knowledgeService.rejectArticle(id, remark)
+  }
+
+  @Post('articles/:id/offline')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @ApiOperation({ summary: 'Take article offline' })
+  @ApiParam({ name: 'id', description: 'Article ID', type: Number })
+  offlineArticle(@Param('id', ParseIntPipe) id: number) {
+    return this.knowledgeService.offlineArticle(id)
+  }
+
+  @Put('articles/:id/top')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @ApiOperation({ summary: 'Set/unset article pin (top)' })
+  @ApiParam({ name: 'id', description: 'Article ID', type: Number })
+  setTop(@Param('id', ParseIntPipe) id: number, @Body() dto: SetTopRecommendDto) {
+    return this.knowledgeService.setTop(id, dto.value)
+  }
+
+  @Put('articles/:id/recommend')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @ApiOperation({ summary: 'Set/unset article recommend' })
+  @ApiParam({ name: 'id', description: 'Article ID', type: Number })
+  setRecommend(@Param('id', ParseIntPipe) id: number, @Body() dto: SetTopRecommendDto) {
+    return this.knowledgeService.setRecommend(id, dto.value)
+  }
+
   @Delete('articles/:id')
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @HttpCode(HttpStatus.OK)
@@ -142,9 +229,12 @@ export class KnowledgeController {
   // ---- Category Endpoints ----
 
   @Get('categories')
-  @ApiOperation({ summary: 'Get all categories sorted by sort ASC' })
-  @ApiResponse({ status: 200, description: 'Returns category list' })
-  findAllCategories() {
+  @ApiOperation({ summary: 'Get all categories (list or tree when tree=true)' })
+  @ApiResponse({ status: 200, description: 'Returns category list or nested tree' })
+  async getCategories(@Query('tree') tree?: string) {
+    if (tree === 'true') {
+      return this.knowledgeService.findTree()
+    }
     return this.knowledgeService.findAllCategories()
   }
 
@@ -157,6 +247,15 @@ export class KnowledgeController {
     return this.knowledgeService.createCategory(dto)
   }
 
+  @Put('categories/:id')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @ApiOperation({ summary: 'Update category by ID (syncs children path/level)' })
+  @ApiParam({ name: 'id', description: 'Category ID', type: Number })
+  @ApiResponse({ status: 200, description: 'Category updated successfully' })
+  updateCategory(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCategoryDto) {
+    return this.knowledgeService.updateCategory(id, dto)
+  }
+
   @Delete('categories/:id')
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @HttpCode(HttpStatus.OK)
@@ -167,6 +266,51 @@ export class KnowledgeController {
   @ApiResponse({ status: 404, description: 'Category not found' })
   async removeCategory(@Param('id', ParseIntPipe) id: number) {
     await this.knowledgeService.removeCategory(id)
+    return null
+  }
+
+  // ---- Comment Endpoints ----
+
+  @Get('articles/:articleId/comments')
+  @ApiOperation({ summary: 'Get nested comments for article' })
+  @ApiParam({ name: 'articleId', type: Number })
+  getComments(
+    @Param('articleId', ParseIntPipe) articleId: number,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    const p = page ? parseInt(page, 10) : 1
+    const ps = pageSize ? parseInt(pageSize, 10) : 20
+    return this.articleCommentService.list(
+      articleId,
+      Number.isNaN(p) ? 1 : p,
+      Number.isNaN(ps) ? 20 : ps,
+    )
+  }
+
+  @Post('articles/:articleId/comments')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.SALES)
+  @ApiOperation({ summary: 'Create comment or reply' })
+  @ApiParam({ name: 'articleId', type: Number })
+  createComment(
+    @Param('articleId', ParseIntPipe) articleId: number,
+    @CurrentUser('id') userId: number,
+    @Body() dto: CreateCommentDto,
+  ) {
+    return this.articleCommentService.create(articleId, userId, dto)
+  }
+
+  @Delete('comments/:id')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.SALES)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Soft delete comment (author or admin)' })
+  @ApiParam({ name: 'id', description: 'Comment ID', type: Number })
+  async removeComment(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser('id') userId: number,
+    @CurrentUser('role') userRole: UserRole,
+  ) {
+    await this.articleCommentService.remove(id, userId, userRole)
     return null
   }
 

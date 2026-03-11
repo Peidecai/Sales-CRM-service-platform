@@ -3,6 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm'
 import { NotFoundException, ForbiddenException } from '@nestjs/common'
 import { OpportunityService } from '../../src/modules/opportunity/opportunity.service'
 import { Opportunity } from '../../src/modules/opportunity/opportunity.entity'
+import { OpportunityStageLog } from '../../src/modules/opportunity/entities/opportunity-stage-log.entity'
 import { RedisService } from '../../src/common/redis'
 import { OpportunityStage, UserRole } from '@crm/shared'
 import {
@@ -32,6 +33,7 @@ describe('OpportunityService', () => {
       providers: [
         OpportunityService,
         { provide: getRepositoryToken(Opportunity), useValue: repo },
+        { provide: getRepositoryToken(OpportunityStageLog), useValue: createMockRepository() },
         { provide: RedisService, useValue: redis },
       ],
     }).compile()

@@ -83,6 +83,10 @@
             </el-form-item>
           </el-form>
           <div class="toolbar-right">
+            <el-button @click="$router.push('/knowledge/favorites')">
+              <el-icon><CollectionTag /></el-icon>
+              我的收藏
+            </el-button>
             <el-button type="success" @click="handleOpenAskDrawer">
               <el-icon><ChatDotSquare /></el-icon>
               AI 问答

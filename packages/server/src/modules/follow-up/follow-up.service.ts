@@ -13,6 +13,7 @@ import { QueryFollowUpDto } from './dto/query-follow-up.dto'
 import { RedisService } from '../../common/redis'
 import { CACHE_KEYS, CACHE_TTL } from '../../common/redis'
 import { UserRole } from '@crm/shared'
+import { CustomerService } from '../customer/customer.service'
 import type { AuthUser } from '../../common/decorators/current-user.decorator'
 
 @Injectable()
@@ -23,6 +24,7 @@ export class FollowUpService {
     @InjectRepository(Customer)
     private readonly customerRepo: Repository<Customer>,
     private readonly redisService: RedisService,
+    private readonly customerService: CustomerService,
   ) {}
 
   async create(dto: CreateFollowUpDto, user: AuthUser): Promise<FollowUp> {
@@ -31,6 +33,8 @@ export class FollowUpService {
     const followUp = this.followUpRepo.create({ ...dto, userId: user.id })
     const saved = await this.followUpRepo.save(followUp)
     await this.invalidateCustomerCache(dto.customerId)
+    // Extend customer protection period on new follow-up
+    await this.customerService.extendProtection(dto.customerId)
     return saved
   }
 

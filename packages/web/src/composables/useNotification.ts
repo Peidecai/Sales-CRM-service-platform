@@ -1,4 +1,4 @@
-﻿import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { io, type Socket } from 'socket.io-client'
 import { ElNotification } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -36,6 +36,12 @@ const NOTIFICATION_STYLE: Record<
 let socket: Socket | null = null
 const connected = ref(false)
 const notifications = ref<NotificationPayload[]>([])
+const incomingCallPopup = ref<{
+  phone: string
+  customerId?: number
+  contactId?: number
+  popupData: Record<string, unknown>
+} | null>(null)
 let consumerCount = 0
 
 function connectNotificationSocket(token: string | null, currentUserId?: number) {
@@ -56,6 +62,18 @@ function connectNotificationSocket(token: string | null, currentUserId?: number)
   socket.on('disconnect', () => {
     connected.value = false
   })
+
+  socket.on(
+    'INCOMING_CALL_POPUP',
+    (payload: {
+      phone: string
+      customerId?: number
+      contactId?: number
+      popupData: Record<string, unknown>
+    }) => {
+      incomingCallPopup.value = payload
+    },
+  )
 
   socket.on('notification', (payload: NotificationPayload) => {
     if (currentUserId !== undefined && payload.actorId === currentUserId) return
@@ -126,6 +144,7 @@ export function useNotification() {
   return {
     connected,
     notifications,
+    incomingCallPopup,
     connect,
     disconnect,
     clearNotifications,

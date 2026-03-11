@@ -77,6 +77,17 @@ export interface CreateCategoryParams {
   description?: string
 }
 
+export interface CommentVO {
+  id: number
+  articleId: number
+  userId: number
+  parentId: number | null
+  content: string
+  createdAt: string
+  deleted: boolean
+  children: CommentVO[]
+}
+
 // ---- Article APIs ----
 
 export const knowledgeApi = {
@@ -118,8 +129,35 @@ export const knowledgeApi = {
 
   // ---- Category APIs ----
 
-  getCategories(): Promise<ApiResponse<CategoryVO[]>> {
-    return request.get('/knowledge/categories')
+  getCategories(tree?: boolean): Promise<ApiResponse<CategoryVO[]>> {
+    return request.get('/knowledge/categories', { params: tree ? { tree: 'true' } : {} })
+  },
+
+  getComments(
+    articleId: number,
+    page?: number,
+    pageSize?: number,
+  ): Promise<ApiResponse<{ list: CommentVO[]; total: number }>> {
+    return request.get(`/knowledge/articles/${articleId}/comments`, { params: { page, pageSize } })
+  },
+
+  createComment(
+    articleId: number,
+    data: { content: string; parentId?: number },
+  ): Promise<ApiResponse<CommentVO>> {
+    return request.post(`/knowledge/articles/${articleId}/comments`, data)
+  },
+
+  removeComment(id: number): Promise<ApiResponse<null>> {
+    return request.delete(`/knowledge/comments/${id}`)
+  },
+
+  getSearchHistory(): Promise<ApiResponse<string[]>> {
+    return request.get('/knowledge/search/history')
+  },
+
+  getSearchSuggestions(q: string): Promise<ApiResponse<string[]>> {
+    return request.get('/knowledge/search/suggestions', { params: { q } })
   },
 
   createCategory(data: CreateCategoryParams): Promise<ApiResponse<CategoryVO>> {

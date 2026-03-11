@@ -1,16 +1,19 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common'
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { In, QueryFailedError, Repository } from 'typeorm'
+import { DataSource } from 'typeorm'
 import { InjectQueue } from '@nestjs/bull'
 import { Queue } from 'bull'
 import { KnowledgeArticle } from './entities/knowledge-article.entity'
 import { KnowledgeCategory } from './entities/knowledge-category.entity'
+import { KnowledgeCategoryType, ArticleStatus } from '@crm/shared'
 import { ArticleLike } from './entities/article-like.entity'
 import { ArticleFavorite } from './entities/article-favorite.entity'
 import { CreateArticleDto } from './dto/create-article.dto'
 import { UpdateArticleDto } from './dto/update-article.dto'
 import { QueryArticleDto } from './dto/query-article.dto'
 import { CreateCategoryDto } from './dto/create-category.dto'
+import { UpdateCategoryDto } from './dto/update-category.dto'
 import { ArticleActionResponseDto } from './dto/article-action-response.dto'
 import { RedisService } from '../../common/redis'
 import { CACHE_KEYS, CACHE_TTL } from '../../common/redis'
@@ -21,6 +24,21 @@ import type { EmbeddingJobData } from '../ai/processors/embedding.processor'
 export interface AskResult {
   answer: string
   sources: { articleId: number; title: string; similarity: number }[]
+}
+
+/** 分类树节点（支持最多 3 级） */
+export interface KnowledgeCategoryTreeNode {
+  id: number
+  name: string
+  parentId: number | null
+  categoryCode: string | null
+  categoryType: KnowledgeCategoryType
+  iconUrl: string | null
+  level: number
+  path: string | null
+  articleCount: number
+  sort: number
+  children: KnowledgeCategoryTreeNode[]
 }
 
 const RAG_SYSTEM_PROMPT = `你是一个专业的销售知识库助手。请根据以下参考资料回答用户的问题。
@@ -43,6 +61,7 @@ export class KnowledgeService {
     private readonly articleRepository: Repository<KnowledgeArticle>,
     @InjectRepository(KnowledgeCategory)
     private readonly categoryRepository: Repository<KnowledgeCategory>,
+    private readonly dataSource: DataSource,
     @InjectRepository(ArticleLike)
     private readonly likeRepository: Repository<ArticleLike>,
     @InjectRepository(ArticleFavorite)
@@ -69,19 +88,29 @@ export class KnowledgeService {
   async findAllArticles(
     query: QueryArticleDto,
   ): Promise<{ list: KnowledgeArticle[]; total: number }> {
-    const { page = 1, pageSize = 20, keyword, categoryId, isPublished } = query
+    const { page = 1, pageSize = 20, keyword, categoryId, status, isPublished } = query
+
+    if (keyword && keyword.trim()) {
+      return this.searchArticles(keyword.trim(), {
+        page,
+        pageSize,
+        categoryId,
+        status,
+        isPublished,
+      })
+    }
 
     const qb = this.articleRepository
       .createQueryBuilder('article')
       .leftJoinAndSelect('article.category', 'category')
       .where('article.deleted = :deleted', { deleted: false })
 
-    if (keyword) {
-      qb.andWhere('article.title LIKE :kw', { kw: `%${keyword}%` })
-    }
-
     if (categoryId !== undefined) {
       qb.andWhere('article.categoryId = :categoryId', { categoryId })
+    }
+
+    if (status !== undefined) {
+      qb.andWhere('article.status = :status', { status })
     }
 
     if (isPublished !== undefined) {
@@ -95,6 +124,80 @@ export class KnowledgeService {
     const [list, total] = await qb.getManyAndCount()
 
     return { list, total }
+  }
+
+  /**
+   * 全文搜索：FULLTEXT MATCH + 加权排序（标题×3 + 置顶×5 + 推荐×2 + 时效衰减 + 热度）
+   * keyword 使用参数化，防止 SQL 注入。
+   */
+  async searchArticles(
+    keyword: string,
+    options: {
+      page?: number
+      pageSize?: number
+      categoryId?: number
+      status?: ArticleStatus
+      isPublished?: boolean
+    } = {},
+  ): Promise<{ list: KnowledgeArticle[]; total: number }> {
+    const { page = 1, pageSize = 20, categoryId, status, isPublished } = options
+    const safeKeyword =
+      String(keyword)
+        .replace(/[\\'"%;]/g, ' ')
+        .trim()
+        .slice(0, 200) || ' '
+    const qb = this.articleRepository
+      .createQueryBuilder('article')
+      .leftJoinAndSelect('article.category', 'category')
+      .where('article.deleted = :deleted', { deleted: false })
+      .andWhere('MATCH(article.title, article.content) AGAINST (:keyword IN BOOLEAN MODE)', {
+        keyword: safeKeyword,
+      })
+      .setParameter('keyword', safeKeyword)
+
+    if (categoryId !== undefined) {
+      qb.andWhere('article.categoryId = :categoryId', { categoryId })
+    }
+    if (status !== undefined) {
+      qb.andWhere('article.status = :status', { status })
+    }
+    if (isPublished !== undefined) {
+      qb.andWhere('article.isPublished = :isPublished', { isPublished })
+    }
+
+    qb.addOrderBy(
+      `(MATCH(article.title, article.content) AGAINST (:keyword) * 3 + (CASE WHEN article.is_top = 1 THEN 5 ELSE 0 END) + (CASE WHEN article.is_recommend = 1 THEN 2 ELSE 0 END) + 1/(1+DATEDIFF(NOW(), COALESCE(article.publish_time, article.updated_at))*0.01) + (article.view_count + article.like_count)/1000)`,
+      'DESC',
+    )
+      .skip((page - 1) * pageSize)
+      .take(pageSize)
+
+    const [list, total] = await qb.getManyAndCount()
+    return { list, total }
+  }
+
+  private static readonly SEARCH_HISTORY_MAX = 50
+
+  async pushSearchHistory(userId: number, keyword: string): Promise<void> {
+    const k = keyword.trim().slice(0, 200)
+    if (!k) return
+    const key = CACHE_KEYS.KNOWLEDGE_SEARCH_HISTORY(userId)
+    const score = Date.now()
+    await this.redisService.zAdd(key, score, k)
+    await this.redisService.zRemRangeByRank(key, 0, -(KnowledgeService.SEARCH_HISTORY_MAX + 1))
+  }
+
+  async getSearchHistory(userId: number): Promise<string[]> {
+    const key = CACHE_KEYS.KNOWLEDGE_SEARCH_HISTORY(userId)
+    return this.redisService.zRevRange(key, 0, 49)
+  }
+
+  async getSearchSuggestions(userId: number, q: string): Promise<string[]> {
+    const history = await this.getSearchHistory(userId)
+    const prefix = (q || '').trim().toLowerCase()
+    if (!prefix) return history.slice(0, 10)
+    const filtered = history.filter((term) => term.toLowerCase().startsWith(prefix))
+    return [...new Set(filtered)].slice(0, 10)
   }
 
   async findOneArticle(id: number): Promise<KnowledgeArticle> {
@@ -133,6 +236,94 @@ export class KnowledgeService {
 
     // Remove vectors for deleted article
     this.vectorService.deleteArticleVectors(id)
+  }
+
+  async submitArticle(id: number): Promise<KnowledgeArticle> {
+    const article = await this.getArticleOrFail(id)
+    if (article.status !== ArticleStatus.DRAFT) {
+      throw new BadRequestException('Only draft articles can be submitted')
+    }
+    article.status = ArticleStatus.SUBMITTED
+    await this.articleRepository.save(article)
+    return article
+  }
+
+  async reviewArticle(
+    id: number,
+    approved: boolean,
+    remark: string | undefined,
+    reviewerId: number,
+  ): Promise<KnowledgeArticle> {
+    const article = await this.getArticleOrFail(id)
+    if (article.status !== ArticleStatus.SUBMITTED) {
+      throw new BadRequestException('Only submitted articles can be reviewed')
+    }
+    article.status = approved ? ArticleStatus.PUBLISHED : ArticleStatus.REJECTED
+    article.reviewId = reviewerId
+    article.reviewRemark = remark ?? null
+    article.reviewTime = new Date()
+    if (approved) {
+      article.isPublished = true
+      article.publishTime = new Date()
+    }
+    await this.articleRepository.save(article)
+    if (approved) await this.triggerEmbedding(id)
+    return article
+  }
+
+  async publishArticle(id: number): Promise<KnowledgeArticle> {
+    const article = await this.getArticleOrFail(id)
+    if (article.status === ArticleStatus.PUBLISHED) {
+      return article
+    }
+    article.status = ArticleStatus.PUBLISHED
+    article.isPublished = true
+    article.publishTime = new Date()
+    await this.articleRepository.save(article)
+    await this.triggerEmbedding(id)
+    return article
+  }
+
+  async rejectArticle(id: number, remark?: string): Promise<KnowledgeArticle> {
+    const article = await this.getArticleOrFail(id)
+    if (article.status !== ArticleStatus.SUBMITTED) {
+      throw new BadRequestException('Only submitted articles can be rejected')
+    }
+    article.status = ArticleStatus.REJECTED
+    article.reviewRemark = remark ?? null
+    await this.articleRepository.save(article)
+    return article
+  }
+
+  async offlineArticle(id: number): Promise<KnowledgeArticle> {
+    const article = await this.getArticleOrFail(id)
+    if (article.status !== ArticleStatus.PUBLISHED) {
+      throw new BadRequestException('Only published articles can be taken offline')
+    }
+    article.status = ArticleStatus.OFFLINE
+    article.isPublished = false
+    await this.articleRepository.save(article)
+    return article
+  }
+
+  async setTop(id: number, value: boolean): Promise<KnowledgeArticle> {
+    const article = await this.getArticleOrFail(id)
+    if (article.status !== ArticleStatus.PUBLISHED) {
+      throw new BadRequestException('Only published articles can be pinned')
+    }
+    article.isTop = value
+    await this.articleRepository.save(article)
+    return article
+  }
+
+  async setRecommend(id: number, value: boolean): Promise<KnowledgeArticle> {
+    const article = await this.getArticleOrFail(id)
+    if (article.status !== ArticleStatus.PUBLISHED) {
+      throw new BadRequestException('Only published articles can be recommended')
+    }
+    article.isRecommend = value
+    await this.articleRepository.save(article)
+    return article
   }
 
   async toggleLike(articleId: number, userId: number): Promise<ArticleActionResponseDto> {
@@ -245,6 +436,91 @@ export class KnowledgeService {
       CACHE_TTL.CATEGORY_TREE,
     )
     return categories
+  }
+
+  /**
+   * 返回嵌套树结构（最多 3 级），递归构建 children 数组。
+   */
+  async findTree(): Promise<KnowledgeCategoryTreeNode[]> {
+    const list = await this.categoryRepository.find({
+      where: { deleted: false },
+      order: { sort: 'ASC' },
+    })
+    const build = (parentId: number | null, depth: number): KnowledgeCategoryTreeNode[] => {
+      if (depth > 3) return []
+      return list
+        .filter((c) => c.parentId === parentId)
+        .map((c) => ({
+          id: c.id,
+          name: c.name,
+          parentId: c.parentId,
+          categoryCode: c.categoryCode ?? null,
+          categoryType: c.categoryType,
+          iconUrl: c.iconUrl ?? null,
+          level: c.level,
+          path: c.path ?? null,
+          articleCount: c.articleCount,
+          sort: c.sort,
+          children: build(c.id, depth + 1),
+        }))
+    }
+    return build(null, 1)
+  }
+
+  async updateCategory(id: number, dto: UpdateCategoryDto): Promise<KnowledgeCategory> {
+    const category = await this.categoryRepository.findOne({
+      where: { id, deleted: false },
+    })
+    if (!category) {
+      throw new NotFoundException(`Category with ID ${id} not found`)
+    }
+    const oldParentId = category.parentId
+    if (dto.parentId !== undefined) {
+      category.parentId = dto.parentId
+    }
+    const newParentId = category.parentId
+    Object.assign(category, dto)
+
+    await this.dataSource.transaction(async (em) => {
+      const catRepo = em.getRepository(KnowledgeCategory)
+      await catRepo.save(category)
+      const needPathUpdate = newParentId !== oldParentId
+      if (needPathUpdate) {
+        const parent = newParentId
+          ? await catRepo.findOne({ where: { id: newParentId, deleted: false } })
+          : null
+        const newPath = parent
+          ? `${parent.path ?? String(parent.id)}/${category.id}`
+          : String(category.id)
+        const newLevel = parent ? (parent.level ?? 1) + 1 : 1
+        await catRepo.update({ id: category.id }, { path: newPath, level: newLevel })
+        category.path = newPath
+        category.level = newLevel
+        await this.syncChildrenPathAndLevel(em, category.id, newPath, newLevel)
+      }
+    })
+
+    await this.invalidateCategoryCache()
+    return this.categoryRepository.findOneOrFail({ where: { id } })
+  }
+
+  private async syncChildrenPathAndLevel(
+    em: import('typeorm').EntityManager,
+    parentId: number,
+    parentPath: string,
+    parentLevel: number,
+  ): Promise<void> {
+    const catRepo = em.getRepository(KnowledgeCategory)
+    const children = await catRepo.find({
+      where: { parentId, deleted: false },
+      order: { sort: 'ASC' },
+    })
+    for (const child of children) {
+      const newPath = `${parentPath}/${child.id}`
+      const newLevel = parentLevel + 1
+      await catRepo.update({ id: child.id }, { path: newPath, level: newLevel })
+      await this.syncChildrenPathAndLevel(em, child.id, newPath, newLevel)
+    }
   }
 
   async removeCategory(id: number): Promise<void> {

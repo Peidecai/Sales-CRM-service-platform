@@ -1,6 +1,7 @@
-import { IsOptional, IsString, IsInt, IsBoolean, Min, Max } from 'class-validator'
+import { IsOptional, IsString, IsInt, IsBoolean, IsEnum, Min, Max } from 'class-validator'
 import { Type, Transform } from 'class-transformer'
 import { ApiPropertyOptional } from '@nestjs/swagger'
+import { ArticleStatus } from '@crm/shared'
 
 export class QueryArticleDto {
   @ApiPropertyOptional({ description: 'Page number', default: 1, minimum: 1 })
@@ -28,6 +29,11 @@ export class QueryArticleDto {
   @IsInt()
   @Type(() => Number)
   categoryId?: number
+
+  @ApiPropertyOptional({ description: 'Article status filter', enum: ArticleStatus })
+  @IsOptional()
+  @IsEnum(ArticleStatus)
+  status?: ArticleStatus
 
   @ApiPropertyOptional({ description: 'Published status filter' })
   @IsOptional()

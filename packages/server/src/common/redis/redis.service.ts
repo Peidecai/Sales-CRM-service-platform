@@ -77,6 +77,46 @@ export class RedisService implements OnModuleDestroy {
     return this.client.ping()
   }
 
+  /** Increment a key and return new value */
+  async incr(key: string): Promise<number> {
+    return this.client.incr(key)
+  }
+
+  /** Set expiration on a key (seconds) */
+  async expire(key: string, seconds: number): Promise<void> {
+    await this.client.expire(key, seconds)
+  }
+
+  /** Get all fields of a Redis Hash */
+  async hGetAll(key: string): Promise<Record<string, string>> {
+    return this.client.hgetall(key)
+  }
+
+  /** Set a field in a Redis Hash */
+  async hSet(key: string, field: string, value: string): Promise<void> {
+    await this.client.hset(key, field, value)
+  }
+
+  /** Get a single field from a Redis Hash */
+  async hGet(key: string, field: string): Promise<string | null> {
+    return this.client.hget(key, field)
+  }
+
+  /** ZADD: add member with score (e.g. Date.now()) */
+  async zAdd(key: string, score: number, member: string): Promise<number> {
+    return this.client.zadd(key, score, member)
+  }
+
+  /** ZREMRANGEBYRANK: remove by rank range, keep 0..maxRank-1 (e.g. keep 0..49 = 50 members) */
+  async zRemRangeByRank(key: string, start: number, stop: number): Promise<number> {
+    return this.client.zremrangebyrank(key, start, stop)
+  }
+
+  /** ZREVRANGE: get members from high to low score (e.g. latest first), 0-based index */
+  async zRevRange(key: string, start: number, stop: number): Promise<string[]> {
+    return this.client.zrevrange(key, start, stop)
+  }
+
   async onModuleDestroy(): Promise<void> {
     await this.client.quit()
     this.logger.log('Redis disconnected')

@@ -17,6 +17,10 @@ export const CACHE_KEYS = {
   JWT_BLACKLIST: 'auth:blacklist',
   /** Follow-up list by customer — suffix is :customerId */
   FOLLOW_UP_LIST: 'cache:follow-ups:customer',
+  /** Sales target stats */
+  SALES_TARGET_STATS: 'cache:sales-targets:stats',
+  /** Knowledge search history — suffix is :userId */
+  KNOWLEDGE_SEARCH_HISTORY: (userId: number) => `knowledge:search:history:${userId}`,
 } as const
 
 /** TTL values in seconds */
@@ -33,4 +37,6 @@ export const CACHE_TTL = {
   CATEGORY_TREE: 600,
   /** Follow-up list cache: 60 s */
   FOLLOW_UP_LIST: 60,
+  /** Sales target stats cache: 300 s */
+  SALES_TARGET_STATS: 300,
 } as const

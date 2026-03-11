@@ -4,11 +4,13 @@ import { FollowUp } from './follow-up.entity'
 import { Customer } from '../customer/customer.entity'
 import { FollowUpController } from './follow-up.controller'
 import { FollowUpService } from './follow-up.service'
+import { FollowUpScheduler } from './follow-up.scheduler'
+import { CustomerModule } from '../customer/customer.module'
 
 @Module({
-  imports: [TypeOrmModule.forFeature([FollowUp, Customer])],
+  imports: [TypeOrmModule.forFeature([FollowUp, Customer]), CustomerModule],
   controllers: [FollowUpController],
-  providers: [FollowUpService],
+  providers: [FollowUpService, FollowUpScheduler],
   exports: [FollowUpService],
 })
 export class FollowUpModule {}

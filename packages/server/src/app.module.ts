@@ -13,10 +13,24 @@ import { CustomerModule } from './modules/customer/customer.module'
 import { OpportunityModule } from './modules/opportunity/opportunity.module'
 import { KnowledgeModule } from './modules/knowledge/knowledge.module'
 import { CallRecordModule } from './modules/call-record/call-record.module'
+import { CallModule } from './modules/call/call.module'
+import { RecordingModule } from './modules/recording/recording.module'
+import { AgentModule } from './modules/agent/agent.module'
+import { CampaignModule } from './modules/campaign/campaign.module'
 import { AiModule } from './modules/ai/ai.module'
 import { AuditLogModule } from './modules/audit-log/audit-log.module'
 import { NotificationModule } from './modules/notification/notification.module'
 import { FollowUpModule } from './modules/follow-up/follow-up.module'
+import { SalesTargetModule } from './modules/sales-target/sales-target.module'
+import { ContactModule } from './modules/contact/contact.module'
+import { CustomerPoolModule } from './modules/customer-pool/customer-pool.module'
+import { CustomerTagModule } from './modules/customer-tag/customer-tag.module'
+import { CustomFieldModule } from './modules/custom-field/custom-field.module'
+import { MaterialModule } from './modules/material/material.module'
+import { AnnouncementModule } from './modules/announcement/announcement.module'
+import { RbacModule } from './modules/rbac/rbac.module'
+import { SecurityModule } from './common/security/security.module'
+import { RouteModule } from './modules/route/route.module'
 
 @Module({
   imports: [
@@ -35,11 +49,11 @@ import { FollowUpModule } from './modules/follow-up/follow-up.module'
     // Redis (global)
     RedisModule,
 
-    // Rate limiting
+    // Rate limiting — global: 60 req/min (tiered per-route via @Throttle)
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
-        limit: 30,
+        limit: 60,
       },
     ]),
 
@@ -59,6 +73,12 @@ import { FollowUpModule } from './modules/follow-up/follow-up.module'
     // Scheduled tasks
     ScheduleModule.forRoot(),
 
+    // RBAC — permission tables + cache (global)
+    RbacModule,
+
+    // Security — encryption, data masking (global)
+    SecurityModule,
+
     // Feature Modules
     AuditLogModule,
     NotificationModule,
@@ -69,8 +89,20 @@ import { FollowUpModule } from './modules/follow-up/follow-up.module'
     CustomerModule,
     OpportunityModule,
     CallRecordModule,
+    CallModule,
+    RecordingModule,
+    AgentModule,
+    CampaignModule,
     KnowledgeModule,
     FollowUpModule,
+    SalesTargetModule,
+    ContactModule,
+    CustomerPoolModule,
+    CustomerTagModule,
+    CustomFieldModule,
+    MaterialModule,
+    AnnouncementModule,
+    RouteModule,
   ],
 })
 export class AppModule {}

@@ -1,17 +1,22 @@
 import { BadRequestException } from '@nestjs/common'
 import { Test, TestingModule } from '@nestjs/testing'
+import { getRepositoryToken } from '@nestjs/typeorm'
 import { UserRole } from '@crm/shared'
 import { CustomerController } from '../../src/modules/customer/customer.controller'
 import { CustomerService } from '../../src/modules/customer/customer.service'
+import { DuplicateCheckService } from '../../src/modules/customer/services/duplicate-check.service'
+import { CustomerMergeService } from '../../src/modules/customer/services/customer-merge.service'
 import { NotificationService } from '../../src/modules/notification/notification.service'
 import { AuditLogService } from '../../src/modules/audit-log/audit-log.service'
+import { CustomerImportLog } from '../../src/modules/customer/entities/customer-import-log.entity'
 
 describe('CustomerController', () => {
   let controller: CustomerController
   let customerService: {
     findAll: jest.Mock
-    exportCsv: jest.Mock
-    importFromCsvRows: jest.Mock
+    exportExcel: jest.Mock
+    generateImportTemplate: jest.Mock
+    getSystemFields: jest.Mock
     create: jest.Mock
     findOne: jest.Mock
     update: jest.Mock
@@ -33,8 +38,9 @@ describe('CustomerController', () => {
   beforeEach(async () => {
     customerService = {
       findAll: jest.fn(),
-      exportCsv: jest.fn(),
-      importFromCsvRows: jest.fn(),
+      exportExcel: jest.fn(),
+      generateImportTemplate: jest.fn(),
+      getSystemFields: jest.fn(),
       create: jest.fn(),
       findOne: jest.fn(),
       update: jest.fn(),
@@ -51,8 +57,12 @@ describe('CustomerController', () => {
       controllers: [CustomerController],
       providers: [
         { provide: CustomerService, useValue: customerService },
+        { provide: DuplicateCheckService, useValue: { checkDuplicates: jest.fn() } },
+        { provide: CustomerMergeService, useValue: { previewMerge: jest.fn(), executeMerge: jest.fn() } },
         { provide: NotificationService, useValue: notificationService },
         { provide: AuditLogService, useValue: { log: jest.fn() } },
+        { provide: 'BullQueue_customer-import', useValue: { add: jest.fn() } },
+        { provide: getRepositoryToken(CustomerImportLog), useValue: { create: jest.fn(), save: jest.fn() } },
       ],
     }).compile()
 
@@ -86,44 +96,24 @@ describe('CustomerController', () => {
     expect(result.pageSize).toBe(50)
   })
 
-  it('exportCsv should set headers and send CSV content', async () => {
-    customerService.exportCsv.mockResolvedValue('id,name\n1,Acme')
-    const res: { setHeader: jest.Mock; send: jest.Mock } = {
-      setHeader: jest.fn(),
-      send: jest.fn(),
-    }
-
-    await controller.exportCsv(res as never, user)
-
-    expect(customerService.exportCsv).toHaveBeenCalledWith(user)
-    expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'text/csv; charset=utf-8')
-    expect(res.setHeader).toHaveBeenCalledWith(
-      'Content-Disposition',
-      'attachment; filename=customers.csv',
-    )
-    expect(res.send).toHaveBeenCalledWith('id,name\n1,Acme')
+  it('importCsv should reject missing mapping', async () => {
+    await expect(
+      controller.importCsv({ rows: [{ name: 'X' }], mapping: {} }, user),
+    ).rejects.toBeInstanceOf(BadRequestException)
   })
 
-  it('importCsv should reject invalid rows payload', async () => {
-    await expect(controller.importCsv({ rows: [] }, user)).rejects.toBeInstanceOf(BadRequestException)
-    expect(customerService.importFromCsvRows).not.toHaveBeenCalled()
+  it('importCsv should reject empty rows payload', async () => {
+    await expect(
+      controller.importCsv({ rows: [], mapping: { name: 'name' } }, user),
+    ).rejects.toBeInstanceOf(BadRequestException)
   })
 
   it('importCsv should reject too many rows', async () => {
     const rows = new Array(1001).fill({ name: 'X' })
 
-    await expect(controller.importCsv({ rows }, user)).rejects.toBeInstanceOf(BadRequestException)
-    expect(customerService.importFromCsvRows).not.toHaveBeenCalled()
-  })
-
-  it('importCsv should call service for valid rows', async () => {
-    const rows = [{ name: 'Acme' }]
-    customerService.importFromCsvRows.mockResolvedValue({ imported: 1, errors: [] })
-
-    const result = await controller.importCsv({ rows }, user)
-
-    expect(customerService.importFromCsvRows).toHaveBeenCalledWith(rows, 1)
-    expect(result).toEqual({ imported: 1, errors: [] })
+    await expect(
+      controller.importCsv({ rows, mapping: { name: 'name' } }, user),
+    ).rejects.toBeInstanceOf(BadRequestException)
   })
 
   it('create should notify after creating customer', async () => {

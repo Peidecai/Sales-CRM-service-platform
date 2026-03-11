@@ -1,23 +1,48 @@
 # TASK-01: 知识文章点赞/收藏功能
 
-**状态**: ❌ 未实现
+**状态**: ✅ 已实现（100%）
 **优先级**: P2 — 用户体验增强
 **模块**: Knowledge (TM-D)
 **估算工作量**: 后端 4h + 前端 3h + 测试 2h
+**完成提交**: `e4a470c` (2026-03-08)
+**审查日期**: 2026-03-10
+
+---
+
+## 0. 实现状态总览
+
+| 层级             | 完成度  | 说明                                                                                                     |
+| ---------------- | ------- | -------------------------------------------------------------------------------------------------------- |
+| 数据库迁移       | ✅ 100% | `article_likes` + `article_favorites` 两张关联表，唯一约束+索引                                          |
+| Entity 实体      | ✅ 100% | `ArticleLike` + `ArticleFavorite` 实体已定义                                                             |
+| DTO              | ✅ 100% | `ArticleActionResponseDto { liked, favorited, likeCount }`                                               |
+| Service 层       | ✅ 100% | `toggleLike`、`toggleFavorite`、`getArticleActionStatus`、`getUserFavorites` + 4个私有辅助方法           |
+| Controller 层    | ✅ 100% | 4 个 API 端点全部实现                                                                                    |
+| Module 注册      | ✅ 100% | `TypeOrmModule.forFeature` 已注册 `ArticleLike`、`ArticleFavorite`                                       |
+| 前端 API 层      | ✅ 100% | 4 个 API 函数 + `ArticleActionResponse` 类型                                                             |
+| 前端 UI 按钮     | ✅ 100% | 点赞/收藏按钮（状态回显、loading、likeCount 计数）                                                       |
+| 前端状态管理     | ✅ 100% | `articleStatus` 响应式状态，对话框打开时加载、关闭时重置                                                 |
+| 单元测试         | ✅ 100% | 9 个测试用例覆盖全部核心场景                                                                             |
+| 并发安全         | ✅ 100% | 数据库唯一约束 + `isDuplicateEntryError` 处理                                                            |
+| likeCount 防负数 | ✅ 100% | `CASE WHEN like_count > 0 THEN like_count - 1 ELSE 0 END`                                                |
+| **收藏列表页面** | ✅ 100% | 已新增 `knowledge/favorites.vue` 独立页面，接入路由 `/knowledge/favorites`，并在知识库与个人中心提供入口 |
 
 ---
 
 ## 1. 背景与现状
 
-### 现状分析
+### 现状分析（已更新）
 
-`knowledge-article.entity.ts` 已在数据库层预留了 `like_count` 列（`int DEFAULT 0`），但：
+点赞/收藏功能已在 `e4a470c` 提交中全面实现：
 
-- `knowledge.service.ts` 无任何 `like*` / `favorite*` 方法
-- `knowledge.controller.ts` 无 `POST /articles/:id/like` 等端点
-- `knowledge/index.vue` 无点赞按钮或收藏 UI
-- 无 `article_likes` 关联表（无法追踪"谁点赞了哪篇文章"）
-- 无数据库迁移文件处理 like 关联表
+- ✅ `knowledge.service.ts` 已有 `toggleLike`、`toggleFavorite`、`getArticleActionStatus`、`getUserFavorites` 方法
+- ✅ `knowledge.controller.ts` 已有 `POST /articles/:id/like`、`POST /articles/:id/favorite`、`GET /articles/:id/status`、`GET /favorites` 端点
+- ✅ `knowledge/index.vue` 已有点赞按钮和收藏按钮 UI（在文章编辑对话框 footer 中）
+- ✅ `article_likes` + `article_favorites` 关联表已通过迁移创建
+- ✅ 数据库迁移文件 `1709000008000-CreateArticleLikesTable.ts` 已就绪
+- ✅ 已补齐独立"我的收藏"列表页面：`packages/web/src/views/knowledge/favorites.vue`
+- ✅ 已新增前端路由：`/knowledge/favorites`
+- ✅ 已在 `knowledge/index.vue` 与 `profile/index.vue` 添加入口按钮
 
 ### 功能目标
 

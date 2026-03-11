@@ -1,0 +1,152 @@
+# CRM Sales Platform - 代码修复任务清单
+# 基于 FIX_TASKS.md 生成
+# 用法: .\crm-fix-runner.ps1 -TaskFile .\crm-fix-tasks.txt
+
+# ==========================================
+# P0 - 立即修复（预计 4-6 小时）
+# ==========================================
+
+# P0-01 | 安全 | bcrypt salt rounds 从 10 改为 12
+在文件 packages/server/src/modules/user/user.service.ts 中：
+1. 在类顶部添加私有常量：private readonly BCRYPT_SALT_ROUNDS = 12
+2. 将第 26 行和第 88 行的 bcrypt.hash(dto.password, 10) 改为 bcrypt.hash(dto.password, this.BCRYPT_SALT_ROUNDS)
+
+# P0-02 | 安全 | 注册全局 ThrottlerGuard
+在 packages/server/src/app.module.ts 中：
+1. 添加 import { APP_GUARD } from '@nestjs/core' 和 import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard'
+2. 在 @Module 的 providers 数组中添加 { provide: APP_GUARD, useClass: CustomThrottlerGuard }
+
+# P0-03 | 安全 | AI 端点添加独立频率限制
+在 packages/server/src/modules/ai/ai.controller.ts 中添加 @Throttle({ default: { ttl: 60000, limit: 3 } }) 到 AI 生成方法
+在 packages/server/src/modules/knowledge/knowledge.controller.ts 的 askQuestion() 方法添加 @Throttle({ default: { ttl: 60000, limit: 5 } })
+
+# P0-04 | API | throw new Error 替换为 NestJS 内置异常
+将 agent.controller.ts、recording.controller.ts、campaign.controller.ts 中的 throw new Error 替换为 NotFoundException、BadRequestException、ForbiddenException
+
+# P0-05 | API | 修复双前缀路由 bug
+修复 contact.controller.ts、customer-pool.controller.ts、custom-field.controller.ts、customer-tag.controller.ts 中重复的路由前缀
+
+# P0-06 | API | 解决 call Controller 路由前缀冲突
+将 call-callback.controller.ts 的 @Controller('call') 改为 @Controller('call-callback')
+将 call-popup.controller.ts 的 @Controller('call') 改为 @Controller('call-popup')
+
+# P0-07 | 安全 | 回调签名改用恒等时间比较 + 防重放
+在 callback-signature.guard.ts 中使用 timingSafeEqual 进行签名比较
+在 call-callback.controller.ts 中叠加 ReplayAttackGuard
+
+# ==========================================
+# P1 - 本周修复（预计 2-3 天）
+# ==========================================
+
+# P1-01 | 架构 | AiController 重构到 Service 层
+将 ai.controller.ts 的业务逻辑拆分为 ai-alert.service.ts、ai-report.service.ts、ai-forecast.service.ts 等多个 Service
+
+# P1-02 | 架构 | CustomerService 拆分
+将 customer.service.ts 拆分为 customer.service.ts、customer-export.service.ts、customer-import.service.ts、customer-number.service.ts
+
+# P1-03 | 架构 | AuthService 拆分
+将 auth.service.ts 拆分为 auth.service.ts、token.service.ts、wx-auth.service.ts、captcha.service.ts
+
+# P1-04 | API | 统一响应格式拦截器
+完善 response.interceptor.ts，确保所有响应格式统一为 { code, message, data }
+
+# P1-05 | API | 统一异常过滤器增强
+增强 http-exception.filter.ts，添加 traceId、timestamp、path 等信息
+
+# P1-06 | 安全 | JWT 配置移至环境变量
+将 jwt.config.ts 中的硬编码配置改为从 process.env 读取
+
+# P1-07 | 安全 | Redis 密钥前缀隔离
+在 cache-keys.ts 中添加全局前缀配置，统一所有缓存键格式
+
+# P1-08 | API | DTO 验证增强
+为所有 DTO 添加完善的 class-validator 装饰器
+
+# P1-09 | API | Swagger 文档完善
+完善 main.ts 中的 Swagger 配置，添加 API 信息和标签分组
+
+# P1-10 | 质量 | 日志格式标准化
+创建 logger.config.ts 和 logger.service.ts，实现结构化日志
+
+# P1-11 | 质量 | 环境配置分离
+使用 @nestjs/config 模块统一管理配置，创建各环境的配置文件
+
+# P1-12 | 质量 | 健康检查端点
+创建 health 模块，添加 /health、/health/ready、/health/live 端点
+
+# P1-13 | API | 统一分页响应格式
+创建 PaginationDto 和 PaginatedResponseDto，统一分页格式
+
+# P1-14 | 安全 | 敏感数据脱敏
+创建 sensitive-data.interceptor.ts，实现手机号、身份证等脱敏
+
+# P1-15 | API | API 版本控制
+启用版本控制，为 Controller 添加 @Version() 装饰器
+
+# P1-16 | 质量 | 输入消毒
+创建 sanitization.pipe.ts，实现 XSS 和 SQL 注入防护
+
+# P1-17 | 质量 | 请求追踪 ID
+创建 request-id.middleware.ts，为每个请求生成 traceId
+
+# ==========================================
+# P2 - 数据库优化
+# ==========================================
+
+# P2-01 | 数据库 | 添加缺失的数据库索引
+为 opportunity、customer、call-record、campaign-task 等表的关键字段添加索引
+
+# P2-02 | 数据库 | 软删除统一使用 deletedAt
+将 base.entity.ts 的 deleted 字段改为 deletedAt，使用 @DeleteDateColumn
+
+# P2-03 | 数据库 | 金额字段统一 DECIMAL(15,2)
+统一所有金额字段为 DECIMAL(15,2)
+
+# P2-04 | 数据库 | 外键字段添加索引
+为 12 个外键字段创建索引
+
+# P2-05 | 数据库 | 时间戳字段统一 _at 后缀
+统一时间戳字段命名为 _at 后缀
+
+# P2-06 | 数据库 | 复合唯一索引优化
+为 performance-ranking、sales-target 等添加复合唯一索引
+
+# P2-07 | 数据库 | 字符集和排序规则配置
+在 database.config.ts 中显式配置 utf8mb4 字符集
+
+# P2-08 | 数据库 | 大表分区策略
+为 call_records 表添加按时间范围分区
+
+# ==========================================
+# P3 - 中长期优化
+# ==========================================
+
+# P3-01 | 运维 | Docker 非 root 用户运行
+在 Dockerfile 中添加非 root 用户运行
+
+# P3-02 | 运维 | 蓝绿/滚动部署配置
+配置 Kubernetes 滚动部署或 Docker Compose 蓝绿部署
+
+# P3-03 | 质量 | 单元测试覆盖率提升至 80%
+为关键业务逻辑和安全相关代码编写单元测试
+
+# P3-04 | 性能 | Redis KEYS 改用 SCAN
+将 agent-status.service.ts 中的 KEYS 命令改为 SCAN
+
+# P3-05 | 质量 | 缓存键命名统一
+统一缓存键命名格式为 crm:{module}:{entity}:{qualifier}
+
+# P3-06 | 业务 | 呼叫分配策略完善
+完善 least_calls 和 skill_based 分配策略
+
+# P3-07 | 业务 | 录音生命周期管理
+实现录音保留策略和定时清理任务
+
+# P3-08 | 前端 | 小程序离线队列
+完善小程序离线队列实现
+
+# P3-09 | 缓存 | 布隆过滤器防穿透
+为高频查询添加布隆过滤器防止缓存穿透
+
+# P3-10 | 业务 | 缺失模块开发规划
+规划报价、合同、回款、审批引擎等模块开发

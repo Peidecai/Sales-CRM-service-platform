@@ -1,5 +1,11 @@
 <template>
   <div class="profile-page">
+    <div class="profile-toolbar">
+      <el-button type="primary" plain @click="$router.push('/knowledge/favorites')">
+        我的收藏
+      </el-button>
+    </div>
+
     <el-row :gutter="20">
       <!-- Profile Info Card -->
       <el-col :span="12">
@@ -253,6 +259,10 @@ onMounted(() => {
 <style scoped>
 .profile-page {
   padding: 20px;
+}
+
+.profile-toolbar {
+  margin-bottom: 12px;
 }
 
 .card-header {

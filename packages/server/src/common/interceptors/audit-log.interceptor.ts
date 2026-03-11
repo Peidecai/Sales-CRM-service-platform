@@ -54,6 +54,7 @@ export class AuditLogInterceptor implements NestInterceptor {
               action === AuditAction.DELETE
                 ? null
                 : ((responseData as Record<string, unknown>) ?? null),
+            responseData: (responseData as Record<string, unknown>) ?? null,
             ip,
           })
           .catch(() => {

@@ -81,6 +81,16 @@
         </el-descriptions>
       </el-card>
 
+      <!-- AI Customer Profile Tab -->
+      <el-card shadow="never" class="related-card">
+        <template #header>
+          <div class="card-header">
+            <span class="card-header-title">客户画像</span>
+          </div>
+        </template>
+        <CustomerProfileTab :customer-id="customerId" />
+      </el-card>
+
       <!-- Related Opportunities -->
       <el-card shadow="never" class="related-card">
         <template #header>
@@ -399,6 +409,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules, type TagProps } from 'element-plus'
 import { ArrowLeft, Edit, Delete, Plus, Calendar } from '@element-plus/icons-vue'
+import CustomerProfileTab from './components/CustomerProfileTab.vue'
 import {
   customerApi,
   CustomerStatus,
@@ -440,12 +451,14 @@ const customerId = Number(route.params.id)
 
 // ---- Helpers ----
 const statusOptions = [
+  { value: CustomerStatus.LEAD, label: '线索' },
   { value: CustomerStatus.POTENTIAL, label: '潜在客户' },
-  { value: CustomerStatus.FOLLOWING, label: '跟进中' },
-  { value: CustomerStatus.NEGOTIATING, label: '谈判中' },
-  { value: CustomerStatus.SIGNED, label: '已签约' },
+  { value: CustomerStatus.INTENTION, label: '有意向' },
+  { value: CustomerStatus.OPPORTUNITY, label: '商机客户' },
+  { value: CustomerStatus.DEAL, label: '成交客户' },
+  { value: CustomerStatus.MAINTAIN, label: '维护期' },
+  { value: CustomerStatus.INVALID, label: '无效客户' },
   { value: CustomerStatus.LOST, label: '已流失' },
-  { value: CustomerStatus.INACTIVE, label: '暂不合作' },
 ]
 
 // ---- Data Fetching ----

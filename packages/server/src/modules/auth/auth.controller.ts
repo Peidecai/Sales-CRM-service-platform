@@ -12,18 +12,26 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger'
 import { Throttle } from '@nestjs/throttler'
 import { Request } from 'express'
+import { v4 as uuidv4 } from 'uuid'
+import * as svgCaptcha from 'svg-captcha'
 import { AuthService } from './auth.service'
 import { LoginDto } from './dto/login.dto'
 import { RefreshTokenDto } from './dto/refresh-token.dto'
 import { UpdateProfileDto } from './dto/update-profile.dto'
 import { ChangePasswordDto } from './dto/change-password.dto'
+import { WxLoginDto } from './dto/wx-login.dto'
+import { BindPhoneDto } from './dto/bind-phone.dto'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
+import { RedisService } from '../../common/redis'
 
 @ApiTags('认证')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly redisService: RedisService,
+  ) {}
 
   @Post('login')
   @Throttle({ default: { ttl: 60000, limit: 5 } })
@@ -34,6 +42,27 @@ export class AuthController {
   @ApiResponse({ status: 429, description: 'Too many login attempts' })
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto)
+  }
+
+  @Get('captcha')
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @ApiOperation({ summary: '获取图形验证码' })
+  @ApiResponse({ status: 200, description: '返回 SVG 验证码' })
+  async getCaptcha() {
+    const captcha = svgCaptcha.create({
+      size: 4,
+      ignoreChars: '0oO1lI',
+      noise: 2,
+      color: true,
+      background: '#f0f0f0',
+    })
+    const captchaId = uuidv4()
+    // Store captcha text in Redis for 5 minutes
+    await this.redisService.set(`captcha:${captchaId}`, captcha.text, 300)
+    return {
+      captchaId,
+      svg: captcha.data,
+    }
   }
 
   @Post('refresh')
@@ -93,5 +122,29 @@ export class AuthController {
       await this.authService.logout(token)
     }
     return null
+  }
+
+  // ─── WeChat Mini Program ────────────────────────────────────────────
+
+  @Post('wx-login')
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '微信小程序登录' })
+  @ApiResponse({ status: 200, description: '登录成功，返回 JWT 令牌' })
+  @ApiResponse({ status: 400, description: '微信登录失败' })
+  wxLogin(@Body() dto: WxLoginDto) {
+    return this.authService.wxLogin(dto.code)
+  }
+
+  @Post('bind-phone')
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '微信小程序绑定手机号' })
+  @ApiResponse({ status: 200, description: '绑定成功' })
+  @ApiResponse({ status: 400, description: '获取手机号失败' })
+  bindPhone(@CurrentUser('id') userId: number, @Body() dto: BindPhoneDto) {
+    return this.authService.bindPhone(userId, dto.code)
   }
 }

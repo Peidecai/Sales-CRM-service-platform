@@ -5,6 +5,7 @@ import { UserRole } from '@crm/shared'
 import { FollowUpService } from '../../src/modules/follow-up/follow-up.service'
 import { FollowUp, FollowUpType } from '../../src/modules/follow-up/follow-up.entity'
 import { Customer } from '../../src/modules/customer/customer.entity'
+import { CustomerService } from '../../src/modules/customer/customer.service'
 import { RedisService } from '../../src/common/redis'
 import {
   createMockRepository,
@@ -59,6 +60,7 @@ describe('FollowUpService', () => {
         { provide: getRepositoryToken(FollowUp), useValue: followUpRepo },
         { provide: getRepositoryToken(Customer), useValue: customerRepo },
         { provide: RedisService, useValue: redis },
+        { provide: CustomerService, useValue: { extendProtection: jest.fn() } },
       ],
     }).compile()
 

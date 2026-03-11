@@ -29,6 +29,19 @@ export enum NotificationType {
   ARTICLE_CREATED = 'article:created',
   /** Article embedding completed */
   ARTICLE_EMBEDDING_COMPLETED = 'article:embedding_completed',
+
+  /** Follow-up reminder for today's tasks */
+  FOLLOW_UP_REMINDER = 'follow_up:reminder',
+  /** Follow-up overdue warning */
+  FOLLOW_UP_OVERDUE = 'follow_up:overdue',
+
+  /** Customer import progress update */
+  IMPORT_PROGRESS = 'import:progress',
+  /** Customer import completed */
+  IMPORT_COMPLETED = 'import:completed',
+
+  /** Incoming call popup for agent workspace */
+  INCOMING_CALL_POPUP = 'INCOMING_CALL_POPUP',
 }
 
 export interface NotificationPayload {

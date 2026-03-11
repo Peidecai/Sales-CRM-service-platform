@@ -6,6 +6,8 @@
   "scripts": {
     "dev:web": "pnpm --filter @crm/web dev",
     "dev:server": "pnpm --filter @crm/server start:dev",
+    "dev:miniapp": "pnpm --filter @crm/miniapp dev:mp-weixin",
+    "build:miniapp": "pnpm --filter @crm/miniapp build:mp-weixin",
     "build": "pnpm --filter @crm/shared build && pnpm --filter @crm/server build && pnpm --filter @crm/web build",
     "lint": "pnpm --recursive lint",
     "test": "pnpm --recursive test",

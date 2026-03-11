@@ -38,6 +38,7 @@ export interface MockQueryBuilder {
   where: jest.Mock
   andWhere: jest.Mock
   orderBy: jest.Mock
+  addOrderBy: jest.Mock
   skip: jest.Mock
   take: jest.Mock
   getManyAndCount: jest.Mock
@@ -57,6 +58,7 @@ export function createMockQueryBuilder(data: unknown[] = [], total = 0): MockQue
     where: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
+    addOrderBy: jest.fn().mockReturnThis(),
     skip: jest.fn().mockReturnThis(),
     take: jest.fn().mockReturnThis(),
     getManyAndCount: jest.fn().mockResolvedValue([data, total]),
@@ -83,6 +85,8 @@ export interface MockRedisService {
   exists: jest.Mock
   ping: jest.Mock
   getClient: jest.Mock
+  incr: jest.Mock
+  expire: jest.Mock
 }
 
 export function createMockRedisService(): MockRedisService {
@@ -94,6 +98,8 @@ export function createMockRedisService(): MockRedisService {
     exists: jest.fn().mockResolvedValue(false),
     ping: jest.fn().mockResolvedValue('PONG'),
     getClient: jest.fn(),
+    incr: jest.fn().mockResolvedValue(1),
+    expire: jest.fn().mockResolvedValue(undefined),
   }
 }
 

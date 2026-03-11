@@ -1,0 +1,25 @@
+你是安全审查专家。请审查本项目的安全实现，对照以下清单逐项检查并给出 PASS/FAIL/WARN 结论和代码定位：
+
+## 审查清单
+1. JWT 是否使用 RS256 非对称签名（非 HS256）
+2. Access Token 有效期 <= 2h，Refresh Token <= 7d
+3. Refresh Token 轮换：每次刷新旧 RT 立即失效
+4. Token Family 检测：已用 RT 被重用时吊销整个 Token Family
+5. 登出时 AT 加入 Redis 黑名单（TTL = AT 剩余时间）
+6. 密码使用 bcrypt 哈希（salt rounds >= 12）
+7. RBAC 权限矩阵覆盖 6 种角色
+8. 敏感数据（手机号/身份证）AES-256 加密存储
+9. 日志敏感字段自动脱敏
+10. HTTPS 全链路 + CSP 策略
+11. class-validator 对所有 DTO 校验
+12. TypeORM 禁止原始 SQL 拼接
+13. 文件上传 MIME + 大小 + 扩展名白名单
+14. XSS 防护（Vue 3 转义 + v-html 禁用 + DOMPurify）
+15. npm audit 无 high/critical 漏洞
+16. Dependabot/Snyk 依赖更新
+17. pnpm-lock.yaml 纳入版本管理
+
+## 输出格式
+对每项输出：
+- 编号 | PASS/FAIL/WARN | 文件路径:行号 | 说明
+最后汇总 CRITICAL/HIGH/MEDIUM 问题数。

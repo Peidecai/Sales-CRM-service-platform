@@ -1,36 +1,39 @@
 # TASK-03: notification/CLAUDE.md 文档同步更新
 
-**状态**: ⚠️ 文档与实际代码严重不符
+**状态**: ✅ 已完成 — 文档已与实际代码 100% 同步
 **优先级**: P1 — 文档准确性（影响后续团队协作）
 **模块**: 实时通知 (Notification)
 **估算工作量**: 文档更新 1h
+**完成提交**: `e4a470c` (2026-03-08)
+**审查日期**: 2026-03-10
 
 ---
 
-## 1. 背景与问题
+## 1. 背景与问题（已解决）
 
 ### 问题描述
 
-`packages/server/src/modules/notification/CLAUDE.md` 中标注前端通知功能"**完全缺失**"，并提供了需要新建的文件规范列表。
+`packages/server/src/modules/notification/CLAUDE.md` 曾标注前端通知功能"**完全缺失**"，与实际代码严重不符。
 
-**实际情况完全相反**：前端实时通知已完整实现，且实现方式与 CLAUDE.md 所描述的设计规范存在以下差异：
+### 已修正的差异项（全部 ✅）
 
-| 维度            | CLAUDE.md 描述                                          | 实际代码                                                     |
-| --------------- | ------------------------------------------------------- | ------------------------------------------------------------ |
-| 状态            | "前端完全缺失"                                          | **已完整实现**                                               |
-| composable 文件 | 需要新建 `useWebSocket.ts` + `useNotificationCenter.ts` | 实际为单一文件 `useNotification.ts`（功能合并）              |
-| Socket 初始化   | `userStore.accessToken` 字段                            | 实际使用 `userStore.token` 字段                              |
-| 通知位置        | `position: 'top-right'`                                 | 实际为 `position: 'bottom-right'`                            |
-| 铃铛组件        | 需要新建独立 `NotificationBell.vue`                     | 铃铛 UI 直接内联在 `DefaultLayout.vue` 中                    |
-| 自己操作过滤    | 未提及                                                  | `useNotification.ts` 已实现 `actorId === currentUserId` 过滤 |
-| 测试工具        | 未提及                                                  | 导出了 `__resetNotificationStateForTest()` 测试辅助函数      |
-| 断线重连次数    | 5次 + delay 2000ms                                      | 实际 5次 + delay 3000ms                                      |
+| 维度              | 修正前（旧 CLAUDE.md）                         | 修正后（当前 CLAUDE.md）                   | 验证      |
+| ----------------- | ---------------------------------------------- | ------------------------------------------ | --------- |
+| 前端状态          | "前端完全缺失"                                 | ✅ 完整                                    | ✅ 已修正 |
+| composable 文件名 | `useWebSocket.ts` + `useNotificationCenter.ts` | `useNotification.ts`（单一文件）           | ✅ 已修正 |
+| Socket Token 字段 | `userStore.accessToken`                        | `userStore.token`                          | ✅ 已修正 |
+| 通知位置          | `position: 'top-right'`                        | `position: 'bottom-right'`                 | ✅ 已修正 |
+| 铃铛组件          | 需新建独立 `NotificationBell.vue`              | 内联于 `DefaultLayout.vue`                 | ✅ 已修正 |
+| 自操作过滤        | 未提及                                         | `actorId === currentUserId` 时丢弃         | ✅ 已补充 |
+| 测试辅助函数      | 未提及                                         | `__resetNotificationStateForTest()` 已记录 | ✅ 已补充 |
+| 断线重连参数      | 5次 + 2000ms                                   | 5次 + 3000ms                               | ✅ 已修正 |
+| 文件树            | 与实际不符                                     | 后端 4 文件 + 前端 2 文件 100% 对应        | ✅ 已修正 |
 
-### 影响
+### 原始影响（已消除）
 
-1. 其他开发者读到 CLAUDE.md 后会误认为功能未实现，可能重复开发
-2. 文档指向的实现方案（两个 composable 文件）与实际架构不同，产生混乱
-3. 新成员 onboarding 时获得错误的代码导航信息
+1. ~~其他开发者读到 CLAUDE.md 后会误认为功能未实现，可能重复开发~~ → 已修正
+2. ~~文档指向的实现方案（两个 composable 文件）与实际架构不同，产生混乱~~ → 已修正
+3. ~~新成员 onboarding 时获得错误的代码导航信息~~ → 已修正
 
 ---
 

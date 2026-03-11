@@ -5,8 +5,11 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  IsArray,
   MaxLength,
   IsDateString,
+  Min,
+  Max,
 } from 'class-validator'
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import { FollowUpType } from '../follow-up.entity'
@@ -37,4 +40,55 @@ export class CreateFollowUpDto {
   @IsString()
   @MaxLength(500)
   nextFollowUpNote?: string
+
+  @ApiPropertyOptional({ description: '关联联系人ID' })
+  @IsOptional()
+  @IsInt()
+  contactId?: number
+
+  @ApiPropertyOptional({ description: '跟进结果', maxLength: 500 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  result?: string
+
+  @ApiPropertyOptional({ description: '下次计划', maxLength: 500 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  nextPlan?: string
+
+  @ApiPropertyOptional({ description: '意向等级(1-5)' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  intentionLevel?: number
+
+  @ApiPropertyOptional({ description: '附件列表' })
+  @IsOptional()
+  @IsArray()
+  attachments?: Array<{ name: string; url: string; type: string }>
+
+  @ApiPropertyOptional({ description: '跟进地点', maxLength: 200 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  location?: string
+
+  @ApiPropertyOptional({ description: '时长(分钟)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  duration?: number
+
+  @ApiPropertyOptional({ description: '录音URL' })
+  @IsOptional()
+  @IsString()
+  callRecordingUrl?: string
+
+  @ApiPropertyOptional({ description: '关联商机ID' })
+  @IsOptional()
+  @IsInt()
+  relatedOpportunityId?: number
 }

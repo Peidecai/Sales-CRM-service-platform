@@ -9,21 +9,25 @@ export type TagType = 'info' | 'primary' | 'warning' | 'success' | 'danger'
 // ---- Customer Status ----
 
 const customerStatusLabelMap: Record<CustomerStatus, string> = {
+  [CustomerStatus.LEAD]: '线索',
   [CustomerStatus.POTENTIAL]: '潜在客户',
-  [CustomerStatus.FOLLOWING]: '跟进中',
-  [CustomerStatus.NEGOTIATING]: '谈判中',
-  [CustomerStatus.SIGNED]: '已签约',
+  [CustomerStatus.INTENTION]: '有意向',
+  [CustomerStatus.OPPORTUNITY]: '商机客户',
+  [CustomerStatus.DEAL]: '成交客户',
+  [CustomerStatus.MAINTAIN]: '维护期',
+  [CustomerStatus.INVALID]: '无效客户',
   [CustomerStatus.LOST]: '已流失',
-  [CustomerStatus.INACTIVE]: '暂不合作',
 }
 
 const customerStatusTagMap: Record<CustomerStatus, TagType> = {
+  [CustomerStatus.LEAD]: 'info',
   [CustomerStatus.POTENTIAL]: 'info',
-  [CustomerStatus.FOLLOWING]: 'primary',
-  [CustomerStatus.NEGOTIATING]: 'warning',
-  [CustomerStatus.SIGNED]: 'success',
+  [CustomerStatus.INTENTION]: 'primary',
+  [CustomerStatus.OPPORTUNITY]: 'warning',
+  [CustomerStatus.DEAL]: 'success',
+  [CustomerStatus.MAINTAIN]: 'success',
+  [CustomerStatus.INVALID]: 'danger',
   [CustomerStatus.LOST]: 'danger',
-  [CustomerStatus.INACTIVE]: 'info',
 }
 
 export function getStatusLabel(status: CustomerStatus): string {

@@ -37,6 +37,22 @@
           <el-icon><Collection /></el-icon>
           <template #title> 知识库 </template>
         </el-menu-item>
+        <el-menu-item index="/sales-target">
+          <el-icon><Aim /></el-icon>
+          <template #title> 目标业绩 </template>
+        </el-menu-item>
+        <el-sub-menu index="/ai">
+          <template #title>
+            <el-icon><MagicStick /></el-icon>
+            <span>AI 智能</span>
+          </template>
+          <el-menu-item index="/ai/alerts">
+            <template #title> 异常预警 </template>
+          </el-menu-item>
+          <el-menu-item index="/ai/reports">
+            <template #title> 报告中心 </template>
+          </el-menu-item>
+        </el-sub-menu>
         <el-menu-item v-if="isAdmin" index="/audit-log">
           <el-icon><Document /></el-icon>
           <template #title> 审计日志 </template>
@@ -174,6 +190,8 @@ import {
   Setting,
   Document,
   Bell,
+  Aim,
+  MagicStick,
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useNotification, type NotificationPayload } from '@/composables/useNotification'
@@ -227,6 +245,9 @@ const activeRoute = computed(() => {
   if (path.startsWith('/opportunity')) return '/opportunity'
   if (path.startsWith('/call-record')) return '/call-record'
   if (path.startsWith('/knowledge')) return '/knowledge'
+  if (path.startsWith('/sales-target')) return '/sales-target'
+  if (path.startsWith('/ai/alerts')) return '/ai/alerts'
+  if (path.startsWith('/ai/reports')) return '/ai/reports'
   if (path.startsWith('/audit-log')) return '/audit-log'
   if (path.startsWith('/user')) return '/user'
   if (path.startsWith('/profile')) return '/profile'
@@ -249,6 +270,9 @@ const breadcrumbRouteMap: Record<string, string> = {
   商机管理: '/opportunity',
   通话记录: '/call-record',
   知识库: '/knowledge',
+  目标业绩: '/sales-target',
+  异常预警: '/ai/alerts',
+  报告中心: '/ai/reports',
   审计日志: '/audit-log',
   用户管理: '/user',
   个人中心: '/profile',

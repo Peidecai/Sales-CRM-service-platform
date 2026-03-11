@@ -246,6 +246,9 @@
       </el-col>
     </el-row>
 
+    <!-- Sales Forecast Panel (#130) -->
+    <SalesForecastPanel />
+
     <el-card shadow="never" class="quick-actions-card">
       <template #header>
         <span class="card-header-title">快捷操作</span>
@@ -296,6 +299,7 @@ import { getStatusTagType, getStatusLabel, getStageTagType } from '@/utils/tag-h
 
 const userStore = useUserStore()
 const DashboardCharts = defineAsyncComponent(() => import('./components/DashboardCharts.vue'))
+const SalesForecastPanel = defineAsyncComponent(() => import('./components/SalesForecastPanel.vue'))
 const userName = computed(() => userStore.userInfo?.name ?? userStore.userInfo?.username ?? '用户')
 const chartText = {
   pipelineTitle: '\u5546\u673A\u7BA1\u9053\u6F0F\u6597',
@@ -348,12 +352,14 @@ function stageLabel(stage: string): string {
 }
 
 const statusLabelMap: Record<string, string> = {
+  [CustomerStatus.LEAD]: '线索',
   [CustomerStatus.POTENTIAL]: '潜在客户',
-  [CustomerStatus.FOLLOWING]: '跟进中',
-  [CustomerStatus.NEGOTIATING]: '谈判中',
-  [CustomerStatus.SIGNED]: '已签约',
+  [CustomerStatus.INTENTION]: '有意向',
+  [CustomerStatus.OPPORTUNITY]: '商机客户',
+  [CustomerStatus.DEAL]: '成交客户',
+  [CustomerStatus.MAINTAIN]: '维护期',
+  [CustomerStatus.INVALID]: '无效客户',
   [CustomerStatus.LOST]: '已流失',
-  [CustomerStatus.INACTIVE]: '暂不合作',
 }
 
 async function resolveCallRecordCustomerNames(records: CallRecordVO[]) {
@@ -389,12 +395,14 @@ async function fetchAllStats() {
   try {
     const statusCounts: Array<{ name: string; value: number }> = []
     const allStatuses = [
+      CustomerStatus.LEAD,
       CustomerStatus.POTENTIAL,
-      CustomerStatus.FOLLOWING,
-      CustomerStatus.NEGOTIATING,
-      CustomerStatus.SIGNED,
+      CustomerStatus.INTENTION,
+      CustomerStatus.OPPORTUNITY,
+      CustomerStatus.DEAL,
+      CustomerStatus.MAINTAIN,
+      CustomerStatus.INVALID,
       CustomerStatus.LOST,
-      CustomerStatus.INACTIVE,
     ]
 
     const [

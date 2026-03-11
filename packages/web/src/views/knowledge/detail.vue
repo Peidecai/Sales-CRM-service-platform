@@ -48,6 +48,70 @@
       <el-card shadow="never" class="article-content-card">
         <div class="article-content" v-html="renderedContent" />
       </el-card>
+
+      <!-- Comments -->
+      <el-card v-if="article" shadow="never" class="article-comments-card">
+        <template #header>
+          <span>评论 ({{ commentTotal }})</span>
+        </template>
+        <div class="comment-input">
+          <el-input
+            v-model="commentContent"
+            type="textarea"
+            :rows="3"
+            placeholder="写下你的评论…"
+            maxlength="2000"
+            show-word-limit
+          />
+          <el-button
+            type="primary"
+            :loading="submitting"
+            style="margin-top: 8px"
+            @click="submitComment"
+          >
+            发表
+          </el-button>
+        </div>
+        <div class="comment-list">
+          <div v-for="c in comments" :key="c.id" class="comment-item">
+            <div class="comment-body">
+              <span class="comment-author">用户 #{{ c.userId }}</span>
+              <span class="comment-time">{{ formatDate(c.createdAt) }}</span>
+              <p class="comment-text">{{ c.content }}</p>
+              <el-button
+                v-if="canDeleteComment(c)"
+                type="danger"
+                link
+                size="small"
+                @click="deleteComment(c.id)"
+              >
+                删除
+              </el-button>
+            </div>
+            <div v-if="c.children?.length" class="comment-children">
+              <div v-for="child in c.children" :key="child.id" class="comment-item comment-reply">
+                <span class="comment-author">用户 #{{ child.userId }}</span>
+                <span class="comment-time">{{ formatDate(child.createdAt) }}</span>
+                <p class="comment-text">{{ child.content }}</p>
+                <el-button
+                  v-if="canDeleteComment(child)"
+                  type="danger"
+                  link
+                  size="small"
+                  @click="deleteComment(child.id)"
+                >
+                  删除
+                </el-button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <el-empty
+          v-if="!commentLoading && comments.length === 0"
+          description="暂无评论"
+          :image-size="60"
+        />
+      </el-card>
     </template>
 
     <!-- Not Found -->
@@ -62,8 +126,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Folder, View, Star } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
-import { knowledgeApi, type ArticleVO, type CategoryVO } from '@/api/knowledge'
+import { knowledgeApi, type ArticleVO, type CategoryVO, type CommentVO } from '@/api/knowledge'
 import { formatDate } from '@/utils/format'
+import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
 const router = useRouter()
@@ -71,6 +136,12 @@ const router = useRouter()
 const loading = ref(true)
 const article = ref<ArticleVO | null>(null)
 const categories = ref<CategoryVO[]>([])
+const comments = ref<CommentVO[]>([])
+const commentTotal = ref(0)
+const commentLoading = ref(false)
+const commentContent = ref('')
+const submitting = ref(false)
+const userStore = useUserStore()
 
 const categoryName = computed(() => {
   if (!article.value?.categoryId) return ''
@@ -119,6 +190,53 @@ async function loadArticle() {
     // Error handled by request interceptor
   } finally {
     loading.value = false
+  }
+  await loadComments()
+}
+
+async function loadComments() {
+  const id = Number(route.params.id)
+  if (isNaN(id)) return
+  commentLoading.value = true
+  try {
+    const res = await knowledgeApi.getComments(id, 1, 50)
+    if (res?.data) {
+      comments.value = res.data.list ?? []
+      commentTotal.value = res.data.total ?? 0
+    }
+  } catch {
+    // ignore
+  } finally {
+    commentLoading.value = false
+  }
+}
+
+function canDeleteComment(c: CommentVO): boolean {
+  return userStore.user?.id === c.userId
+}
+
+async function submitComment() {
+  const id = Number(route.params.id)
+  const content = commentContent.value.trim()
+  if (!content || isNaN(id)) return
+  submitting.value = true
+  try {
+    await knowledgeApi.createComment(id, { content })
+    commentContent.value = ''
+    await loadComments()
+  } catch {
+    // error handled by interceptor
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function deleteComment(commentId: number) {
+  try {
+    await knowledgeApi.removeComment(commentId)
+    await loadComments()
+  } catch {
+    // error handled by interceptor
   }
 }
 
@@ -329,5 +447,52 @@ onMounted(() => {
   border: none;
   border-top: 1px solid #e5e6eb;
   margin: 24px 0;
+}
+
+.article-comments-card {
+  margin-top: 16px;
+}
+
+.comment-input {
+  margin-bottom: 20px;
+}
+
+.comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.comment-item {
+  padding: 10px 0;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.comment-item:last-child {
+  border-bottom: none;
+}
+
+.comment-reply {
+  margin-left: 24px;
+  padding-left: 12px;
+  border-left: 2px solid #dcdfe6;
+}
+
+.comment-author {
+  font-weight: 500;
+  color: #303133;
+  margin-right: 8px;
+}
+
+.comment-time {
+  font-size: 12px;
+  color: #909399;
+}
+
+.comment-text {
+  margin: 6px 0 4px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #606266;
 }
 </style>

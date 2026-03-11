@@ -5,6 +5,7 @@ import { CustomerService } from '../../src/modules/customer/customer.service'
 import { Customer } from '../../src/modules/customer/customer.entity'
 import { User } from '../../src/modules/user/user.entity'
 import { RedisService } from '../../src/common/redis'
+import { CustomFieldService } from '../../src/modules/custom-field/custom-field.service'
 import { CustomerStatus, UserRole } from '@crm/shared'
 import {
   createMockRepository,
@@ -36,6 +37,7 @@ describe('CustomerService', () => {
         { provide: getRepositoryToken(Customer), useValue: repo },
         { provide: getRepositoryToken(User), useValue: userRepo },
         { provide: RedisService, useValue: redis },
+        { provide: CustomFieldService, useValue: { validateCustomFields: jest.fn() } },
       ],
     }).compile()
 
@@ -126,10 +128,10 @@ describe('CustomerService', () => {
       const qb = createMockQueryBuilder([], 0)
       repo.createQueryBuilder.mockReturnValue(qb)
 
-      await service.findAll({ page: 1, pageSize: 20, status: CustomerStatus.SIGNED }, adminUser)
+      await service.findAll({ page: 1, pageSize: 20, status: CustomerStatus.DEAL }, adminUser)
 
       expect(qb.andWhere).toHaveBeenCalledWith('customer.status = :status', {
-        status: CustomerStatus.SIGNED,
+        status: CustomerStatus.DEAL,
       })
     })
 
@@ -268,7 +270,7 @@ describe('CustomerService', () => {
   describe('exportCsv', () => {
     it('should export all customers as CSV with BOM', async () => {
       const customers = [
-        fixtures.customer({ name: 'Alice', company: 'Corp A', phone: '13800138001', email: 'a@test.com', status: CustomerStatus.SIGNED }),
+        fixtures.customer({ name: 'Alice', company: 'Corp A', phone: '13800138001', email: 'a@test.com', status: CustomerStatus.DEAL }),
         fixtures.customer({ id: 2, name: 'Bob', company: null, phone: null, email: null, status: CustomerStatus.POTENTIAL }),
       ]
       const qb = createMockQueryBuilder(customers, 2)
@@ -333,7 +335,7 @@ describe('CustomerService', () => {
     it('should import valid rows', async () => {
       const rows = [
         { '姓名': 'Alice', '公司': 'Corp', '状态': '潜在客户' },
-        { '姓名': 'Bob', '公司': 'Inc', '状态': 'signed' },
+        { '姓名': 'Bob', '公司': 'Inc', '状态': 'deal' },
       ]
       repo.create.mockImplementation((items) => items)
       repo.save.mockResolvedValue([])
@@ -349,7 +351,7 @@ describe('CustomerService', () => {
       const rows: Record<string, string>[] = [
         { '姓名': '', '公司': 'Corp' }, // empty name
         { '姓名': 'Alice', '状态': '无效状态' }, // invalid status
-        { '姓名': 'Bob', '状态': '已签约' }, // valid
+        { '姓名': 'Bob', '状态': '成交客户' }, // valid
       ]
       repo.create.mockImplementation((items) => items)
       repo.save.mockResolvedValue([])

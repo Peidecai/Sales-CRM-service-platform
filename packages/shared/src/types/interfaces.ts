@@ -1,4 +1,11 @@
-import type { CustomerStatus, OpportunityStage, NotificationType } from '../enums/index';
+import type {
+  CustomerStatus,
+  OpportunityStage,
+  NotificationType,
+  TargetScope,
+  TargetPeriod,
+  TargetMetricType,
+} from "../enums/index";
 
 /**
  * 客户基本信息
@@ -45,4 +52,43 @@ export interface SendNotificationPayload {
   relatedId?: number;
   relatedType?: string;
   metadata?: Record<string, unknown>;
+}
+
+/**
+ * 销售目标基本信息
+ */
+export interface SalesTargetBasicInfo {
+  id: number;
+  name: string;
+  scope: TargetScope;
+  period: TargetPeriod;
+  metricType: TargetMetricType;
+  targetValue: number;
+  achievedValue: number;
+  year: number;
+  quarter: number | null;
+  month: number | null;
+  startDate: string;
+  endDate: string;
+  assignedUserId: number | null;
+  assignedUserName?: string;
+  parentTargetId: number | null;
+  achievementRate: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * 业绩排行信息
+ */
+export interface PerformanceRankingInfo {
+  id: number;
+  userId: number;
+  userName: string;
+  period: TargetPeriod;
+  metricType: TargetMetricType;
+  metricValue: number;
+  rank: number;
+  snapshotDate: string;
+  scope: TargetScope;
 }

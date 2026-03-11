@@ -1,0 +1,112 @@
+# ==============================================================
+# CRM Sales Platform — Filebeat Configuration
+# File: docker/filebeat/filebeat.yml
+#
+# Collects JSON logs from the CRM server and ships them to
+# Elasticsearch (or Logstash).
+#
+# Docker volume mount:
+#   - ./docker/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+#   - server_logs:/var/log/crm:ro
+# ==============================================================
+
+filebeat.inputs:
+  # ── Application Logs (JSON) ────────────────────────────────
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/crm/app-*.log
+    json.keys_under_root: true
+    json.add_error_key: true
+    json.message_key: message
+    fields:
+      app: crm-server
+      type: application
+    fields_under_root: true
+    multiline.pattern: '^\{'
+    multiline.negate: true
+    multiline.match: after
+
+  # ── Error Logs (JSON) ─────────────────────────────────────
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/crm/error-*.log
+    json.keys_under_root: true
+    json.add_error_key: true
+    json.message_key: message
+    fields:
+      app: crm-server
+      type: error
+    fields_under_root: true
+
+  # ── Nginx Access Logs (JSON) ──────────────────────────────
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/nginx/access.log
+    json.keys_under_root: true
+    json.add_error_key: true
+    fields:
+      app: crm-web
+      type: nginx-access
+    fields_under_root: true
+
+  # ── Nginx Error Logs ──────────────────────────────────────
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/nginx/error.log
+    fields:
+      app: crm-web
+      type: nginx-error
+    fields_under_root: true
+
+# ── Processors ──────────────────────────────────────────────
+processors:
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+  - add_docker_metadata:
+      host: "unix:///var/run/docker.sock"
+  - drop_fields:
+      fields:
+        [
+          "agent.ephemeral_id",
+          "agent.hostname",
+          "agent.id",
+          "agent.version",
+          "ecs",
+        ]
+      ignore_missing: true
+
+# ── Output: Elasticsearch ───────────────────────────────────
+output.elasticsearch:
+  hosts: ["${ELASTICSEARCH_HOSTS:elasticsearch:9200}"]
+  index: "crm-logs-%{+yyyy.MM.dd}"
+  # username: "${ELASTICSEARCH_USERNAME:}"
+  # password: "${ELASTICSEARCH_PASSWORD:}"
+
+# Uncomment to use Logstash instead:
+# output.logstash:
+#   hosts: ["${LOGSTASH_HOSTS:logstash:5044}"]
+
+# ── Index Lifecycle Management ──────────────────────────────
+setup.ilm.enabled: true
+setup.ilm.rollover_alias: "crm-logs"
+setup.ilm.pattern: "{now/d}-000001"
+
+# ── Template ────────────────────────────────────────────────
+setup.template.name: "crm-logs"
+setup.template.pattern: "crm-logs-*"
+setup.template.settings:
+  index.number_of_shards: 1
+  index.number_of_replicas: 0
+
+# ── Logging ─────────────────────────────────────────────────
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644

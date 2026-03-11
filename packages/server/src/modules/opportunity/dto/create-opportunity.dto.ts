@@ -7,12 +7,13 @@ import {
   IsPositive,
   IsNumber,
   IsDateString,
+  IsArray,
   Min,
   Max,
   MaxLength,
 } from 'class-validator'
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { OpportunityStage } from '@crm/shared'
+import { OpportunityStage, OpportunityStatus, Priority } from '@crm/shared'
 
 export class CreateOpportunityDto {
   @ApiProperty({ description: 'Opportunity title', maxLength: 200 })
@@ -58,4 +59,60 @@ export class CreateOpportunityDto {
   @IsOptional()
   @IsString()
   description?: string
+
+  @ApiPropertyOptional({ description: 'Contact ID' })
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  contactId?: number
+
+  @ApiPropertyOptional({ description: 'Team ID' })
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  teamId?: number
+
+  @ApiPropertyOptional({ description: 'Opportunity source', maxLength: 50 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  source?: string
+
+  @ApiPropertyOptional({ description: 'Lead ID' })
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  leadId?: number
+
+  @ApiPropertyOptional({ description: 'Currency', default: 'CNY', maxLength: 10 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  currency?: string
+
+  @ApiPropertyOptional({ description: 'Priority', enum: Priority })
+  @IsOptional()
+  @IsEnum(Priority)
+  priority?: Priority
+
+  @ApiPropertyOptional({ description: 'Opportunity status', enum: OpportunityStatus })
+  @IsOptional()
+  @IsEnum(OpportunityStatus)
+  status?: OpportunityStatus
+
+  @ApiPropertyOptional({ description: 'Competitor IDs' })
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  competitorIds?: number[]
+
+  @ApiPropertyOptional({ description: 'Product IDs' })
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  productIds?: number[]
+
+  @ApiPropertyOptional({ description: 'Custom fields (key-value)' })
+  @IsOptional()
+  customFields?: Record<string, unknown>
 }

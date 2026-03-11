@@ -8,7 +8,12 @@ import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import router from '@/router/index'
 
-const BASE_URL = '/api/v1'
+export const BASE_URL = '/api/v1'
+
+/** Base URL for API (use with fetch when not using axios request). */
+export function getApiBase(): string {
+  return BASE_URL
+}
 
 const request: AxiosInstance = axios.create({
   baseURL: BASE_URL,

@@ -9,6 +9,7 @@ export interface JwtPayload {
   sub: number
   username: string
   role: string
+  jti?: string
   iat?: number
   exp?: number
 }
@@ -19,10 +20,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private configService: ConfigService,
     private authService: AuthService,
   ) {
+    const privateKey = (configService.get<string>('JWT_PRIVATE_KEY', '') || '').replace(
+      /\\n/g,
+      '\n',
+    )
+    const publicKey = (configService.get<string>('JWT_PUBLIC_KEY', '') || '').replace(/\\n/g, '\n')
+    const useRS256 = !!privateKey
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET', 'dev-secret-key'),
+      secretOrKey: useRS256 ? publicKey : configService.get<string>('JWT_SECRET', 'dev-secret-key'),
+      algorithms: useRS256 ? ['RS256'] : ['HS256'],
       passReqToCallback: true,
     })
   }
@@ -36,7 +45,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const authHeader = req.headers.authorization
     if (authHeader) {
       const token = authHeader.replace('Bearer ', '')
-      const isBlacklisted = await this.authService.isTokenBlacklisted(token)
+      const isBlacklisted = await this.authService.isTokenBlacklisted(token, payload.jti)
       if (isBlacklisted) {
         throw new UnauthorizedException('Token has been revoked')
       }
@@ -46,6 +55,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       id: payload.sub,
       username: payload.username,
       role: payload.role,
+      jti: payload.jti,
     }
   }
 }

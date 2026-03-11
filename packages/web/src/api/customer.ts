@@ -106,4 +106,64 @@ export const customerApi = {
   allocate(id: number, data: AllocateCustomerParams): Promise<ApiResponse<CustomerVO>> {
     return request.put(`/customers/${id}/assign`, data)
   },
+
+  checkDuplicate(data: Record<string, string>): Promise<ApiResponse<unknown>> {
+    return request.post('/customers/check-duplicate', data)
+  },
+
+  previewMerge(primaryId: number, secondaryId: number): Promise<ApiResponse<unknown>> {
+    return request.post('/customers/merge/preview', { primaryId, secondaryId })
+  },
+
+  executeMerge(primaryId: number, secondaryId: number): Promise<ApiResponse<unknown>> {
+    return request.post('/customers/merge', { primaryId, secondaryId })
+  },
+
+  async exportExcel(): Promise<Blob> {
+    const response = await request.get('/customers/export', {
+      responseType: 'blob',
+    })
+    return response as unknown as Blob
+  },
+
+  getImportTemplate(): Promise<Blob> {
+    return request.get('/customers/import/template', {
+      responseType: 'blob',
+    }) as unknown as Promise<Blob>
+  },
+
+  getSystemFields(): Promise<
+    ApiResponse<Array<{ key: string; label: string; required: boolean }>>
+  > {
+    return request.get('/customers/import/system-fields')
+  },
 }
+
+// ---- Standalone import helpers (used by ImportWizard) ----
+
+export const downloadImportTemplate = () =>
+  request.get('/customers/import/template', { responseType: 'blob' })
+
+export const getSystemFields = () =>
+  request.get<ApiResponse<Array<{ key: string; label: string; required: boolean }>>>(
+    '/customers/import/system-fields',
+  )
+
+export const parseExcelHeaders = (data: FormData) =>
+  request.post<ApiResponse<string[]>>('/customers/import/parse-headers', data)
+
+export const importCustomers = (data: FormData) =>
+  request.post<ApiResponse<{ successCount: number; failCount: number; logId: number }>>(
+    '/customers/import',
+    data,
+  )
+
+// ---- Standalone merge/duplicate helpers (used by MergePreviewDialog & CreateCustomerDialog) ----
+
+export const checkDuplicate = (data: Record<string, string>) => customerApi.checkDuplicate(data)
+
+export const previewMerge = (primaryId: number, secondaryId: number) =>
+  customerApi.previewMerge(primaryId, secondaryId)
+
+export const executeMerge = (primaryId: number, secondaryId: number) =>
+  customerApi.executeMerge(primaryId, secondaryId)

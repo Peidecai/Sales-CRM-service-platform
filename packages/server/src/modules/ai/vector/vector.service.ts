@@ -24,7 +24,7 @@ export class VectorService implements OnModuleInit, OnModuleDestroy {
       fs.mkdirSync(dir, { recursive: true })
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const Database = require('better-sqlite3') as typeof BetterSqlite3
     this.db = new Database(dbPath)
     this.db.pragma('journal_mode = WAL')

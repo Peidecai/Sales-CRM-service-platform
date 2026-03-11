@@ -3,6 +3,9 @@ services:
     image: mysql:8.0
     container_name: crm-mysql
     restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-please-change-in-production}
       MYSQL_DATABASE: crm_sales
@@ -10,9 +13,9 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD:-please-change-in-production}
       TZ: Asia/Shanghai
     ports:
-      - "3306:3306"
+      - "${MYSQL_PORT:-3306}:3306"
     volumes:
-      - ./docker/mysql/data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
       - ./docker/mysql/conf.d:/etc/mysql/conf.d
       - ./docker/mysql/init:/docker-entrypoint-initdb.d
     healthcheck:
@@ -39,9 +42,9 @@ services:
     container_name: crm-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
-      - ./docker/redis/data:/data
+      - redis_data:/data
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -57,6 +60,9 @@ services:
       dockerfile: docker/server/Dockerfile
     container_name: crm-server
     restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -74,9 +80,10 @@ services:
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
     ports:
-      - "3000:3000"
+      - "${SERVER_PORT:-3000}:3000"
     volumes:
-      - server-data:/app/packages/server/data
+      - server_data:/app/packages/server/data
+      - server_logs:/app/packages/server/logs
     depends_on:
       mysql:
         condition: service_healthy
@@ -99,10 +106,16 @@ services:
     container_name: crm-web
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "${WEB_PORT:-80}:80"
     depends_on:
       server:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost/ || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
     networks:
       - crm-network
 
@@ -111,4 +124,11 @@ networks:
     driver: bridge
 
 volumes:
-  server-data:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+  server_data:
+    driver: local
+  server_logs:
+    driver: local

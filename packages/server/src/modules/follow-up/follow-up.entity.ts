@@ -33,6 +33,35 @@ export class FollowUp extends BaseEntity {
   @Column({ name: 'next_follow_up_note', length: 500, nullable: true })
   nextFollowUpNote?: string
 
+  @Index()
+  @Column({ name: 'contact_id', nullable: true, comment: '关联联系人ID' })
+  contactId!: number
+
+  @Column({ length: 500, nullable: true, comment: '跟进结果' })
+  result!: string
+
+  @Column({ name: 'next_plan', length: 500, nullable: true, comment: '下次计划' })
+  nextPlan!: string
+
+  @Column({ name: 'intention_level', type: 'tinyint', nullable: true, comment: '意向等级(1-5)' })
+  intentionLevel!: number
+
+  @Column({ type: 'json', nullable: true, comment: '附件列表' })
+  attachments!: Array<{ name: string; url: string; type: string }> | null
+
+  @Column({ length: 200, nullable: true, comment: '跟进地点' })
+  location!: string
+
+  @Column({ nullable: true, comment: '时长(分钟)' })
+  duration!: number
+
+  @Column({ name: 'call_recording_url', length: 500, nullable: true, comment: '录音URL' })
+  callRecordingUrl!: string
+
+  @Index()
+  @Column({ name: 'related_opportunity_id', nullable: true, comment: '关联商机ID' })
+  relatedOpportunityId!: number
+
   @ManyToOne(() => Customer, { lazy: true })
   @JoinColumn({ name: 'customer_id' })
   customer?: Customer

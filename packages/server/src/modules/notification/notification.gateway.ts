@@ -125,6 +125,19 @@ export class NotificationGateway
   }
 
   /**
+   * Emit a named event to a specific user (e.g. INCOMING_CALL_POPUP).
+   */
+  emitToUser<T>(userId: number, eventName: string, payload: T) {
+    const socketIds = this.userSockets.get(userId)
+    if (!socketIds || socketIds.size === 0) return
+
+    for (const socketId of socketIds) {
+      this.server.to(socketId).emit(eventName, payload)
+    }
+    this.logger.debug(`Emit ${eventName} to user ${userId}`)
+  }
+
+  /**
    * Get count of connected clients.
    */
   getConnectedCount(): number {

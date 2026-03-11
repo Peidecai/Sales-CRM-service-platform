@@ -7,6 +7,7 @@ export {}
 
 declare module 'vue' {
   export interface GlobalComponents {
+    DynamicFields: (typeof import('./components/DynamicFields.vue'))['default']
     ElAlert: (typeof import('element-plus/es'))['ElAlert']
     ElAside: (typeof import('element-plus/es'))['ElAside']
     ElAvatar: (typeof import('element-plus/es'))['ElAvatar']
@@ -18,6 +19,7 @@ declare module 'vue' {
     ElCol: (typeof import('element-plus/es'))['ElCol']
     ElCollapse: (typeof import('element-plus/es'))['ElCollapse']
     ElCollapseItem: (typeof import('element-plus/es'))['ElCollapseItem']
+    ElColorPicker: (typeof import('element-plus/es'))['ElColorPicker']
     ElConfigProvider: (typeof import('element-plus/es'))['ElConfigProvider']
     ElContainer: (typeof import('element-plus/es'))['ElContainer']
     ElDatePicker: (typeof import('element-plus/es'))['ElDatePicker']
@@ -41,6 +43,7 @@ declare module 'vue' {
     ElMenu: (typeof import('element-plus/es'))['ElMenu']
     ElMenuItem: (typeof import('element-plus/es'))['ElMenuItem']
     ElOption: (typeof import('element-plus/es'))['ElOption']
+    ElPageHeader: (typeof import('element-plus/es'))['ElPageHeader']
     ElPagination: (typeof import('element-plus/es'))['ElPagination']
     ElPopconfirm: (typeof import('element-plus/es'))['ElPopconfirm']
     ElPopover: (typeof import('element-plus/es'))['ElPopover']
@@ -52,9 +55,14 @@ declare module 'vue' {
     ElScrollbar: (typeof import('element-plus/es'))['ElScrollbar']
     ElSelect: (typeof import('element-plus/es'))['ElSelect']
     ElSkeleton: (typeof import('element-plus/es'))['ElSkeleton']
+    ElStep: (typeof import('element-plus/es'))['ElStep']
+    ElSteps: (typeof import('element-plus/es'))['ElSteps']
+    ElSubMenu: (typeof import('element-plus/es'))['ElSubMenu']
     ElSwitch: (typeof import('element-plus/es'))['ElSwitch']
     ElTable: (typeof import('element-plus/es'))['ElTable']
     ElTableColumn: (typeof import('element-plus/es'))['ElTableColumn']
+    ElTabPane: (typeof import('element-plus/es'))['ElTabPane']
+    ElTabs: (typeof import('element-plus/es'))['ElTabs']
     ElTag: (typeof import('element-plus/es'))['ElTag']
     ElTimeline: (typeof import('element-plus/es'))['ElTimeline']
     ElTimelineItem: (typeof import('element-plus/es'))['ElTimelineItem']

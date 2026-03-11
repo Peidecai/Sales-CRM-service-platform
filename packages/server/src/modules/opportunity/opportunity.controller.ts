@@ -23,11 +23,13 @@ import { CurrentUser, type AuthUser } from '../../common/decorators/current-user
 import { UserRole } from '@crm/shared'
 import { AuditLogInterceptor } from '../../common/interceptors/audit-log.interceptor'
 import { OpportunityService } from './opportunity.service'
+import { OpportunityFollowLogService } from './opportunity-follow-log.service'
 import { NotificationService } from '../notification/notification.service'
 import { CreateOpportunityDto } from './dto/create-opportunity.dto'
 import { UpdateOpportunityDto } from './dto/update-opportunity.dto'
 import { QueryOpportunityDto } from './dto/query-opportunity.dto'
 import { UpdateStageDto } from './dto/update-stage.dto'
+import { CreateOpportunityFollowLogDto } from './dto/create-opportunity-follow-log.dto'
 
 @ApiTags('商机管理')
 @ApiBearerAuth()
@@ -37,6 +39,7 @@ import { UpdateStageDto } from './dto/update-stage.dto'
 export class OpportunityController {
   constructor(
     private readonly opportunityService: OpportunityService,
+    private readonly opportunityFollowLogService: OpportunityFollowLogService,
     private readonly notificationService: NotificationService,
   ) {}
 
@@ -73,6 +76,30 @@ export class OpportunityController {
   @ApiResponse({ status: 200, description: 'Returns stage count and amount stats' })
   getStats(@CurrentUser() user: AuthUser) {
     return this.opportunityService.getStats(user)
+  }
+
+  @Get(':id/follow-logs')
+  @ApiOperation({ summary: 'Get follow logs of an opportunity' })
+  @ApiParam({ name: 'id', description: 'Opportunity ID', type: Number })
+  @ApiResponse({ status: 200, description: 'Returns follow log list' })
+  getFollowLogs(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.opportunityService
+      .findOne(id, user)
+      .then(() => this.opportunityFollowLogService.findByOpportunityId(id, user))
+  }
+
+  @Post(':id/follow-logs')
+  @ApiOperation({ summary: 'Create a follow log for an opportunity' })
+  @ApiParam({ name: 'id', description: 'Opportunity ID', type: Number })
+  @ApiResponse({ status: 201, description: 'Follow log created' })
+  createFollowLog(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateOpportunityFollowLogDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.opportunityService
+      .findOne(id, user)
+      .then(() => this.opportunityFollowLogService.create(id, dto, user))
   }
 
   @Get(':id')

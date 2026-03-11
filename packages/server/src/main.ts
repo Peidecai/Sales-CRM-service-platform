@@ -7,10 +7,17 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter'
 import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
+import { DataMaskInterceptor } from './common/interceptors/data-mask.interceptor'
+import { SanitizeHtmlPipe } from './common/pipes/sanitize-html.pipe'
+import { SqlInjectionMiddleware } from './common/middleware/sql-injection.middleware'
+import { WinstonLoggerService } from './common/logger/winston-logger.service'
 
 async function bootstrap() {
+  // Use Winston logger for structured, rotated logging
+  const logger = new WinstonLoggerService()
+
   const app = await NestFactory.create(AppModule, {
-    logger: ['error', 'warn', 'log', 'debug'],
+    logger,
   })
 
   const configService = app.get(ConfigService)
@@ -20,7 +27,7 @@ async function bootstrap() {
   // Global prefix
   app.setGlobalPrefix(apiPrefix.replace(/^\//, ''))
 
-  // CORS
+  // CORS — also allow security-related headers
   const corsOrigins = configService.get<string>(
     'CORS_ORIGINS',
     'http://localhost:5173,http://localhost:3001',
@@ -28,11 +35,21 @@ async function bootstrap() {
   app.enableCors({
     origin: corsOrigins.split(',').map((o) => o.trim()),
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Signature', 'X-Timestamp', 'X-Nonce'],
     credentials: true,
   })
 
-  // Global pipes
+  // SQL injection detection middleware (#164)
+  const sqlInjectionMiddleware = new SqlInjectionMiddleware()
+  app.use((req: unknown, res: unknown, next: unknown) =>
+    sqlInjectionMiddleware.use(
+      req as Parameters<SqlInjectionMiddleware['use']>[0],
+      res as Parameters<SqlInjectionMiddleware['use']>[1],
+      next as Parameters<SqlInjectionMiddleware['use']>[2],
+    ),
+  )
+
+  // Global pipes — validation + XSS sanitization (#165)
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -42,15 +59,17 @@ async function bootstrap() {
         enableImplicitConversion: true,
       },
     }),
+    new SanitizeHtmlPipe(),
   )
 
   // Global filters
   app.useGlobalFilters(new HttpExceptionFilter())
 
-  // Global interceptors
+  // Global interceptors — includes data masking (#163)
   app.useGlobalInterceptors(
     new TimeoutInterceptor(30000),
     new LoggingInterceptor(),
+    new DataMaskInterceptor(),
     new ResponseInterceptor(),
   )
 
@@ -70,8 +89,8 @@ async function bootstrap() {
   }
 
   await app.listen(port)
-  console.log(`🚀 NestJS server running on: http://localhost:${port}`)
-  console.log(`📋 API prefix: ${apiPrefix}`)
+  console.log(`NestJS server running on: http://localhost:${port}`)
+  console.log(`API prefix: ${apiPrefix}`)
 }
 
 bootstrap()

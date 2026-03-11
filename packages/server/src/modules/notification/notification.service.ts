@@ -159,6 +159,21 @@ export class NotificationService {
     })
   }
 
+  /**
+   * Send incoming call popup data to the specified agent (by userId).
+   */
+  incomingCallPopup(
+    userId: number,
+    payload: {
+      phone: string
+      customerId?: number
+      contactId?: number
+      popupData: Record<string, unknown>
+    },
+  ) {
+    this.gateway.emitToUser(userId, 'INCOMING_CALL_POPUP', payload)
+  }
+
   callSummaryCompleted(recordId: number) {
     this.notify({
       type: NotificationType.CALL_SUMMARY_COMPLETED,

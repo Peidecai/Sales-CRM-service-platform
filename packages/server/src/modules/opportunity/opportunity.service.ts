@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, SelectQueryBuilder } from 'typeorm'
 import { OpportunityStage, UserRole } from '@crm/shared'
 import { Opportunity } from './opportunity.entity'
+import { OpportunityStageLog } from './entities/opportunity-stage-log.entity'
 import { CreateOpportunityDto } from './dto/create-opportunity.dto'
 import { UpdateOpportunityDto } from './dto/update-opportunity.dto'
 import { QueryOpportunityDto } from './dto/query-opportunity.dto'
@@ -45,6 +46,8 @@ export class OpportunityService {
   constructor(
     @InjectRepository(Opportunity)
     private readonly opportunityRepository: Repository<Opportunity>,
+    @InjectRepository(OpportunityStageLog)
+    private readonly stageLogRepository: Repository<OpportunityStageLog>,
     private readonly redisService: RedisService,
   ) {}
 
@@ -138,9 +141,36 @@ export class OpportunityService {
   ): Promise<OpportunityStageUpdateResult> {
     const opportunity = await this.findOne(id, user)
     const previousStage = opportunity.stage
+    const fromProbability = opportunity.probability
+    const toProbability = STAGE_PROBABILITY[dto.stage]
+
     opportunity.stage = dto.stage
-    opportunity.probability = STAGE_PROBABILITY[dto.stage]
+    opportunity.probability = toProbability
     const saved = await this.opportunityRepository.save(opportunity)
+
+    const lastLog = await this.stageLogRepository.findOne({
+      where: { opportunityId: id },
+      order: { createdAt: 'DESC' },
+    })
+    const now = new Date()
+    const previousStageEnteredAt = lastLog ? lastLog.createdAt : opportunity.createdAt
+    const stayDays = Math.max(
+      0,
+      Math.floor((now.getTime() - new Date(previousStageEnteredAt).getTime()) / 86400000),
+    )
+
+    const stageLog = this.stageLogRepository.create({
+      opportunityId: id,
+      fromStage: previousStage,
+      toStage: dto.stage,
+      fromProbability,
+      toProbability,
+      stayDays,
+      operatorId: user?.id ?? saved.assignedUserId,
+      remark: null,
+    })
+    await this.stageLogRepository.save(stageLog)
+
     await this.invalidateStatsCache()
     await this.invalidateDetailCache(id)
     return {

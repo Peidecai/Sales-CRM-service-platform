@@ -1,0 +1,30 @@
+{
+  "name": "@crm/miniapp",
+  "version": "1.0.0",
+  "description": "CRM Sales Platform - WeChat Mini Program (uni-app)",
+  "private": true,
+  "scripts": {
+    "dev:mp-weixin": "uni -p mp-weixin",
+    "build:mp-weixin": "uni build -p mp-weixin"
+  },
+  "dependencies": {
+    "@crm/shared": "workspace:*",
+    "@dcloudio/uni-app": "3.0.0-alpha-4010120250205001",
+    "@dcloudio/uni-app-plus": "3.0.0-alpha-4010120250205001",
+    "@dcloudio/uni-components": "3.0.0-alpha-4010120250205001",
+    "@dcloudio/uni-h5": "3.0.0-alpha-4010120250205001",
+    "@dcloudio/uni-mp-weixin": "3.0.0-alpha-4010120250205001",
+    "pinia": "^2.1.7",
+    "vue": "^3.4.0"
+  },
+  "devDependencies": {
+    "@dcloudio/types": "^3.4.12",
+    "@dcloudio/uni-automator": "3.0.0-alpha-4010120250205001",
+    "@dcloudio/uni-cli-shared": "3.0.0-alpha-4010120250205001",
+    "@dcloudio/uni-stacktracey": "3.0.0-alpha-4010120250205001",
+    "@dcloudio/vite-plugin-uni": "3.0.0-alpha-4010120250205001",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0",
+    "vite": "^5.0.0"
+  }
+}

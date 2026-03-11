@@ -1,38 +1,66 @@
 # TASK-02: 知识文章富文本 Markdown 编辑器
 
-**状态**: ⚠️ 当前仅为 `<el-input type="textarea">`
+**状态**: ✅ 已完成
 **优先级**: P1 — 核心体验缺陷
 **模块**: Knowledge 前端 (TM-D Web)
 **估算工作量**: 前端 5h + 测试 1h
+**完成提交**: `e4a470c` (2026-03-08)
+**审查日期**: 2026-03-10
+
+---
+
+## 0. 实现状态总览
+
+| 功能项                   | 完成度  | 说明                                                                    |
+| ------------------------ | ------- | ----------------------------------------------------------------------- |
+| MarkdownEditor.vue 组件  | ✅ 100% | `packages/web/src/components/MarkdownEditor.vue` (395行)                |
+| 工具栏 (10个按钮)        | ✅ 100% | H1/H2/H3、粗体、斜体、行内代码、代码块、链接、列表(UL/OL)、引用、分割线 |
+| 分屏/编辑/预览三模式     | ✅ 100% | 默认分屏，可切换仅编辑或仅预览                                          |
+| markdown-it 实时渲染     | ✅ 100% | `html: false` XSS 防护，`breaks: true` 换行支持                         |
+| v-model 双向绑定         | ✅ 100% | `modelValue` + `update:modelValue` 标准实现                             |
+| 快捷键 Ctrl+B/I/K        | ✅ 100% | `handleKeydown` 处理 Ctrl/Cmd 键组合                                    |
+| 光标定位修复             | ✅ 100% | 使用 `nextTick` 替代 `requestAnimationFrame`                            |
+| placeholder 支持         | ✅ 100% | 默认 "请输入 Markdown 内容..."                                          |
+| CSS 完整样式             | ✅ 100% | 工具栏、编辑区、预览区、Markdown 元素样式                               |
+| knowledge/index.vue 集成 | ✅ 100% | textarea 已替换为 MarkdownEditor                                        |
+| markdown-it 依赖         | ✅ 100% | `^14.1.1` + `@types/markdown-it ^14.1.2`                                |
+| 单元测试                 | ✅ 100% | 6 个测试用例全部通过                                                    |
+
+### 与规范的细微差异（不影响功能）
+
+| 项            | 规范描述                           | 实际实现                                | 影响                      |
+| ------------- | ---------------------------------- | --------------------------------------- | ------------------------- |
+| 工具栏按钮    | `el-button-group + el-button text` | 原生 `<button>` 元素                    | 无 — 功能相同，样式更轻量 |
+| 模式选择      | `el-radio-button`                  | 原生 `<button>` + `:class="{ active }"` | 无 — 更简洁               |
+| Ctrl+` 快捷键 | 规范中提及                         | 未实现（非强制要求）                    | 低 — 可通过工具栏按钮操作 |
 
 ---
 
 ## 1. 背景与现状
 
-### 现状
+### 现状（已更新）
 
-`packages/web/src/views/knowledge/index.vue` 中的文章编辑弹窗使用普通 `<textarea>`：
+`packages/web/src/views/knowledge/index.vue` 中的文章编辑弹窗已使用 `MarkdownEditor` 组件替换了原始 `<textarea>`：
 
 ```vue
-<!-- line ~320 -->
-<el-input
+<!-- knowledge/index.vue line 218-222 -->
+<MarkdownEditor
   v-model="articleForm.content"
-  type="textarea"
-  :rows="10"
+  :height="380"
   placeholder="请输入文章内容（支持 Markdown）"
 />
 ```
 
-问题：
+已解决的问题：
 
-1. 无 Markdown 语法高亮，用户无法确认格式正确性
-2. 无工具栏，用户需手动输入 `**`、`#` 等标记
-3. 无实时预览，保存前无法确认渲染效果
-4. 提示"支持 Markdown"但无编辑器支持，体验割裂
+1. ✅ 工具栏支持 10 种格式操作 + Ctrl+B/I/K 快捷键
+2. ✅ 分屏实时预览，左侧编辑右侧渲染
+3. ✅ markdown-it 渲染引擎，`html: false` 防 XSS
+4. ✅ 等宽字体编辑区 + 完整 Markdown 元素样式
 
-### 功能目标
+### 功能目标（已达成）
 
-替换为**左右分栏式 Markdown 编辑器**：
+已替换为**左右分栏式 Markdown 编辑器**：
 
 - **左侧**：带工具栏的代码输入区（原始 Markdown 文本）
 - **右侧**：实时渲染的 HTML 预览区

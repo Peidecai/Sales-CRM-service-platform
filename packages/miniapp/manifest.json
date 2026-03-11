@@ -1,0 +1,27 @@
+{
+  "name": "CRM Sales Mini Program",
+  "appid": "__UNI__PLACEHOLDER",
+  "description": "AI 智能 CRM 销售管理系统 - 微信小程序",
+  "versionName": "1.0.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "mp-weixin": {
+    "appid": "wx_placeholder_appid",
+    "setting": {
+      "urlCheck": false,
+      "es6": true,
+      "postcss": true,
+      "minified": true
+    },
+    "usingComponents": true,
+    "permission": {
+      "scope.userLocation": {
+        "desc": "用于外勤打卡定位"
+      },
+      "scope.record": {
+        "desc": "用于录音功能"
+      }
+    },
+    "requiredPrivateInfos": ["getLocation", "chooseLocation"]
+  }
+}

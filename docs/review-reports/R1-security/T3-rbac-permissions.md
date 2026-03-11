@@ -1,0 +1,1 @@
+﻿瀹¤瀹屾垚锛佹€荤粨锛?\*鏍稿績鍥涘ぇ妯″潡锛圕ustomer/Opportunity/CallRecord/Knowledge锛夌殑 RBAC + 鏁版嵁闅旂瀹炵幇鎵庡疄**锛孲QL 娉ㄥ叆鍜?JWT 璁よ瘉闃叉姢鍒颁綅銆備富瑕侀闄╅泦涓湪**鏂板妯″潡\*\*锛圓I銆丆all/Popup銆丮aterial銆丆ontact锛夌己灏戣鑹查檺鍒跺拰鏁版嵁鏉冮檺杩囨护锛屼互鍙?`create()` 鎿嶄綔鏈己鍒剁粦瀹氬綋鍓嶇敤鎴?ID銆傚缓璁紭鍏堜慨澶?5 涓?FAIL 椤广€?
