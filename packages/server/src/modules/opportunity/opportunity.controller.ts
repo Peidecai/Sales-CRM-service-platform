@@ -78,6 +78,13 @@ export class OpportunityController {
     return this.opportunityService.getStats(user)
   }
 
+  @Get('funnel')
+  @ApiOperation({ summary: 'Get sales funnel data with conversion rates' })
+  @ApiResponse({ status: 200, description: 'Returns funnel stages, totalAmount and winRate' })
+  getSalesFunnel(@CurrentUser() user: AuthUser) {
+    return this.opportunityService.getSalesFunnel(user)
+  }
+
   @Get(':id/follow-logs')
   @ApiOperation({ summary: 'Get follow logs of an opportunity' })
   @ApiParam({ name: 'id', description: 'Opportunity ID', type: Number })

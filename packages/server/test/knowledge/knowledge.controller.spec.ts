@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { KnowledgeController } from '../../src/modules/knowledge/knowledge.controller'
 import { KnowledgeService } from '../../src/modules/knowledge/knowledge.service'
+import { ArticleCommentService } from '../../src/modules/knowledge/article-comment.service'
 import { AuditLogService } from '../../src/modules/audit-log/audit-log.service'
 
 describe('KnowledgeController', () => {
@@ -16,9 +17,21 @@ describe('KnowledgeController', () => {
     updateArticle: jest.Mock
     removeArticle: jest.Mock
     findAllCategories: jest.Mock
+    findTree: jest.Mock
     createCategory: jest.Mock
     removeCategory: jest.Mock
     ask: jest.Mock
+    pushSearchHistory: jest.Mock
+    getSearchHistory: jest.Mock
+    getSearchSuggestions: jest.Mock
+    submitArticle: jest.Mock
+    reviewArticle: jest.Mock
+    publishArticle: jest.Mock
+    rejectArticle: jest.Mock
+    offlineArticle: jest.Mock
+    setTop: jest.Mock
+    setRecommend: jest.Mock
+    updateCategory: jest.Mock
   }
 
   beforeEach(async () => {
@@ -33,15 +46,28 @@ describe('KnowledgeController', () => {
       updateArticle: jest.fn(),
       removeArticle: jest.fn(),
       findAllCategories: jest.fn(),
+      findTree: jest.fn(),
       createCategory: jest.fn(),
       removeCategory: jest.fn(),
       ask: jest.fn(),
+      pushSearchHistory: jest.fn(),
+      getSearchHistory: jest.fn(),
+      getSearchSuggestions: jest.fn(),
+      submitArticle: jest.fn(),
+      reviewArticle: jest.fn(),
+      publishArticle: jest.fn(),
+      rejectArticle: jest.fn(),
+      offlineArticle: jest.fn(),
+      setTop: jest.fn(),
+      setRecommend: jest.fn(),
+      updateCategory: jest.fn(),
     }
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [KnowledgeController],
       providers: [
         { provide: KnowledgeService, useValue: knowledgeService },
+        { provide: ArticleCommentService, useValue: { list: jest.fn(), create: jest.fn(), remove: jest.fn() } },
         { provide: AuditLogService, useValue: { log: jest.fn() } },
       ],
     }).compile()
@@ -55,7 +81,7 @@ describe('KnowledgeController', () => {
       total: 1,
     })
 
-    const result = await controller.findAllArticles({})
+    const result = await controller.findAllArticles({}, 1)
 
     expect(knowledgeService.findAllArticles).toHaveBeenCalledWith({})
     expect(result).toEqual({
@@ -70,7 +96,7 @@ describe('KnowledgeController', () => {
     const query = { page: 3, pageSize: 5 }
     knowledgeService.findAllArticles.mockResolvedValue({ list: [], total: 0 })
 
-    const result = await controller.findAllArticles(query as never)
+    const result = await controller.findAllArticles(query as never, 1)
 
     expect(result.page).toBe(3)
     expect(result.pageSize).toBe(5)
@@ -155,10 +181,10 @@ describe('KnowledgeController', () => {
     expect(result).toBeNull()
   })
 
-  it('findAllCategories should delegate to service', async () => {
+  it('getCategories should delegate to service.findAllCategories by default', async () => {
     knowledgeService.findAllCategories.mockResolvedValue([{ id: 1, name: 'FAQ' }])
 
-    const result = await controller.findAllCategories()
+    const result = await controller.getCategories()
 
     expect(knowledgeService.findAllCategories).toHaveBeenCalled()
     expect(result).toEqual([{ id: 1, name: 'FAQ' }])

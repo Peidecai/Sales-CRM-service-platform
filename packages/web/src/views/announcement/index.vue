@@ -17,9 +17,9 @@
         <el-table-column label="优先级" width="100">
           <template #default="{ row }">
             <el-tag v-if="row.priority === 'urgent'" type="danger" size="small">紧急</el-tag>
-            <el-tag v-else-if="row.priority === 'important'" type="warning" size="small"
-              >重要</el-tag
-            >
+            <el-tag v-else-if="row.priority === 'important'" type="warning" size="small">
+              重要
+            </el-tag>
             <el-tag v-else type="info" size="small">普通</el-tag>
           </template>
         </el-table-column>
@@ -84,7 +84,7 @@ async function loadList() {
       list.value = res.data.list ?? []
       total.value = res.data.total ?? 0
     }
-    if (countRes?.data !== undefined) unreadCount.value = countRes.data
+    if (countRes?.data !== undefined && countRes.data !== null) unreadCount.value = countRes.data
     readSet.value = new Set()
   } catch {
     list.value = []

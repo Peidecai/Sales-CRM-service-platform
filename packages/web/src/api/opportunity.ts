@@ -57,6 +57,21 @@ export interface OpportunityStageStats {
   totalAmount: number
 }
 
+// Funnel stage item
+export interface FunnelStageItem {
+  stage: string
+  count: number
+  amount: number
+  conversionRate: number
+}
+
+// Funnel data returned by /opportunities/funnel
+export interface FunnelData {
+  stages: FunnelStageItem[]
+  totalAmount: number
+  winRate: number
+}
+
 export const opportunityApi = {
   getList(params: OpportunityQueryParams): Promise<ApiResponse<PageResult<OpportunityVO>>> {
     return request.get('/opportunities', { params })
@@ -84,6 +99,10 @@ export const opportunityApi = {
 
   getStats(): Promise<ApiResponse<OpportunityStageStats[]>> {
     return request.get('/opportunities/stats')
+  },
+
+  getFunnel(): Promise<ApiResponse<FunnelData>> {
+    return request.get('/opportunities/funnel')
   },
 
   /**

@@ -213,3 +213,96 @@ export enum AnnouncementPriority {
   IMPORTANT = "important",
   URGENT = "urgent",
 }
+
+/**
+ * 报价单状态
+ */
+export enum QuotationStatus {
+  DRAFT = "draft",
+  PENDING_APPROVAL = "pending_approval",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+  SENT = "sent",
+  ACCEPTED = "accepted",
+  EXPIRED = "expired",
+  CANCELLED = "cancelled",
+}
+
+/**
+ * 审批实例状态
+ */
+export enum ApprovalStatus {
+  PENDING = "pending",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+  CANCELLED = "cancelled",
+  WITHDRAWN = "withdrawn",
+}
+
+/**
+ * 审批动作
+ */
+export enum ApprovalAction {
+  APPROVE = "approve",
+  REJECT = "reject",
+  DELEGATE = "delegate",
+}
+
+/**
+ * 审批业务类型
+ */
+export enum ApprovalBizType {
+  QUOTATION = "quotation",
+  CONTRACT = "contract",
+  DISCOUNT = "discount",
+  PAYMENT = "payment",
+  REFUND = "refund",
+}
+
+/**
+ * 回款状态
+ */
+export enum PaymentStatus {
+  PLANNED = "planned",
+  PENDING_CONFIRM = "pending_confirm",
+  CONFIRMED = "confirmed",
+  CANCELLED = "cancelled",
+  BAD_DEBT = "bad_debt",
+}
+
+/**
+ * 回款方式
+ */
+export enum PaymentMethod {
+  BANK_TRANSFER = "bank_transfer",
+  CHECK = "check",
+  CASH = "cash",
+  CREDIT_CARD = "credit_card",
+  OTHER = "other",
+}
+
+/**
+ * 合同状态
+ */
+export enum ContractStatus {
+  DRAFT = "draft",
+  PENDING_APPROVAL = "pending_approval",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+  PENDING_SIGN = "pending_sign",
+  SIGNED = "signed",
+  EXECUTING = "executing",
+  COMPLETED = "completed",
+  TERMINATED = "terminated",
+  CANCELLED = "cancelled",
+}
+
+/**
+ * 合同类型
+ */
+export enum ContractType {
+  SALES = "sales",
+  SERVICE = "service",
+  FRAMEWORK = "framework",
+  SUPPLEMENT = "supplement",
+}

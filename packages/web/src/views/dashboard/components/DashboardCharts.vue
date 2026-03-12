@@ -57,7 +57,7 @@ import {
   GridComponent,
 } from 'echarts/components'
 import VChart from 'vue-echarts'
-import { OpportunityStage, type OpportunityStageStats } from '@/api/opportunity'
+import { OpportunityStage, type OpportunityStageStats, type FunnelData } from '@/api/opportunity'
 
 type PieDatum = { name: string; value: number }
 
@@ -66,6 +66,7 @@ const props = defineProps<{
   stageStats: OpportunityStageStats[]
   customerStatusData: PieDatum[]
   stageLabel: (stage: string) => string
+  funnelData: FunnelData | null
 }>()
 
 use([
@@ -91,11 +92,26 @@ const funnelChartOption = computed(() => {
     OpportunityStage.CLOSED_WON,
   ]
 
+  // Use funnel API data when available, fallback to stageStats
+  const useFunnelApi = !!props.funnelData
+
   const data = funnelStages.map((stage, idx) => {
+    if (useFunnelApi) {
+      const funnelItem = props.funnelData!.stages.find((s) => s.stage === stage)
+      const count = funnelItem?.count ?? 0
+      const rate = funnelItem?.conversionRate ?? 0
+      return {
+        name: props.stageLabel(stage),
+        value: count,
+        conversionRate: rate,
+        itemStyle: { color: stageColorArray[idx] },
+      }
+    }
     const found = props.stageStats.find((s) => s.stage === stage)
     return {
       name: props.stageLabel(stage),
       value: found?.count ?? 0,
+      conversionRate: 0,
       itemStyle: { color: stageColorArray[idx] },
     }
   })
@@ -103,7 +119,12 @@ const funnelChartOption = computed(() => {
   return {
     tooltip: {
       trigger: 'item' as const,
-      formatter: '{b}: {c}\u4E2A ({d}%)',
+      formatter: useFunnelApi
+        ? (params: { name: string; value: number; data: { conversionRate: number } }) => {
+            const rate = (params.data.conversionRate * 100).toFixed(1)
+            return `${params.name}: ${params.value}个<br/>转化率: ${rate}%`
+          }
+        : '{b}: {c}个 ({d}%)',
     },
     series: [
       {
@@ -121,7 +142,12 @@ const funnelChartOption = computed(() => {
         label: {
           show: true,
           position: 'inside',
-          formatter: '{b}: {c}',
+          formatter: useFunnelApi
+            ? (params: { name: string; value: number; data: { conversionRate: number } }) => {
+                const rate = (params.data.conversionRate * 100).toFixed(0)
+                return `${params.name}: ${params.value} (${rate}%)`
+              }
+            : '{b}: {c}',
           fontSize: 13,
         },
         data,

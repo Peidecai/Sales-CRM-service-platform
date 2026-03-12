@@ -41,6 +41,19 @@ export interface OpportunityStageUpdateResult {
   currentStage: OpportunityStage
 }
 
+export interface FunnelStageItem {
+  stage: OpportunityStage
+  count: number
+  amount: number
+  conversionRate: number
+}
+
+export interface SalesFunnelResult {
+  stages: FunnelStageItem[]
+  totalAmount: number
+  winRate: number
+}
+
 @Injectable()
 export class OpportunityService {
   constructor(
@@ -225,6 +238,94 @@ export class OpportunityService {
   }
 
   /**
+   * Get sales funnel data: counts, amounts, and conversion rates per stage.
+   */
+  async getSalesFunnel(user: AuthUser): Promise<SalesFunnelResult> {
+    const cacheKey = this.getFunnelCacheKey(user)
+    const cached = await this.redisService.get(cacheKey)
+    if (cached) {
+      return JSON.parse(cached) as SalesFunnelResult
+    }
+
+    const STAGE_ORDER: OpportunityStage[] = [
+      OpportunityStage.LEAD,
+      OpportunityStage.QUALIFIED,
+      OpportunityStage.PROPOSAL,
+      OpportunityStage.NEGOTIATION,
+      OpportunityStage.CLOSED_WON,
+      OpportunityStage.CLOSED_LOST,
+    ]
+
+    const qb = this.opportunityRepository
+      .createQueryBuilder('opportunity')
+      .select('opportunity.stage', 'stage')
+      .addSelect('COUNT(*)', 'count')
+      .addSelect('SUM(opportunity.amount)', 'amount')
+      .where('opportunity.deleted = :deleted', { deleted: false })
+
+    if (user.role === UserRole.SALES) {
+      qb.andWhere('opportunity.assignedUserId = :currentUserId', { currentUserId: user.id })
+    }
+
+    qb.groupBy('opportunity.stage')
+
+    const rows = await qb.getRawMany<{
+      stage: OpportunityStage
+      count: string
+      amount: string
+    }>()
+
+    // Build a map for quick lookup
+    const stageMap = new Map<OpportunityStage, { count: number; amount: number }>()
+    for (const row of rows) {
+      stageMap.set(row.stage, {
+        count: Number(row.count),
+        amount: Number(row.amount) || 0,
+      })
+    }
+
+    // Build ordered stage list (including stages with 0 count)
+    const stageItems: FunnelStageItem[] = STAGE_ORDER.map((stage) => {
+      const data = stageMap.get(stage) ?? { count: 0, amount: 0 }
+      return { stage, count: data.count, amount: data.amount, conversionRate: 0 }
+    })
+
+    // Calculate conversion rates: next active stage count / current stage count
+    // Only LEAD→QUALIFIED→PROPOSAL→NEGOTIATION→CLOSED_WON funnel stages (not CLOSED_LOST)
+    const activeFunnelStages = [
+      OpportunityStage.LEAD,
+      OpportunityStage.QUALIFIED,
+      OpportunityStage.PROPOSAL,
+      OpportunityStage.NEGOTIATION,
+      OpportunityStage.CLOSED_WON,
+    ]
+
+    for (let i = 0; i < stageItems.length; i++) {
+      const current = stageItems[i]
+      const nextStage = activeFunnelStages[activeFunnelStages.indexOf(current.stage) + 1]
+      if (nextStage) {
+        const nextItem = stageItems.find((s) => s.stage === nextStage)
+        current.conversionRate = current.count > 0 && nextItem ? nextItem.count / current.count : 0
+      }
+    }
+
+    // Total amount across all non-closed_lost stages
+    const totalAmount = stageItems
+      .filter((s) => s.stage !== OpportunityStage.CLOSED_LOST)
+      .reduce((sum, s) => sum + s.amount, 0)
+
+    // Win rate: closed_won / (closed_won + closed_lost)
+    const wonCount = stageMap.get(OpportunityStage.CLOSED_WON)?.count ?? 0
+    const lostCount = stageMap.get(OpportunityStage.CLOSED_LOST)?.count ?? 0
+    const closedTotal = wonCount + lostCount
+    const winRate = closedTotal > 0 ? wonCount / closedTotal : 0
+
+    const result = { stages: stageItems, totalAmount, winRate }
+    await this.redisService.set(cacheKey, JSON.stringify(result), CACHE_TTL.OPPORTUNITY_FUNNEL)
+    return result
+  }
+
+  /**
    * Export all non-deleted opportunities as CSV string.
    */
   async exportCsv(user: AuthUser): Promise<string> {
@@ -287,9 +388,12 @@ export class OpportunityService {
     return value
   }
 
-  /** Invalidate opportunity stats cache */
+  /** Invalidate opportunity stats and funnel caches */
   private async invalidateStatsCache(): Promise<void> {
-    await this.redisService.delByPattern(`${CACHE_KEYS.OPPORTUNITY_STATS}:*`)
+    await Promise.all([
+      this.redisService.delByPattern(`${CACHE_KEYS.OPPORTUNITY_STATS}:*`),
+      this.redisService.delByPattern(`${CACHE_KEYS.OPPORTUNITY_FUNNEL}:*`),
+    ])
   }
 
   /** Invalidate a single opportunity detail cache */
@@ -300,5 +404,10 @@ export class OpportunityService {
   private getStatsCacheKey(user: AuthUser): string {
     const scope = user.role === UserRole.SALES ? `sales:${user.id}` : user.role
     return `${CACHE_KEYS.OPPORTUNITY_STATS}:${scope}`
+  }
+
+  private getFunnelCacheKey(user: AuthUser): string {
+    const scope = user.role === UserRole.SALES ? `sales:${user.id}` : user.role
+    return `${CACHE_KEYS.OPPORTUNITY_FUNNEL}:${scope}`
   }
 }

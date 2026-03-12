@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { getQueueToken } from '@nestjs/bull'
 import { getRepositoryToken } from '@nestjs/typeorm'
 import { NotFoundException } from '@nestjs/common'
+import { DataSource } from 'typeorm'
 import { KnowledgeService } from '../../src/modules/knowledge/knowledge.service'
 import { KnowledgeArticle } from '../../src/modules/knowledge/entities/knowledge-article.entity'
 import { KnowledgeCategory } from '../../src/modules/knowledge/entities/knowledge-category.entity'
@@ -33,6 +34,7 @@ describe('KnowledgeService - Like/Favorite', () => {
         KnowledgeService,
         { provide: getRepositoryToken(KnowledgeArticle), useValue: articleRepo },
         { provide: getRepositoryToken(KnowledgeCategory), useValue: createMockRepository() },
+        { provide: DataSource, useValue: { createQueryRunner: jest.fn() } },
         { provide: getRepositoryToken(ArticleLike), useValue: likeRepo },
         { provide: getRepositoryToken(ArticleFavorite), useValue: favoriteRepo },
         { provide: RedisService, useValue: createMockRedisService() },

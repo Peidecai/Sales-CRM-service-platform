@@ -41,7 +41,7 @@ const handleFileChange = (uploadFile: { raw?: File }) => {
 const handleDownloadTemplate = async () => {
   try {
     const res = await downloadImportTemplate()
-    const blob = new Blob([res as ArrayBuffer], {
+    const blob = new Blob([res as unknown as ArrayBuffer], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     })
     const url = URL.createObjectURL(blob)

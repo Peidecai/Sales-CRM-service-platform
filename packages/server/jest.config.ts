@@ -6,7 +6,11 @@ const config: Config = {
   testRegex: '.*\\.spec\\.ts$',
   transform: {
     '^.+\\.ts$': 'ts-jest',
+    '^.+\\.js$': 'ts-jest',
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(uuid)/)',
+  ],
   collectCoverageFrom: ['src/**/*.ts', '!src/main.ts', '!src/**/*.module.ts', '!src/**/*.entity.ts', '!src/**/*.dto.ts'],
   coverageDirectory: './coverage',
   testEnvironment: 'node',

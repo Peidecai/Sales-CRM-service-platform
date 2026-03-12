@@ -18,6 +18,10 @@ describe('OpportunityController', () => {
     opportunityStageChanged: jest.Mock
     opportunityDeleted: jest.Mock
   }
+  let followLogService: {
+    findByOpportunityId: jest.Mock
+    create: jest.Mock
+  }
 
   beforeEach(() => {
     opportunityService = {
@@ -35,9 +39,14 @@ describe('OpportunityController', () => {
       opportunityStageChanged: jest.fn(),
       opportunityDeleted: jest.fn(),
     }
+    followLogService = {
+      findByOpportunityId: jest.fn(),
+      create: jest.fn(),
+    }
 
     controller = new OpportunityController(
       opportunityService as never,
+      followLogService as never,
       notificationService as never,
     )
   })

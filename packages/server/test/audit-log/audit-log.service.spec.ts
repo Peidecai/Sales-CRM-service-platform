@@ -53,6 +53,7 @@ describe('AuditLogService', () => {
         resourceId: 42,
         before: null,
         after: { name: '新客户' },
+        responseData: null,
         ip: '127.0.0.1',
       })
       expect(repo.save).toHaveBeenCalledWith(entry)

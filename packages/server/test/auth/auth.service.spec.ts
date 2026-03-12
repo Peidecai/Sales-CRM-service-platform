@@ -2,11 +2,14 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { JwtService } from '@nestjs/jwt'
 import { ConfigService } from '@nestjs/config'
 import { UnauthorizedException, BadRequestException } from '@nestjs/common'
+import { getRepositoryToken } from '@nestjs/typeorm'
 import { AuthService } from '../../src/modules/auth/auth.service'
 import { UserService } from '../../src/modules/user/user.service'
+import { MiniappUser } from '../../src/modules/auth/miniapp-user.entity'
 import { RedisService } from '../../src/common/redis'
 import { UserRole } from '@crm/shared'
 import {
+  createMockRepository,
   createMockRedisService,
   createMockJwtService,
   createMockConfigService,
@@ -45,6 +48,7 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: jwtService },
         { provide: ConfigService, useValue: configService },
         { provide: RedisService, useValue: redisService },
+        { provide: getRepositoryToken(MiniappUser), useValue: createMockRepository() },
       ],
     }).compile()
 
@@ -95,7 +99,7 @@ describe('AuthService', () => {
   describe('refreshToken', () => {
     it('should return new tokens for valid refresh token', async () => {
       const user = fixtures.user()
-      jwtService.verify.mockReturnValue({ sub: user.id, username: user.username, role: user.role })
+      jwtService.verify.mockReturnValue({ sub: user.id, username: user.username, role: user.role, type: 'refresh' })
       userService.findByUsername.mockResolvedValue(user)
       jwtService.sign.mockReturnValueOnce('new-access').mockReturnValueOnce('new-refresh')
 
@@ -109,14 +113,14 @@ describe('AuthService', () => {
     })
 
     it('should throw if user is inactive', async () => {
-      jwtService.verify.mockReturnValue({ sub: 1, username: 'test', role: 'sales' })
+      jwtService.verify.mockReturnValue({ sub: 1, username: 'test', role: 'sales', type: 'refresh' })
       userService.findByUsername.mockResolvedValue(fixtures.user({ isActive: false }))
 
       await expect(service.refreshToken('some-token')).rejects.toThrow(UnauthorizedException)
     })
 
     it('should throw if user not found', async () => {
-      jwtService.verify.mockReturnValue({ sub: 1, username: 'gone', role: 'sales' })
+      jwtService.verify.mockReturnValue({ sub: 1, username: 'gone', role: 'sales', type: 'refresh' })
       userService.findByUsername.mockResolvedValue(null)
 
       await expect(service.refreshToken('some-token')).rejects.toThrow(UnauthorizedException)

@@ -31,6 +31,10 @@ import { AnnouncementModule } from './modules/announcement/announcement.module'
 import { RbacModule } from './modules/rbac/rbac.module'
 import { SecurityModule } from './common/security/security.module'
 import { RouteModule } from './modules/route/route.module'
+import { QuotationModule } from './modules/quotation/quotation.module'
+import { PaymentModule } from './modules/payment/payment.module'
+import { ContractModule } from './modules/contract/contract.module'
+import { ApprovalModule } from './modules/approval/approval.module'
 
 @Module({
   imports: [
@@ -103,6 +107,10 @@ import { RouteModule } from './modules/route/route.module'
     MaterialModule,
     AnnouncementModule,
     RouteModule,
+    QuotationModule,
+    PaymentModule,
+    ContractModule,
+    ApprovalModule,
   ],
 })
 export class AppModule {}

@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { AuthController } from '../../src/modules/auth/auth.controller'
 import { AuthService } from '../../src/modules/auth/auth.service'
+import { RedisService } from '../../src/common/redis'
 import { UserRole } from '@crm/shared'
 
 describe('AuthController', () => {
@@ -32,7 +33,10 @@ describe('AuthController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
-      providers: [{ provide: AuthService, useValue: authService }],
+      providers: [
+        { provide: AuthService, useValue: authService },
+        { provide: RedisService, useValue: { get: jest.fn(), set: jest.fn(), del: jest.fn(), exists: jest.fn(), delByPattern: jest.fn() } },
+      ],
     }).compile()
 
     controller = module.get<AuthController>(AuthController)

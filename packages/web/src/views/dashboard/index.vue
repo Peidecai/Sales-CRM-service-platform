@@ -104,6 +104,7 @@
       :stage-stats="stageStats"
       :customer-status-data="customerStatusData"
       :stage-label="stageLabel"
+      :funnel-data="funnelData"
     />
     <template v-else>
       <el-row :gutter="16">
@@ -141,6 +142,8 @@
         </el-col>
       </el-row>
     </template>
+
+    <SalesFunnelChart v-if="showCharts" :loading="statsLoading" :funnel-data="funnelData" />
 
     <el-row :gutter="16">
       <el-col :xs="24" :md="8">
@@ -293,6 +296,7 @@ import {
   type OpportunityStageStats,
   OpportunityStage,
   type OpportunityVO,
+  type FunnelData,
 } from '@/api/opportunity'
 import { formatAmount, formatDuration } from '@/utils/format'
 import { getStatusTagType, getStatusLabel, getStageTagType } from '@/utils/tag-helpers'
@@ -300,6 +304,7 @@ import { getStatusTagType, getStatusLabel, getStageTagType } from '@/utils/tag-h
 const userStore = useUserStore()
 const DashboardCharts = defineAsyncComponent(() => import('./components/DashboardCharts.vue'))
 const SalesForecastPanel = defineAsyncComponent(() => import('./components/SalesForecastPanel.vue'))
+const SalesFunnelChart = defineAsyncComponent(() => import('./components/SalesFunnelChart.vue'))
 const userName = computed(() => userStore.userInfo?.name ?? userStore.userInfo?.username ?? '用户')
 const chartText = {
   pipelineTitle: '\u5546\u673A\u7BA1\u9053\u6F0F\u6597',
@@ -318,7 +323,7 @@ const recentOpportunities = ref<OpportunityVO[]>([])
 const recentCallRecords = ref<CallRecordVO[]>([])
 const customerStatusData = ref<Array<{ name: string; value: number }>>([])
 const callRecordCustomerMap = ref<Record<number, string>>({})
-
+const funnelData = ref<FunnelData | null>(null)
 const totalOpportunityCount = computed(() => stageStats.value.reduce((sum, s) => sum + s.count, 0))
 const totalOpportunityAmount = computed(() =>
   stageStats.value.reduce((sum, s) => sum + s.totalAmount, 0),
@@ -409,6 +414,7 @@ async function fetchAllStats() {
       customerRes,
       callRes,
       oppRes,
+      funnelRes,
       recentCustRes,
       recentOppRes,
       recentCallRes,
@@ -417,6 +423,7 @@ async function fetchAllStats() {
       customerApi.getList({ page: 1, pageSize: 1 }),
       callRecordApi.getStats(),
       opportunityApi.getStats(),
+      opportunityApi.getFunnel(),
       customerApi.getList({ page: 1, pageSize: 5 }),
       opportunityApi.getList({ page: 1, pageSize: 5 }),
       callRecordApi.getList({ page: 1, pageSize: 5 }),
@@ -431,6 +438,9 @@ async function fetchAllStats() {
     }
     if (oppRes?.data) {
       stageStats.value = oppRes.data
+    }
+    if (funnelRes?.data) {
+      funnelData.value = funnelRes.data
     }
     if (recentCustRes?.data) {
       recentCustomers.value = recentCustRes.data.list

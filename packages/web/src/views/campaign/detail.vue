@@ -1,6 +1,6 @@
 <template>
   <div class="campaign-detail">
-    <el-page-header :title="task?.name ?? '任务详情'" @back="$router.push('/campaign')" />
+    <el-page-header :title="String(task?.name ?? '任务详情')" @back="$router.push('/campaign')" />
     <el-descriptions v-if="task" :column="2" border class="mt-4">
       <el-descriptions-item label="状态">{{ task.status }}</el-descriptions-item>
       <el-descriptions-item label="总数">{{ task.totalCount }}</el-descriptions-item>

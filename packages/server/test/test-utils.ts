@@ -51,6 +51,7 @@ export interface MockQueryBuilder {
   select: jest.Mock
   addSelect: jest.Mock
   groupBy: jest.Mock
+  setParameter: jest.Mock
 }
 
 export function createMockQueryBuilder(data: unknown[] = [], total = 0): MockQueryBuilder {
@@ -71,6 +72,7 @@ export function createMockQueryBuilder(data: unknown[] = [], total = 0): MockQue
     select: jest.fn().mockReturnThis(),
     addSelect: jest.fn().mockReturnThis(),
     groupBy: jest.fn().mockReturnThis(),
+    setParameter: jest.fn().mockReturnThis(),
   }
   return qb
 }

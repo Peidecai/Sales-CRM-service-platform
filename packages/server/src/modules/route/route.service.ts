@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, In } from 'typeorm'
 import { Customer } from '../customer/customer.entity'
 
-interface RoutePoint {
+export interface RoutePoint {
   customerId: number
   customerName: string
   address: string
@@ -13,7 +13,7 @@ interface RoutePoint {
   order: number
 }
 
-interface OptimizedRoute {
+export interface OptimizedRoute {
   points: RoutePoint[]
   totalDistance: number
 }

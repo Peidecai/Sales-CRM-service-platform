@@ -60,6 +60,7 @@ describe('AuditLogInterceptor', () => {
       resource: 'customer',
       resourceId: 42,
       after: { id: 100, name: 'Acme' },
+      responseData: { id: 100, name: 'Acme' },
       ip: '127.0.0.1',
     })
   })
@@ -87,6 +88,7 @@ describe('AuditLogInterceptor', () => {
       resource: 'opportunity',
       resourceId: 88,
       after: { id: 88, stage: 'proposal' },
+      responseData: { id: 88, stage: 'proposal' },
       ip: '10.0.0.1',
     })
   })
@@ -114,6 +116,7 @@ describe('AuditLogInterceptor', () => {
       resource: 'user',
       resourceId: 77,
       after: null,
+      responseData: { ok: true },
       ip: '127.0.0.1',
     })
   })
@@ -143,6 +146,7 @@ describe('AuditLogInterceptor', () => {
       resource: 'lead',
       resourceId: 15,
       after: null,
+      responseData: null,
       ip: '',
     })
   })

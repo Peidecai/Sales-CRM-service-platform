@@ -9,6 +9,8 @@ export const CACHE_KEYS = {
   CUSTOMER_DETAIL: 'cache:customers:detail',
   /** Opportunity stage stats */
   OPPORTUNITY_STATS: 'cache:opportunities:stats',
+  /** Opportunity sales funnel */
+  OPPORTUNITY_FUNNEL: 'cache:opportunities:funnel',
   /** Opportunity detail — suffix is :id */
   OPPORTUNITY_DETAIL: 'cache:opportunities:detail',
   /** Knowledge category tree */
@@ -31,6 +33,8 @@ export const CACHE_TTL = {
   CUSTOMER_DETAIL: 120,
   /** Opportunity stats cache: 300 s */
   OPPORTUNITY_STATS: 300,
+  /** Opportunity funnel cache: 300 s */
+  OPPORTUNITY_FUNNEL: 300,
   /** Opportunity detail cache: 120 s */
   OPPORTUNITY_DETAIL: 120,
   /** Category tree cache: 600 s */

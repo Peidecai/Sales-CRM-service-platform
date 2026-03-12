@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { getRepositoryToken } from '@nestjs/typeorm'
 import { getQueueToken } from '@nestjs/bull'
 import { Logger, NotFoundException } from '@nestjs/common'
+import { DataSource } from 'typeorm'
 import { KnowledgeService } from '../../src/modules/knowledge/knowledge.service'
 import { KnowledgeArticle } from '../../src/modules/knowledge/entities/knowledge-article.entity'
 import { KnowledgeCategory } from '../../src/modules/knowledge/entities/knowledge-category.entity'
@@ -55,6 +56,7 @@ describe('KnowledgeService', () => {
         KnowledgeService,
         { provide: getRepositoryToken(KnowledgeArticle), useValue: articleRepo },
         { provide: getRepositoryToken(KnowledgeCategory), useValue: categoryRepo },
+        { provide: DataSource, useValue: { createQueryRunner: jest.fn() } },
         { provide: getRepositoryToken(ArticleLike), useValue: likeRepo },
         { provide: getRepositoryToken(ArticleFavorite), useValue: favoriteRepo },
         { provide: RedisService, useValue: redis },
@@ -137,8 +139,8 @@ describe('KnowledgeService', () => {
       await service.findAllArticles({ page: 1, pageSize: 20, keyword: 'test' })
 
       expect(qb.andWhere).toHaveBeenCalledWith(
-        'article.title LIKE :kw',
-        { kw: '%test%' },
+        'MATCH(article.title, article.content) AGAINST (:keyword IN BOOLEAN MODE)',
+        { keyword: 'test' },
       )
     })
 

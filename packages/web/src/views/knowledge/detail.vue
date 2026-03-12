@@ -212,7 +212,7 @@ async function loadComments() {
 }
 
 function canDeleteComment(c: CommentVO): boolean {
-  return userStore.user?.id === c.userId
+  return userStore.userInfo?.id === c.userId
 }
 
 async function submitComment() {

@@ -47,7 +47,7 @@ export class CustomerImportProcessor {
         }
         const createDto = { ...mapped, assignedUserId: userId } as Record<string, unknown>
         await this.customerService.create(
-          createDto as Parameters<typeof this.customerService.create>[0],
+          createDto as unknown as Parameters<typeof this.customerService.create>[0],
         )
         successCount++
       } catch (err: unknown) {

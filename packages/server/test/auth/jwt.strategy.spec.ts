@@ -59,7 +59,7 @@ describe('JwtStrategy', () => {
       role: 'sales',
     })
 
-    expect(authService.isTokenBlacklisted).toHaveBeenCalledWith('jwt-token-abc')
+    expect(authService.isTokenBlacklisted).toHaveBeenCalledWith('jwt-token-abc', undefined)
     expect(result).toEqual({
       id: 2,
       username: 'bob',
