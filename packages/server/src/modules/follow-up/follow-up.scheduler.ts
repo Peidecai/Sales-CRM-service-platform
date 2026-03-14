@@ -29,7 +29,6 @@ export class FollowUpScheduler {
     // Find follow-ups with nextFollowUpDate = today that are not deleted
     const followUps = await this.followUpRepo
       .createQueryBuilder('f')
-      .where('f.deleted = :deleted', { deleted: false })
       .andWhere('f.next_follow_up_date IS NOT NULL')
       .andWhere('f.next_follow_up_date >= :today', { today: today.toISOString().slice(0, 10) })
       .andWhere('f.next_follow_up_date < :tomorrow', {
@@ -75,7 +74,6 @@ export class FollowUpScheduler {
 
     const overdue = await this.followUpRepo
       .createQueryBuilder('f')
-      .where('f.deleted = :deleted', { deleted: false })
       .andWhere('f.next_follow_up_date IS NOT NULL')
       .andWhere('f.next_follow_up_date < :today', { today: today.toISOString().slice(0, 10) })
       .getMany()

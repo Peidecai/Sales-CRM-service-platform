@@ -1,6 +1,6 @@
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { createHmac } from 'crypto'
+import { createHmac, timingSafeEqual } from 'crypto'
 import type { Request } from 'express'
 
 /**
@@ -25,7 +25,10 @@ export class CallbackSignatureGuard implements CanActivate {
 
     const payload = this.getBodyForSignature(request)
     const expected = createHmac('sha256', secret).update(payload).digest('hex')
-    if (signature.toLowerCase() !== expected.toLowerCase()) {
+    // Constant-time comparison (prevent timing attacks)
+    const sigBuf = Buffer.from(signature.toLowerCase(), 'utf8')
+    const expBuf = Buffer.from(expected.toLowerCase(), 'utf8')
+    if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
       throw new ForbiddenException('Invalid callback signature')
     }
     return true

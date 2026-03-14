@@ -13,13 +13,13 @@ export class SalesForecast {
   @Column({ name: 'period_value', type: 'varchar', length: 20 })
   periodValue!: string
 
-  @Column({ name: 'forecast_amount', type: 'decimal', precision: 14, scale: 2, default: 0 })
+  @Column({ name: 'forecast_amount', type: 'decimal', precision: 15, scale: 2, default: 0 })
   forecastAmount!: number
 
-  @Column({ name: 'confidence_low', type: 'decimal', precision: 14, scale: 2, default: 0 })
+  @Column({ name: 'confidence_low', type: 'decimal', precision: 15, scale: 2, default: 0 })
   confidenceLow!: number
 
-  @Column({ name: 'confidence_high', type: 'decimal', precision: 14, scale: 2, default: 0 })
+  @Column({ name: 'confidence_high', type: 'decimal', precision: 15, scale: 2, default: 0 })
   confidenceHigh!: number
 
   @Column({ type: 'json', nullable: true })

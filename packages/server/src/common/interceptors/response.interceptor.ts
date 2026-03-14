@@ -1,16 +1,12 @@
-import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
-} from '@nestjs/common';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common'
+import { Observable } from 'rxjs'
+import { map } from 'rxjs/operators'
 
 export interface ResponseData<T> {
-  code: number;
-  message: string;
-  data: T;
+  code: number
+  message: string
+  data: T
+  timestamp: string
 }
 
 @Injectable()
@@ -26,15 +22,16 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, ResponseData<T
           'message' in data &&
           'data' in data
         ) {
-          return data as ResponseData<T>;
+          return data as ResponseData<T>
         }
 
         return {
           code: 0,
           message: 'success',
           data,
-        };
+          timestamp: new Date().toISOString(),
+        }
       }),
-    );
+    )
   }
 }

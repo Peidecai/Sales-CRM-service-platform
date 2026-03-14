@@ -338,7 +338,7 @@
                   >
                     [{{ sIdx + 1 }}] {{ source.title }}
                     <span class="source-similarity"
-                      >{{ Math.round(source.similarity * 100) }}%</span
+                    >{{ Math.round(source.similarity * 100) }}%</span
                     >
                   </div>
                 </div>

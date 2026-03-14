@@ -1,10 +1,12 @@
-import { Process, Processor } from '@nestjs/bull'
+import { Process, Processor, OnQueueFailed } from '@nestjs/bull'
 import { Logger } from '@nestjs/common'
 import { Job } from 'bull'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { CallRecord } from '../../call-record/call-record.entity'
 import { AiService } from '../ai.service'
+import { NotificationService } from '../../notification/notification.service'
+import { NotificationType } from '../../notification/notification.types'
 
 export interface CallSummaryJobData {
   callRecordId: number
@@ -36,6 +38,7 @@ export class CallSummaryProcessor {
     @InjectRepository(CallRecord)
     private readonly callRecordRepository: Repository<CallRecord>,
     private readonly aiService: AiService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   @Process()
@@ -45,7 +48,7 @@ export class CallSummaryProcessor {
 
     try {
       const record = await this.callRecordRepository.findOne({
-        where: { id: callRecordId, deleted: false },
+        where: { id: callRecordId },
       })
 
       if (!record) {
@@ -70,6 +73,27 @@ export class CallSummaryProcessor {
     } catch (error) {
       this.logger.error(`Failed to generate summary for record #${callRecordId}`, String(error))
       throw error // Let Bull retry
+    }
+  }
+
+  @OnQueueFailed()
+  async handleFailed(job: Job<CallSummaryJobData>, error: Error): Promise<void> {
+    const maxAttempts = job.opts.attempts ?? 1
+    this.logger.error(
+      `通话摘要任务失败 (${job.attemptsMade}/${maxAttempts}): ${error.message}`,
+      error.stack,
+    )
+
+    if (job.attemptsMade >= maxAttempts) {
+      this.notificationService.notify({
+        type: NotificationType.QUEUE_JOB_FAILED,
+        actorId: 0,
+        actorName: '系统',
+        resource: 'call-summary',
+        resourceId: job.data.callRecordId,
+        message: `通话摘要任务 #${job.data.callRecordId} 在 ${maxAttempts} 次重试后最终失败: ${error.message}`,
+        data: { queue: 'call-summary', jobId: job.id, error: error.message },
+      })
     }
   }
 }

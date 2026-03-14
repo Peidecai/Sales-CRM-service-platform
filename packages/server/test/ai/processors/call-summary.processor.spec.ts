@@ -22,6 +22,7 @@ describe('CallSummaryProcessor', () => {
     processor = new CallSummaryProcessor(
       callRecordRepository as never,
       aiService as never,
+      { sendToUser: jest.fn() } as never,
     )
   })
 
@@ -31,7 +32,7 @@ describe('CallSummaryProcessor', () => {
     await processor.handleSummary({ data: { callRecordId: 1 } } as never)
 
     expect(callRecordRepository.findOne).toHaveBeenCalledWith({
-      where: { id: 1, deleted: false },
+      where: { id: 1 },
     })
     expect(aiService.chat).not.toHaveBeenCalled()
     expect(callRecordRepository.save).not.toHaveBeenCalled()

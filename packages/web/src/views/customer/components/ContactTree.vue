@@ -140,10 +140,12 @@ const handleDelete = async (id: number) => {
           <div>
             <strong>{{ c.name }}</strong>
             <el-tag v-if="c.isPrimary" size="small" type="warning" style="margin-left: 8px"
-              >主联系人</el-tag
+            >
+              主联系人
+            </el-tag
             >
             <span style="color: #909399; margin-left: 8px"
-              >{{ c.position || '' }} {{ c.department || '' }}</span
+            >{{ c.position || '' }} {{ c.department || '' }}</span
             >
           </div>
           <div>
@@ -157,10 +159,14 @@ const handleDelete = async (id: number) => {
               size="small"
               text
               @click="handleSetPrimary(c.id as number)"
-              >设为主联系人</el-button
+            >
+              设为主联系人
+            </el-button
             >
             <el-button size="small" text type="danger" @click="handleDelete(c.id as number)"
-              >删除</el-button
+            >
+              删除
+            </el-button
             >
           </div>
         </div>

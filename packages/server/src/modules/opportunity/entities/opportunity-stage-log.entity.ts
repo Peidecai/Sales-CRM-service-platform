@@ -27,7 +27,7 @@ export class OpportunityStageLog {
   @Column({ name: 'operator_id', type: 'int', comment: '操作人ID' })
   operatorId!: number
 
-  @Column({ length: 500, nullable: true, comment: '备注' })
+  @Column({ type: 'varchar', length: 500, nullable: true, comment: '备注' })
   remark!: string | null
 
   @CreateDateColumn({ name: 'created_at' })

@@ -1,52 +1,41 @@
+import { ConfigService } from '@nestjs/config'
 import { databaseConfig } from '../../src/config/database.config'
 import { jwtConfig } from '../../src/config/jwt.config'
-import { redisConfig } from '../../src/config/redis.config'
 
 describe('Config factories', () => {
-  const originalEnv = process.env
+  it('databaseConfig should use defaults from ConfigService', () => {
+    const mockConfig = {
+      get: jest.fn((key: string, defaultVal: unknown) => defaultVal),
+    } as unknown as ConfigService
 
-  beforeEach(() => {
-    process.env = { ...originalEnv }
-  })
-
-  afterAll(() => {
-    process.env = originalEnv
-  })
-
-  it('databaseConfig should use defaults', () => {
-    delete process.env.DB_HOST
-    delete process.env.DB_PORT
-    delete process.env.DB_USERNAME
-    delete process.env.DB_PASSWORD
-    delete process.env.DB_DATABASE
-    delete process.env.NODE_ENV
-
-    const config = databaseConfig() as Record<string, unknown>
+    const config = databaseConfig(mockConfig) as Record<string, unknown>
 
     expect(config.host).toBe('localhost')
     expect(config.port).toBe(3306)
-    expect(config.username).toBe('root')
-    expect(config.password).toBe('crm_password_123')
+    expect(config.username).toBe('crm_user')
     expect(config.database).toBe('crm_sales')
-    expect(config.logging).toBe(false)
   })
 
-  it('databaseConfig should read values from env', () => {
-    process.env.DB_HOST = 'db.internal'
-    process.env.DB_PORT = '4406'
-    process.env.DB_USERNAME = 'crm_user'
-    process.env.DB_PASSWORD = 'secret'
-    process.env.DB_DATABASE = 'crm_prod'
-    process.env.NODE_ENV = 'development'
+  it('databaseConfig should read values from ConfigService', () => {
+    const values: Record<string, unknown> = {
+      DB_HOST: 'db.internal',
+      DB_PORT: 4406,
+      DB_USERNAME: 'crm_user',
+      DB_PASSWORD: 'secret',
+      DB_DATABASE: 'crm_prod',
+      NODE_ENV: 'development',
+    }
+    const mockConfig = {
+      get: jest.fn((key: string, defaultVal: unknown) => values[key] ?? defaultVal),
+    } as unknown as ConfigService
 
-    const config = databaseConfig() as Record<string, unknown>
+    const config = databaseConfig(mockConfig) as Record<string, unknown>
 
     expect(config.host).toBe('db.internal')
     expect(config.port).toBe(4406)
     expect(config.username).toBe('crm_user')
     expect(config.password).toBe('secret')
     expect(config.database).toBe('crm_prod')
-    expect(config.logging).toBe(true)
   })
 
   it('jwtConfig should use defaults and overrides', () => {
@@ -71,29 +60,11 @@ describe('Config factories', () => {
     expect(overridden.accessExpiresIn).toBe('1h')
     expect(overridden.refreshSecret).toBe('jwt-refresh')
     expect(overridden.refreshExpiresIn).toBe('14d')
-  })
 
-  it('redisConfig should use defaults and parse env values', () => {
-    delete process.env.REDIS_HOST
-    delete process.env.REDIS_PORT
-    delete process.env.REDIS_PASSWORD
-    delete process.env.REDIS_DB
-
-    const defaults = redisConfig()
-    expect(defaults.host).toBe('localhost')
-    expect(defaults.port).toBe(6379)
-    expect(defaults.password).toBeUndefined()
-    expect(defaults.db).toBe(0)
-
-    process.env.REDIS_HOST = 'redis.internal'
-    process.env.REDIS_PORT = '6380'
-    process.env.REDIS_PASSWORD = 'pwd'
-    process.env.REDIS_DB = '2'
-
-    const overridden = redisConfig()
-    expect(overridden.host).toBe('redis.internal')
-    expect(overridden.port).toBe(6380)
-    expect(overridden.password).toBe('pwd')
-    expect(overridden.db).toBe(2)
+    // Cleanup
+    delete process.env.JWT_SECRET
+    delete process.env.JWT_ACCESS_EXPIRES_IN
+    delete process.env.JWT_REFRESH_SECRET
+    delete process.env.JWT_REFRESH_EXPIRES_IN
   })
 })

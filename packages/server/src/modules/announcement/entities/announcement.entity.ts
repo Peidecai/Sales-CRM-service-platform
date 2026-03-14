@@ -2,6 +2,13 @@ import { Entity, Column } from 'typeorm'
 import { BaseEntity } from '../../../common/entities/base.entity'
 import { AnnouncementPriority } from '@crm/shared'
 
+export enum AnnouncementChannel {
+  WEB = 'WEB',
+  EMAIL = 'EMAIL',
+  SMS = 'SMS',
+  WECHAT = 'WECHAT',
+}
+
 @Entity('announcements')
 export class Announcement extends BaseEntity {
   @Column({ length: 200 })
@@ -19,6 +26,14 @@ export class Announcement extends BaseEntity {
 
   @Column({ name: 'is_pinned', default: false })
   isPinned!: boolean
+
+  /** Delivery channels — stored as comma-separated values, defaults to WEB */
+  @Column({ type: 'simple-array', default: 'WEB' })
+  channels!: AnnouncementChannel[]
+
+  /** Target roles — empty/null means all roles */
+  @Column({ name: 'target_roles', type: 'simple-array', nullable: true })
+  targetRoles!: string[] | null
 
   @Column({ name: 'publish_at', type: 'datetime', nullable: true })
   publishAt!: Date | null

@@ -9,6 +9,7 @@ import {
   Query,
   ParseIntPipe,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiParam } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
@@ -16,13 +17,15 @@ import { RolesGuard } from '../../common/guards/roles.guard'
 import { Roles } from '../../common/decorators/roles.decorator'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import { UserRole } from '@crm/shared'
+import { AuditLogInterceptor } from '../../common/interceptors/audit-log.interceptor'
 import { AnnouncementService } from './announcement.service'
 import { CreateAnnouncementDto } from './dto/create-announcement.dto'
 import { QueryAnnouncementDto } from './dto/query-announcement.dto'
 
 @ApiTags('公告')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@UseInterceptors(AuditLogInterceptor)
 @Controller('announcements')
 export class AnnouncementController {
   constructor(private readonly announcementService: AnnouncementService) {}
@@ -48,7 +51,6 @@ export class AnnouncementController {
   }
 
   @Post()
-  @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Create announcement' })
   create(@Body() dto: CreateAnnouncementDto, @CurrentUser('id') userId: number) {
@@ -61,7 +63,6 @@ export class AnnouncementController {
   }
 
   @Put(':id')
-  @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Update announcement' })
   @ApiParam({ name: 'id', type: Number })
@@ -73,7 +74,6 @@ export class AnnouncementController {
   }
 
   @Delete(':id')
-  @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Soft delete announcement' })
   @ApiParam({ name: 'id', type: Number })

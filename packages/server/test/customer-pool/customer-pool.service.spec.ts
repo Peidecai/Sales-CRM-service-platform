@@ -6,10 +6,12 @@ import { Customer } from '../../src/modules/customer/customer.entity'
 import { CustomerPoolLog, PoolAction } from '../../src/modules/customer-pool/entities/customer-pool-log.entity'
 import { CustomerPoolConfigService } from '../../src/modules/customer-pool/customer-pool-config.service'
 import { RedisService } from '../../src/common/redis'
+import { DataSource } from 'typeorm'
 import {
   createMockRepository,
   createMockQueryBuilder,
   createMockRedisService,
+  createMockDataSource,
   fixtures,
   type MockRepository,
   type MockRedisService,
@@ -47,6 +49,13 @@ describe('CustomerPoolService', () => {
   let poolLogRepo: MockRepository<CustomerPoolLog>
   let redisService: MockRedisService
 
+  const mockQbForLock = {
+    setLock: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    getOne: jest.fn(),
+  }
+
   const mockQueryRunner = {
     connect: jest.fn(),
     startTransaction: jest.fn(),
@@ -55,6 +64,8 @@ describe('CustomerPoolService', () => {
     release: jest.fn(),
     manager: {
       save: jest.fn().mockImplementation(async (entity) => entity),
+      createQueryBuilder: jest.fn().mockReturnValue(mockQbForLock),
+      count: jest.fn().mockResolvedValue(10),
     },
   }
 
@@ -74,6 +85,7 @@ describe('CustomerPoolService', () => {
         { provide: getRepositoryToken(Customer), useValue: customerRepo },
         { provide: getRepositoryToken(CustomerPoolLog), useValue: poolLogRepo },
         { provide: CustomerPoolConfigService, useValue: mockConfigService },
+        { provide: DataSource, useValue: { createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner) } },
         { provide: RedisService, useValue: redisService },
       ],
     }).compile()
@@ -89,7 +101,11 @@ describe('CustomerPoolService', () => {
   describe('claim', () => {
     it('should claim a customer from the pool successfully', async () => {
       const customer = poolCustomer()
-      customerRepo.findOne.mockResolvedValue({ ...customer })
+
+      // Pre-transaction checks: findOne for initial validation isn't used in claim
+      // claim uses queryRunner.manager.createQueryBuilder for pessimistic lock
+      mockQbForLock.getOne.mockResolvedValue({ ...customer })
+      mockQueryRunner.manager.count.mockResolvedValue(10) // under max_holding
 
       // No last return log (cooldown check passes)
       const logQb = createMockQueryBuilder([], 0)
@@ -98,9 +114,6 @@ describe('CustomerPoolService', () => {
 
       // Daily claim count = 1 (under limit)
       redisService.incr.mockResolvedValue(1)
-
-      // Holding count under limit
-      customerRepo.count.mockResolvedValue(10)
 
       poolLogRepo.create.mockReturnValue({ customerId: 1, action: PoolAction.CLAIM, toUserId: 1 })
 
@@ -112,15 +125,20 @@ describe('CustomerPoolService', () => {
     })
 
     it('should throw NotFoundException if customer not in pool', async () => {
-      customerRepo.findOne.mockResolvedValue(null)
+      // Cooldown check passes
+      const logQb = createMockQueryBuilder([], 0)
+      logQb.getOne.mockResolvedValue(null)
+      poolLogRepo.createQueryBuilder.mockReturnValue(logQb)
+
+      redisService.incr.mockResolvedValue(1)
+
+      // Pessimistic lock returns null (customer not in pool)
+      mockQbForLock.getOne.mockResolvedValue(null)
 
       await expect(service.claim(1, 999)).rejects.toThrow(NotFoundException)
     })
 
     it('should throw BadRequestException during cooldown period', async () => {
-      const customer = poolCustomer()
-      customerRepo.findOne.mockResolvedValue({ ...customer })
-
       // Last return was just now (within cooldown)
       const recentReturn = { createdAt: new Date(), action: PoolAction.RETURN }
       const logQb = createMockQueryBuilder([], 0)
@@ -131,9 +149,6 @@ describe('CustomerPoolService', () => {
     })
 
     it('should throw BadRequestException when daily claim limit exceeded', async () => {
-      const customer = poolCustomer()
-      customerRepo.findOne.mockResolvedValue({ ...customer })
-
       const logQb = createMockQueryBuilder([], 0)
       logQb.getOne.mockResolvedValue(null)
       poolLogRepo.createQueryBuilder.mockReturnValue(logQb)
@@ -145,15 +160,17 @@ describe('CustomerPoolService', () => {
     })
 
     it('should throw BadRequestException when max holding reached', async () => {
-      const customer = poolCustomer()
-      customerRepo.findOne.mockResolvedValue({ ...customer })
-
       const logQb = createMockQueryBuilder([], 0)
       logQb.getOne.mockResolvedValue(null)
       poolLogRepo.createQueryBuilder.mockReturnValue(logQb)
 
       redisService.incr.mockResolvedValue(1)
-      customerRepo.count.mockResolvedValue(50) // At max
+
+      // Pessimistic lock returns customer
+      const customer = poolCustomer()
+      mockQbForLock.getOne.mockResolvedValue({ ...customer })
+      // At max holding
+      mockQueryRunner.manager.count.mockResolvedValue(50)
 
       await expect(service.claim(1, 1)).rejects.toThrow(BadRequestException)
     })

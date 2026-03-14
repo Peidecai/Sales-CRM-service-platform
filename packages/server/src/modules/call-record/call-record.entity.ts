@@ -7,10 +7,11 @@ import { Opportunity } from '../opportunity/opportunity.entity'
 @Entity('call_records')
 export class CallRecord extends BaseEntity {
   @Index()
-  @Column({ name: 'customer_id', nullable: true, comment: '关联客户ID' })
+  @Column({ type: 'int', name: 'customer_id', nullable: true, comment: '关联客户ID' })
   customerId!: number | null
 
-  @Column({ name: 'opportunity_id', nullable: true })
+  @Index()
+  @Column({ type: 'int', name: 'opportunity_id', nullable: true })
   opportunityId!: number | null
 
   @Column({
@@ -32,7 +33,7 @@ export class CallRecord extends BaseEntity {
   callType!: CallType
 
   @Index()
-  @Column({ name: 'agent_id', nullable: true, comment: '坐席ID' })
+  @Column({ type: 'int', name: 'agent_id', nullable: true, comment: '坐席ID' })
   agentId!: number | null
 
   @Column({
@@ -52,11 +53,17 @@ export class CallRecord extends BaseEntity {
   })
   answeredAt!: Date | null
 
-  @Column({ name: 'end_reason', length: 50, nullable: true, comment: '挂断原因' })
+  @Column({ type: 'varchar', name: 'end_reason', length: 50, nullable: true, comment: '挂断原因' })
   endReason!: string | null
 
   @Index()
-  @Column({ name: 'provider_call_id', length: 100, nullable: true, comment: '厂商通话ID' })
+  @Column({
+    type: 'varchar',
+    name: 'provider_call_id',
+    length: 100,
+    nullable: true,
+    comment: '厂商通话ID',
+  })
   providerCallId!: string | null
 
   // ---- Relations ----
@@ -91,6 +98,6 @@ export class CallRecord extends BaseEntity {
   @Column({ name: 'ai_summary', type: 'text', nullable: true })
   aiSummary!: string | null
 
-  @Column({ name: 'recording_url', length: 500, nullable: true })
+  @Column({ type: 'varchar', name: 'recording_url', length: 500, nullable: true })
   recordingUrl!: string | null
 }

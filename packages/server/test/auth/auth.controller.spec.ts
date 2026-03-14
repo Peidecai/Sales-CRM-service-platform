@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { AuthController } from '../../src/modules/auth/auth.controller'
 import { AuthService } from '../../src/modules/auth/auth.service'
+import { WxAuthService } from '../../src/modules/auth/wx-auth.service'
+import { CaptchaService } from '../../src/modules/auth/captcha.service'
 import { RedisService } from '../../src/common/redis'
 import { UserRole } from '@crm/shared'
 
@@ -35,6 +37,8 @@ describe('AuthController', () => {
       controllers: [AuthController],
       providers: [
         { provide: AuthService, useValue: authService },
+        { provide: WxAuthService, useValue: { wxLogin: jest.fn() } },
+        { provide: CaptchaService, useValue: { generate: jest.fn(), verify: jest.fn() } },
         { provide: RedisService, useValue: { get: jest.fn(), set: jest.fn(), del: jest.fn(), exists: jest.fn(), delByPattern: jest.fn() } },
       ],
     }).compile()

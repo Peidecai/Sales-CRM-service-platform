@@ -163,7 +163,9 @@ const handlePageChange = (page: number) => {
             type="warning"
             link
             @click="openAssign(row.id)"
-            >分配</el-button
+          >
+            分配
+          </el-button
           >
         </template>
       </el-table-column>

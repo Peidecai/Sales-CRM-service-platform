@@ -13,7 +13,7 @@ export class CreateCustomerFieldDefinitionsTable1709000015000 implements Migrati
           { name: 'field_label', type: 'varchar', length: '100', isNullable: false, comment: '字段显示名(中文)' },
           { name: 'field_type', type: 'enum', enum: ['text', 'number', 'date', 'select', 'multi_select', 'radio', 'checkbox', 'textarea'], isNullable: false, comment: '字段类型' },
           { name: 'options', type: 'json', isNullable: true, comment: '选项配置(select/radio/checkbox用)' },
-          { name: '`required`', type: 'boolean', default: false, comment: '是否必填' },
+          { name: 'required', type: 'boolean', default: false, comment: '是否必填' },
           { name: 'default_value', type: 'varchar', length: '500', isNullable: true, comment: '默认值' },
           { name: 'sort', type: 'int', default: 0, comment: '排序' },
           { name: 'is_active', type: 'boolean', default: true, comment: '是否启用' },

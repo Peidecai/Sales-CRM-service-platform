@@ -66,7 +66,7 @@ export class CampaignService {
       throw new BadRequestException('Invalid state to start')
     }
     task.status = CampaignTaskStatus.RUNNING
-    task.startTime = task.startTime ?? new Date()
+    task.startedAt = task.startedAt ?? new Date()
     await this.taskRepository.save(task)
   }
 
@@ -87,7 +87,7 @@ export class CampaignService {
   async stop(id: number, user: AuthUser): Promise<void> {
     const task = await this.findOne(id, user)
     task.status = CampaignTaskStatus.COMPLETED
-    task.endTime = new Date()
+    task.endedAt = new Date()
     await this.taskRepository.save(task)
   }
 

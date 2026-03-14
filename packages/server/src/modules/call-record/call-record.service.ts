@@ -53,7 +53,6 @@ export class CallRecordService {
       .createQueryBuilder('cr')
       .leftJoinAndSelect('cr.customer', 'customer')
       .leftJoinAndSelect('cr.opportunity', 'opportunity')
-      .where('cr.deleted = :deleted', { deleted: false })
 
     this.applyDataPermission(qb, user)
 
@@ -91,7 +90,7 @@ export class CallRecordService {
 
   async findOne(id: number, user?: AuthUser): Promise<CallRecord> {
     const record = await this.callRecordRepository.findOne({
-      where: { id, deleted: false },
+      where: { id },
       relations: ['customer', 'opportunity'],
     })
 
@@ -116,14 +115,11 @@ export class CallRecordService {
 
   async remove(id: number): Promise<void> {
     const record = await this.findOne(id)
-    record.deleted = true
-    await this.callRecordRepository.save(record)
+    await this.callRecordRepository.softRemove(record)
   }
 
   async getStats(user: AuthUser): Promise<CallRecordStats> {
-    const qb = this.callRecordRepository
-      .createQueryBuilder('cr')
-      .where('cr.deleted = :deleted', { deleted: false })
+    const qb = this.callRecordRepository.createQueryBuilder('cr')
 
     if (user.role === UserRole.SALES) {
       qb.andWhere('cr.userId = :currentUserId', { currentUserId: user.id })
@@ -146,7 +142,6 @@ export class CallRecordService {
 
     const weekQb = this.callRecordRepository
       .createQueryBuilder('cr')
-      .where('cr.deleted = :deleted', { deleted: false })
       .andWhere('cr.callAt >= :weekStart', { weekStart })
 
     if (user.role === UserRole.SALES) {
@@ -163,7 +158,6 @@ export class CallRecordService {
       .createQueryBuilder('cr')
       .leftJoinAndSelect('cr.customer', 'customer')
       .leftJoinAndSelect('cr.opportunity', 'opportunity')
-      .where('cr.deleted = :deleted', { deleted: false })
 
     this.applyDataPermission(qb, user)
     qb.orderBy('cr.callAt', 'DESC')

@@ -11,10 +11,10 @@ export class KnowledgeArticle extends BaseEntity {
   @Column({ type: 'longtext' })
   content!: string
 
-  @Column({ length: 500, nullable: true })
+  @Column({ type: 'varchar', length: 500, nullable: true })
   summary!: string | null
 
-  @Column({ name: 'cover_image', length: 500, nullable: true })
+  @Column({ type: 'varchar', name: 'cover_image', length: 500, nullable: true })
   coverImage!: string | null
 
   @Index()
@@ -61,8 +61,8 @@ export class KnowledgeArticle extends BaseEntity {
   @Column({ name: 'version', type: 'int', default: 1 })
   version!: number
 
-  @Column({ name: 'publish_time', type: 'datetime', nullable: true })
-  publishTime!: Date | null
+  @Column({ name: 'published_at', type: 'datetime', nullable: true })
+  publishedAt!: Date | null
 
   @Column({ name: 'review_id', type: 'int', nullable: true })
   reviewId!: number | null
@@ -70,10 +70,10 @@ export class KnowledgeArticle extends BaseEntity {
   @Column({ name: 'review_remark', type: 'text', nullable: true })
   reviewRemark!: string | null
 
-  @Column({ name: 'review_time', type: 'datetime', nullable: true })
-  reviewTime!: Date | null
+  @Column({ name: 'reviewed_at', type: 'datetime', nullable: true })
+  reviewedAt!: Date | null
 
-  @Column({ length: 50, nullable: true })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   source!: string | null
 
   @Column({

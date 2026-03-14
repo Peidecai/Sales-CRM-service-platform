@@ -3,10 +3,11 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { RouteService } from './route.service'
 import { OptimizeRouteDto } from './dto/optimize-route.dto'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
+import { RolesGuard } from '../../common/guards/roles.guard'
 
 @ApiTags('路线规划')
 @Controller('route')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class RouteController {
   constructor(private readonly routeService: RouteService) {}

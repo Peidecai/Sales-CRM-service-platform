@@ -5,7 +5,9 @@
         <div class="header">
           <el-tag v-if="announcement.priority === 'urgent'" type="danger" size="small">紧急</el-tag>
           <el-tag v-else-if="announcement.priority === 'important'" type="warning" size="small"
-            >重要</el-tag
+          >
+            重要
+          </el-tag
           >
           <el-tag v-else type="info" size="small">普通</el-tag>
           <span class="title">{{ announcement.title }}</span>
@@ -14,7 +16,7 @@
       <div class="meta">
         发布时间：{{ formatDate(announcement.publishAt || announcement.createdAt) }}
       </div>
-      <div class="content" v-html="announcement.content" />
+      <div v-safe-html="announcement.content" class="content" />
       <el-button type="primary" @click="$router.push('/announcement')">返回列表</el-button>
     </el-card>
     <el-empty v-else description="公告不存在" />

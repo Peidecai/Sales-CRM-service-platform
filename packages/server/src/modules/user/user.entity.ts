@@ -23,6 +23,9 @@ export class User extends BaseEntity {
   @Column({ length: 20, nullable: true })
   phone!: string
 
-  @Column({ type: 'boolean', default: true })
+  @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive!: boolean
+
+  @Column({ type: 'json', nullable: true, comment: '坐席技能标签ID列表' })
+  skills!: number[] | null
 }

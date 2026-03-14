@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { Customer } from '../customer/customer.entity'
@@ -29,20 +29,20 @@ export class PopupAggregateService {
 
   async getPopupData(customerId: number, contactId?: number): Promise<PopupData> {
     const customer = await this.customerRepository.findOne({
-      where: { id: customerId, deleted: false },
+      where: { id: customerId },
     })
     if (!customer) {
-      throw new Error('Customer not found')
+      throw new NotFoundException('Customer not found')
     }
 
     const [recentFollowUps, lastCall, contact] = await Promise.all([
       this.followUpRepository.find({
-        where: { customerId, deleted: false },
+        where: { customerId },
         order: { createdAt: 'DESC' },
         take: 3,
       }),
       this.callRecordRepository.findOne({
-        where: { customerId, deleted: false },
+        where: { customerId },
         order: { callAt: 'DESC' },
         select: ['aiSummary'],
       }),

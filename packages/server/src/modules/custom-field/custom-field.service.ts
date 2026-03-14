@@ -18,20 +18,20 @@ export class CustomFieldService {
 
   async findAll(): Promise<CustomFieldDefinition[]> {
     return this.defRepo.find({
-      where: { deleted: false, isActive: true },
+      where: { isActive: true },
       order: { sort: 'ASC', createdAt: 'ASC' },
     })
   }
 
   async findOne(id: number): Promise<CustomFieldDefinition> {
-    const def = await this.defRepo.findOne({ where: { id, deleted: false } })
+    const def = await this.defRepo.findOne({ where: { id } })
     if (!def) throw new NotFoundException(`Field definition ${id} not found`)
     return def
   }
 
   async create(dto: CreateCustomFieldDto): Promise<CustomFieldDefinition> {
     const existing = await this.defRepo.findOne({
-      where: { fieldKey: dto.fieldKey, deleted: false },
+      where: { fieldKey: dto.fieldKey },
     })
     if (existing) throw new ConflictException(`字段标识"${dto.fieldKey}"已存在`)
 
@@ -44,7 +44,7 @@ export class CustomFieldService {
 
     if (dto.fieldKey && dto.fieldKey !== def.fieldKey) {
       const existing = await this.defRepo.findOne({
-        where: { fieldKey: dto.fieldKey, deleted: false },
+        where: { fieldKey: dto.fieldKey },
       })
       if (existing) throw new ConflictException(`字段标识"${dto.fieldKey}"已存在`)
     }
@@ -55,8 +55,7 @@ export class CustomFieldService {
 
   async remove(id: number): Promise<void> {
     const def = await this.findOne(id)
-    def.deleted = true
-    await this.defRepo.save(def)
+    await this.defRepo.softRemove(def)
   }
 
   async validateCustomFields(customFields: Record<string, unknown>): Promise<void> {

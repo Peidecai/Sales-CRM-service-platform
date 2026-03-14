@@ -1,10 +1,12 @@
-import { Process, Processor } from '@nestjs/bull'
+import { Process, Processor, OnQueueFailed } from '@nestjs/bull'
 import { Logger } from '@nestjs/common'
 import { Job } from 'bull'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { IntentPrediction } from '../entities/intent-prediction.entity'
 import { AiFallbackService } from '../ai-fallback.service'
+import { NotificationService } from '../../notification/notification.service'
+import { NotificationType } from '../../notification/notification.types'
 
 export interface IntentPredictionJobData {
   customerId: number
@@ -19,6 +21,7 @@ export class IntentPredictionProcessor {
     @InjectRepository(IntentPrediction)
     private readonly predictionRepo: Repository<IntentPrediction>,
     private readonly aiFallback: AiFallbackService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   @Process()
@@ -73,6 +76,27 @@ export class IntentPredictionProcessor {
     } catch (error) {
       this.logger.error(`Failed to predict intent for customer #${customerId}`, String(error))
       throw error
+    }
+  }
+
+  @OnQueueFailed()
+  async handleFailed(job: Job<IntentPredictionJobData>, error: Error): Promise<void> {
+    const maxAttempts = job.opts.attempts ?? 1
+    this.logger.error(
+      `意向预测任务失败 (${job.attemptsMade}/${maxAttempts}): ${error.message}`,
+      error.stack,
+    )
+
+    if (job.attemptsMade >= maxAttempts) {
+      this.notificationService.notify({
+        type: NotificationType.QUEUE_JOB_FAILED,
+        actorId: 0,
+        actorName: '系统',
+        resource: 'intent-prediction',
+        resourceId: job.data.customerId,
+        message: `客户 #${job.data.customerId} 意向预测任务在 ${maxAttempts} 次重试后最终失败: ${error.message}`,
+        data: { queue: 'intent-prediction', jobId: job.id, error: error.message },
+      })
     }
   }
 }

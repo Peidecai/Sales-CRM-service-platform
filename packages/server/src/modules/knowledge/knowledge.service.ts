@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common'
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+  Logger,
+} from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { In, QueryFailedError, Repository } from 'typeorm'
 import { DataSource } from 'typeorm'
@@ -103,7 +109,6 @@ export class KnowledgeService {
     const qb = this.articleRepository
       .createQueryBuilder('article')
       .leftJoinAndSelect('article.category', 'category')
-      .where('article.deleted = :deleted', { deleted: false })
 
     if (categoryId !== undefined) {
       qb.andWhere('article.categoryId = :categoryId', { categoryId })
@@ -149,7 +154,6 @@ export class KnowledgeService {
     const qb = this.articleRepository
       .createQueryBuilder('article')
       .leftJoinAndSelect('article.category', 'category')
-      .where('article.deleted = :deleted', { deleted: false })
       .andWhere('MATCH(article.title, article.content) AGAINST (:keyword IN BOOLEAN MODE)', {
         keyword: safeKeyword,
       })
@@ -166,7 +170,7 @@ export class KnowledgeService {
     }
 
     qb.addOrderBy(
-      `(MATCH(article.title, article.content) AGAINST (:keyword) * 3 + (CASE WHEN article.is_top = 1 THEN 5 ELSE 0 END) + (CASE WHEN article.is_recommend = 1 THEN 2 ELSE 0 END) + 1/(1+DATEDIFF(NOW(), COALESCE(article.publish_time, article.updated_at))*0.01) + (article.view_count + article.like_count)/1000)`,
+      `(MATCH(article.title, article.content) AGAINST (:keyword) * 3 + (CASE WHEN article.is_top = 1 THEN 5 ELSE 0 END) + (CASE WHEN article.is_recommend = 1 THEN 2 ELSE 0 END) + 1/(1+DATEDIFF(NOW(), COALESCE(article.published_at, article.updated_at))*0.01) + (article.view_count + article.like_count)/1000)`,
       'DESC',
     )
       .skip((page - 1) * pageSize)
@@ -202,7 +206,7 @@ export class KnowledgeService {
 
   async findOneArticle(id: number): Promise<KnowledgeArticle> {
     const article = await this.articleRepository.findOne({
-      where: { id, deleted: false },
+      where: { id },
     })
 
     if (!article) {
@@ -218,21 +222,38 @@ export class KnowledgeService {
 
   async updateArticle(id: number, dto: UpdateArticleDto): Promise<KnowledgeArticle> {
     const article = await this.findOneArticle(id)
+    const oldVersion = article.version ?? 0
+
     Object.assign(article, dto)
-    const saved = await this.articleRepository.save(article)
+    article.version = oldVersion + 1
+
+    // Extract only scalar columns (exclude relation objects) for the QB update
+    const { category: _cat, ...columns } = article
+    void _cat
+
+    // Optimistic lock: only update if version hasn't changed
+    const result = await this.articleRepository
+      .createQueryBuilder()
+      .update(KnowledgeArticle)
+      .set(columns as Record<string, unknown>)
+      .where('id = :id AND version = :oldVersion', { id, oldVersion })
+      .execute()
+
+    if (result.affected === 0) {
+      throw new ConflictException('文章已被其他人修改，请刷新后重试')
+    }
 
     // Re-trigger embedding if content changed
     if (dto.content || dto.title) {
-      await this.triggerEmbedding(saved.id)
+      await this.triggerEmbedding(id)
     }
 
-    return saved
+    return this.articleRepository.findOneOrFail({ where: { id } })
   }
 
   async removeArticle(id: number): Promise<void> {
     const article = await this.findOneArticle(id)
-    article.deleted = true
-    await this.articleRepository.save(article)
+    await this.articleRepository.softRemove(article)
 
     // Remove vectors for deleted article
     this.vectorService.deleteArticleVectors(id)
@@ -261,10 +282,10 @@ export class KnowledgeService {
     article.status = approved ? ArticleStatus.PUBLISHED : ArticleStatus.REJECTED
     article.reviewId = reviewerId
     article.reviewRemark = remark ?? null
-    article.reviewTime = new Date()
+    article.reviewedAt = new Date()
     if (approved) {
       article.isPublished = true
-      article.publishTime = new Date()
+      article.publishedAt = new Date()
     }
     await this.articleRepository.save(article)
     if (approved) await this.triggerEmbedding(id)
@@ -278,7 +299,7 @@ export class KnowledgeService {
     }
     article.status = ArticleStatus.PUBLISHED
     article.isPublished = true
-    article.publishTime = new Date()
+    article.publishedAt = new Date()
     await this.articleRepository.save(article)
     await this.triggerEmbedding(id)
     return article
@@ -399,7 +420,7 @@ export class KnowledgeService {
 
     const articleIds = favorites.map((favorite) => favorite.articleId)
     const articles = await this.articleRepository.find({
-      where: { id: In(articleIds), deleted: false },
+      where: { id: In(articleIds) },
     })
     const articleMap = new Map(articles.map((article) => [article.id, article]))
 
@@ -419,13 +440,12 @@ export class KnowledgeService {
 
   async findAllCategories(): Promise<KnowledgeCategory[]> {
     // Check cache first
-    const cached = await this.redisService.get(CACHE_KEYS.CATEGORY_TREE)
+    const cached = await this.redisService.safeGet(CACHE_KEYS.CATEGORY_TREE)
     if (cached) {
       return JSON.parse(cached) as KnowledgeCategory[]
     }
 
     const categories = await this.categoryRepository.find({
-      where: { deleted: false },
       relations: ['children'],
       order: { sort: 'ASC' },
     })
@@ -443,7 +463,6 @@ export class KnowledgeService {
    */
   async findTree(): Promise<KnowledgeCategoryTreeNode[]> {
     const list = await this.categoryRepository.find({
-      where: { deleted: false },
       order: { sort: 'ASC' },
     })
     const build = (parentId: number | null, depth: number): KnowledgeCategoryTreeNode[] => {
@@ -469,7 +488,7 @@ export class KnowledgeService {
 
   async updateCategory(id: number, dto: UpdateCategoryDto): Promise<KnowledgeCategory> {
     const category = await this.categoryRepository.findOne({
-      where: { id, deleted: false },
+      where: { id },
     })
     if (!category) {
       throw new NotFoundException(`Category with ID ${id} not found`)
@@ -486,9 +505,7 @@ export class KnowledgeService {
       await catRepo.save(category)
       const needPathUpdate = newParentId !== oldParentId
       if (needPathUpdate) {
-        const parent = newParentId
-          ? await catRepo.findOne({ where: { id: newParentId, deleted: false } })
-          : null
+        const parent = newParentId ? await catRepo.findOne({ where: { id: newParentId } }) : null
         const newPath = parent
           ? `${parent.path ?? String(parent.id)}/${category.id}`
           : String(category.id)
@@ -512,7 +529,7 @@ export class KnowledgeService {
   ): Promise<void> {
     const catRepo = em.getRepository(KnowledgeCategory)
     const children = await catRepo.find({
-      where: { parentId, deleted: false },
+      where: { parentId },
       order: { sort: 'ASC' },
     })
     for (const child of children) {
@@ -525,15 +542,14 @@ export class KnowledgeService {
 
   async removeCategory(id: number): Promise<void> {
     const category = await this.categoryRepository.findOne({
-      where: { id, deleted: false },
+      where: { id },
     })
 
     if (!category) {
       throw new NotFoundException(`Category with ID ${id} not found`)
     }
 
-    category.deleted = true
-    await this.categoryRepository.save(category)
+    await this.categoryRepository.softRemove(category)
     await this.invalidateCategoryCache()
   }
 
@@ -600,7 +616,7 @@ export class KnowledgeService {
 
   private async getArticleOrFail(articleId: number): Promise<KnowledgeArticle> {
     const article = await this.articleRepository.findOne({
-      where: { id: articleId, deleted: false },
+      where: { id: articleId },
     })
 
     if (!article) {

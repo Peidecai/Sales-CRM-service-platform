@@ -85,9 +85,7 @@ export class SalesTargetService {
       assignedUserId,
     } = query
 
-    const qb = this.targetRepository
-      .createQueryBuilder('target')
-      .where('target.deleted = :deleted', { deleted: false })
+    const qb = this.targetRepository.createQueryBuilder('target')
 
     // SALES users can only see their own individual targets or company/team targets
     if (user.role === UserRole.SALES) {
@@ -127,7 +125,7 @@ export class SalesTargetService {
 
   async findOne(id: number, user?: AuthUser): Promise<SalesTarget> {
     const target = await this.targetRepository.findOne({
-      where: { id, deleted: false },
+      where: { id },
       relations: ['children'],
     })
     if (!target) {
@@ -147,8 +145,7 @@ export class SalesTargetService {
 
   async remove(id: number): Promise<void> {
     const target = await this.findOne(id)
-    target.deleted = true
-    await this.targetRepository.save(target)
+    await this.targetRepository.softRemove(target)
     await this.invalidateTargetCache()
   }
 
@@ -280,7 +277,6 @@ export class SalesTargetService {
       .createQueryBuilder('t')
       .select('t.team_id', 'teamId')
       .addSelect('SUM(t.achieved_value)', 'totalValue')
-      .where('t.deleted = :deleted', { deleted: false })
       .andWhere('t.scope = :scope', { scope: TargetScope.TEAM })
       .andWhere('t.metricType = :metricType', { metricType })
       .andWhere('t.year = :year', { year })
@@ -318,9 +314,7 @@ export class SalesTargetService {
 
   async updateAllAchievements(): Promise<number> {
     const now = new Date()
-    const targets = await this.targetRepository.find({
-      where: { deleted: false },
-    })
+    const targets = await this.targetRepository.find()
 
     let updated = 0
     for (const target of targets) {
@@ -363,7 +357,6 @@ export class SalesTargetService {
     const qb = this.opportunityRepository
       .createQueryBuilder('o')
       .select('COALESCE(SUM(o.amount), 0)', 'total')
-      .where('o.deleted = :deleted', { deleted: false })
       .andWhere('o.stage = :stage', { stage: OpportunityStage.CLOSED_WON })
       .andWhere('o.updatedAt BETWEEN :start AND :end', { start, end })
 
@@ -378,7 +371,6 @@ export class SalesTargetService {
     const qb = this.opportunityRepository
       .createQueryBuilder('o')
       .select('COUNT(*)', 'total')
-      .where('o.deleted = :deleted', { deleted: false })
       .andWhere('o.stage = :stage', { stage: OpportunityStage.CLOSED_WON })
       .andWhere('o.updatedAt BETWEEN :start AND :end', { start, end })
 
@@ -397,7 +389,6 @@ export class SalesTargetService {
     const qb = this.customerRepository
       .createQueryBuilder('c')
       .select('COUNT(*)', 'total')
-      .where('c.deleted = :deleted', { deleted: false })
       .andWhere('c.createdAt BETWEEN :start AND :end', { start, end })
 
     if (target.scope === TargetScope.INDIVIDUAL && target.assignedUserId) {
@@ -411,7 +402,6 @@ export class SalesTargetService {
     const qb = this.callRecordRepository
       .createQueryBuilder('cr')
       .select('COUNT(*)', 'total')
-      .where('cr.deleted = :deleted', { deleted: false })
       .andWhere('cr.callAt BETWEEN :start AND :end', { start, end })
 
     if (target.scope === TargetScope.INDIVIDUAL && target.assignedUserId) {
@@ -430,22 +420,22 @@ export class SalesTargetService {
     const quarter = Math.ceil(month / 3)
     const snapshotDate = now.toISOString().slice(0, 10)
 
-    // Check if today's snapshot already exists — avoid duplicates on re-run
-    const existing = await this.rankingRepository.findOne({
-      where: { snapshotDate: new Date(snapshotDate), year, month },
-    })
-    if (existing) {
-      return 0
-    }
-
     const users = await this.userRepository.find({
-      where: { isActive: true, deleted: false },
+      where: { isActive: true },
     })
 
     const metricTypes = Object.values(TargetMetricType)
     let created = 0
 
     for (const metricType of metricTypes) {
+      // Check if today's snapshot already exists for this metricType — avoid duplicates on re-run
+      const existing = await this.rankingRepository.findOne({
+        where: { snapshotDate: new Date(snapshotDate), year, month, metricType },
+      })
+      if (existing) {
+        continue
+      }
+
       // Compute per-user metrics for current month
       const userMetrics: Array<{ userId: number; userName: string; value: number }> = []
 
@@ -494,7 +484,6 @@ export class SalesTargetService {
         const result = await this.opportunityRepository
           .createQueryBuilder('o')
           .select('COALESCE(SUM(o.amount), 0)', 'total')
-          .where('o.deleted = :deleted', { deleted: false })
           .andWhere('o.stage = :stage', { stage: OpportunityStage.CLOSED_WON })
           .andWhere('o.assignedUserId = :userId', { userId })
           .andWhere('o.updatedAt BETWEEN :start AND :end', { start, end })
@@ -505,7 +494,6 @@ export class SalesTargetService {
         const result = await this.opportunityRepository
           .createQueryBuilder('o')
           .select('COUNT(*)', 'total')
-          .where('o.deleted = :deleted', { deleted: false })
           .andWhere('o.stage = :stage', { stage: OpportunityStage.CLOSED_WON })
           .andWhere('o.assignedUserId = :userId', { userId })
           .andWhere('o.updatedAt BETWEEN :start AND :end', { start, end })
@@ -516,7 +504,6 @@ export class SalesTargetService {
         const result = await this.customerRepository
           .createQueryBuilder('c')
           .select('COUNT(*)', 'total')
-          .where('c.deleted = :deleted', { deleted: false })
           .andWhere('c.assignedUserId = :userId', { userId })
           .andWhere('c.createdAt BETWEEN :start AND :end', { start, end })
           .getRawOne<{ total: string }>()
@@ -526,7 +513,6 @@ export class SalesTargetService {
         const result = await this.callRecordRepository
           .createQueryBuilder('cr')
           .select('COUNT(*)', 'total')
-          .where('cr.deleted = :deleted', { deleted: false })
           .andWhere('cr.userId = :userId', { userId })
           .andWhere('cr.callAt BETWEEN :start AND :end', { start, end })
           .getRawOne<{ total: string }>()
@@ -548,14 +534,13 @@ export class SalesTargetService {
     }>
   > {
     const cacheKey = `${CACHE_KEYS.SALES_TARGET_STATS}:overview:${year}`
-    const cached = await this.redisService.get(cacheKey)
+    const cached = await this.redisService.safeGet(cacheKey)
     if (cached) return JSON.parse(cached)
 
     const targets = await this.targetRepository.find({
       where: {
         scope: TargetScope.COMPANY,
         year,
-        deleted: false,
         period: TargetPeriod.YEAR,
       },
     })

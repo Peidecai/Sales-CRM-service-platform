@@ -206,6 +206,18 @@ describe('KnowledgeService', () => {
       articleRepo.findOne.mockResolvedValue({ ...article })
       articleRepo.save.mockImplementation(async (a) => a)
 
+      // Mock the optimistic lock QB chain (createQueryBuilder → update → set → where → execute)
+      const updateQb = {
+        update: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue({ affected: 1 }),
+      }
+      articleRepo.createQueryBuilder.mockReturnValue(updateQb as never)
+
+      const updatedArticle = fixtures.knowledgeArticle({ title: 'Updated Title' })
+      articleRepo.findOneOrFail.mockResolvedValue(updatedArticle)
+
       const result = await service.updateArticle(1, { title: 'Updated Title' } as never)
 
       expect(result.title).toBe('Updated Title')
@@ -215,6 +227,15 @@ describe('KnowledgeService', () => {
       const article = fixtures.knowledgeArticle()
       articleRepo.findOne.mockResolvedValue({ ...article })
       articleRepo.save.mockImplementation(async (a) => a)
+
+      const updateQb = {
+        update: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue({ affected: 1 }),
+      }
+      articleRepo.createQueryBuilder.mockReturnValue(updateQb as never)
+      articleRepo.findOneOrFail.mockResolvedValue(fixtures.knowledgeArticle({ content: 'New content' }))
 
       await service.updateArticle(1, { content: 'New content' } as never)
 
@@ -228,6 +249,15 @@ describe('KnowledgeService', () => {
       const article = fixtures.knowledgeArticle()
       articleRepo.findOne.mockResolvedValue({ ...article })
       articleRepo.save.mockImplementation(async (a) => a)
+
+      const updateQb = {
+        update: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue({ affected: 1 }),
+      }
+      articleRepo.createQueryBuilder.mockReturnValue(updateQb as never)
+      articleRepo.findOneOrFail.mockResolvedValue(fixtures.knowledgeArticle({ title: 'New Title' }))
 
       await service.updateArticle(1, { title: 'New Title' } as never)
 
@@ -246,6 +276,15 @@ describe('KnowledgeService', () => {
       articleRepo.findOne.mockResolvedValue({ ...article })
       articleRepo.save.mockImplementation(async (a) => a)
 
+      const updateQb = {
+        update: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue({ affected: 1 }),
+      }
+      articleRepo.createQueryBuilder.mockReturnValue(updateQb as never)
+      articleRepo.findOneOrFail.mockResolvedValue(fixtures.knowledgeArticle({ isPublished: false }))
+
       await service.updateArticle(1, { isPublished: false } as never)
 
       expect(mockEmbeddingQueue.add).not.toHaveBeenCalled()
@@ -257,11 +296,11 @@ describe('KnowledgeService', () => {
     it('should soft-delete article and remove vectors', async () => {
       const article = fixtures.knowledgeArticle()
       articleRepo.findOne.mockResolvedValue({ ...article })
-      articleRepo.save.mockImplementation(async (a) => a)
+      articleRepo.softRemove.mockResolvedValue(article)
 
       await service.removeArticle(1)
 
-      expect(articleRepo.save).toHaveBeenCalledWith(expect.objectContaining({ deleted: true }))
+      expect(articleRepo.softRemove).toHaveBeenCalled()
       expect(mockVectorService.deleteArticleVectors).toHaveBeenCalledWith(1)
     })
 
@@ -469,7 +508,7 @@ describe('KnowledgeService', () => {
   describe('findAllCategories', () => {
     it('should return cached categories on cache hit', async () => {
       const categories = [fixtures.knowledgeCategory()]
-      redis.get.mockResolvedValue(JSON.stringify(categories))
+      redis.safeGet.mockResolvedValue(JSON.stringify(categories))
 
       const result = await service.findAllCategories()
 
@@ -478,7 +517,7 @@ describe('KnowledgeService', () => {
     })
 
     it('should query DB and cache on cache miss', async () => {
-      redis.get.mockResolvedValue(null)
+      redis.safeGet.mockResolvedValue(null)
       const categories = [fixtures.knowledgeCategory()]
       categoryRepo.find.mockResolvedValue(categories)
 
@@ -498,11 +537,11 @@ describe('KnowledgeService', () => {
     it('should soft-delete category and invalidate cache', async () => {
       const category = fixtures.knowledgeCategory()
       categoryRepo.findOne.mockResolvedValue({ ...category })
-      categoryRepo.save.mockImplementation(async (c) => c)
+      categoryRepo.softRemove.mockResolvedValue(category)
 
       await service.removeCategory(1)
 
-      expect(categoryRepo.save).toHaveBeenCalledWith(expect.objectContaining({ deleted: true }))
+      expect(categoryRepo.softRemove).toHaveBeenCalled()
       expect(redis.del).toHaveBeenCalledWith('cache:knowledge:categories')
     })
 

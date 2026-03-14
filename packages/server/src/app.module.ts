@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'
+import { APP_GUARD } from '@nestjs/core'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { BullModule } from '@nestjs/bull'
@@ -6,6 +7,7 @@ import { ThrottlerModule } from '@nestjs/throttler'
 import { ScheduleModule } from '@nestjs/schedule'
 import { databaseConfig } from './config/database.config'
 import { RedisModule } from './common/redis'
+import { buildRedisOptions } from './common/redis'
 import { AuthModule } from './modules/auth/auth.module'
 import { HealthModule } from './modules/health/health.module'
 import { UserModule } from './modules/user/user.module'
@@ -30,6 +32,7 @@ import { MaterialModule } from './modules/material/material.module'
 import { AnnouncementModule } from './modules/announcement/announcement.module'
 import { RbacModule } from './modules/rbac/rbac.module'
 import { SecurityModule } from './common/security/security.module'
+import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard'
 import { RouteModule } from './modules/route/route.module'
 import { QuotationModule } from './modules/quotation/quotation.module'
 import { PaymentModule } from './modules/payment/payment.module'
@@ -47,7 +50,7 @@ import { ApprovalModule } from './modules/approval/approval.module'
     // Database
     TypeOrmModule.forRootAsync({
       useFactory: databaseConfig,
-      inject: [],
+      inject: [ConfigService],
     }),
 
     // Redis (global)
@@ -61,15 +64,10 @@ import { ApprovalModule } from './modules/approval/approval.module'
       },
     ]),
 
-    // Bull queue (backed by Redis)
+    // Bull queue (backed by Redis — supports both standalone and Sentinel mode)
     BullModule.forRootAsync({
       useFactory: (config: ConfigService) => ({
-        redis: {
-          host: config.get<string>('REDIS_HOST', 'localhost'),
-          port: config.get<number>('REDIS_PORT', 6379),
-          password: config.get<string>('REDIS_PASSWORD', '') || undefined,
-          db: config.get<number>('REDIS_DB', 0),
-        },
+        redis: buildRedisOptions(config),
       }),
       inject: [ConfigService],
     }),
@@ -111,6 +109,12 @@ import { ApprovalModule } from './modules/approval/approval.module'
     PaymentModule,
     ContractModule,
     ApprovalModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: CustomThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

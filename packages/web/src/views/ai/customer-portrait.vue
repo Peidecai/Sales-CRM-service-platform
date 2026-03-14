@@ -25,12 +25,16 @@
             <el-card shadow="never">
               <template #header><span>基本信息</span></template>
               <el-descriptions :column="1" border size="small">
-                <el-descriptions-item label="客户名称">{{
-                  portrait.customerName
-                }}</el-descriptions-item>
-                <el-descriptions-item label="行业">{{
-                  portrait.industry || '未知'
-                }}</el-descriptions-item>
+                <el-descriptions-item label="客户名称">
+                  {{
+                    portrait.customerName
+                  }}
+                </el-descriptions-item>
+                <el-descriptions-item label="行业">
+                  {{
+                    portrait.industry || '未知'
+                  }}
+                </el-descriptions-item>
                 <el-descriptions-item label="意向评分">
                   <el-progress
                     :percentage="portrait.intentScore"
@@ -38,11 +42,15 @@
                   />
                 </el-descriptions-item>
                 <el-descriptions-item label="成交概率"
-                  >{{ portrait.dealProbability }}%</el-descriptions-item
                 >
-                <el-descriptions-item label="生成时间">{{
-                  portrait.generatedAt
-                }}</el-descriptions-item>
+                  {{ portrait.dealProbability }}%
+                </el-descriptions-item
+                >
+                <el-descriptions-item label="生成时间">
+                  {{
+                    portrait.generatedAt
+                  }}
+                </el-descriptions-item>
               </el-descriptions>
             </el-card>
           </el-col>

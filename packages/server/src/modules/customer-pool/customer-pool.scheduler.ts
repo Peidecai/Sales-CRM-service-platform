@@ -44,14 +44,13 @@ export class CustomerPoolScheduler {
         .createQueryBuilder('c')
         .where('c.status = :status', { status })
         .andWhere('c.is_in_pool = false')
-        .andWhere('c.deleted = false')
         .andWhere('(c.protect_until IS NULL OR c.protect_until < NOW())')
         .andWhere((qb) => {
           const subQuery = qb
             .subQuery()
             .select('MAX(f.created_at)')
             .from(FollowUp, 'f')
-            .where('f.customer_id = c.id AND f.deleted = false')
+            .where('f.customer_id = c.id AND f.deleted_at IS NULL')
             .getQuery()
           return `(${subQuery}) < :cutoff OR (${subQuery}) IS NULL`
         })
@@ -62,7 +61,7 @@ export class CustomerPoolScheduler {
         const prevUserId = customer.assignedUserId
         customer.isInPool = true
         customer.assignedUserId = null as unknown as number
-        customer.poolEnterTime = new Date()
+        customer.poolEnteredAt = new Date()
         customer.protectUntil = null as unknown as Date
         await this.customerRepo.save(customer)
 

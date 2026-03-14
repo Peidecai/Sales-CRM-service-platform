@@ -33,11 +33,11 @@ export class CampaignTask {
   @Column({ name: 'success_count', default: 0 })
   successCount!: number
 
-  @Column({ name: 'start_time', type: 'datetime', nullable: true })
-  startTime!: Date | null
+  @Column({ name: 'started_at', type: 'datetime', nullable: true })
+  startedAt!: Date | null
 
-  @Column({ name: 'end_time', type: 'datetime', nullable: true })
-  endTime!: Date | null
+  @Column({ name: 'ended_at', type: 'datetime', nullable: true })
+  endedAt!: Date | null
 
   @Column({ name: 'created_by' })
   createdBy!: number

@@ -55,9 +55,7 @@ export class PaymentService {
   async findAll(query: QueryPaymentDto): Promise<PageResult<Payment>> {
     const { page = 1, pageSize = 20, contractId, customerId, ownerId, status, isOverdue } = query
 
-    const qb = this.paymentRepository
-      .createQueryBuilder('p')
-      .where('p.deleted = :deleted', { deleted: false })
+    const qb = this.paymentRepository.createQueryBuilder('p')
 
     if (contractId) {
       qb.andWhere('p.contractId = :contractId', { contractId })
@@ -86,7 +84,7 @@ export class PaymentService {
 
   async findOne(id: number): Promise<Payment> {
     const payment = await this.paymentRepository.findOne({
-      where: { id, deleted: false },
+      where: { id },
     })
     if (!payment) {
       throw new NotFoundException(`Payment with ID ${id} not found`)
@@ -102,8 +100,7 @@ export class PaymentService {
 
   async remove(id: number): Promise<void> {
     const payment = await this.findOne(id)
-    payment.deleted = true
-    await this.paymentRepository.save(payment)
+    await this.paymentRepository.softRemove(payment)
   }
 
   // ─── Confirm Payment Arrival ──────────────────────────────────────────
@@ -130,7 +127,6 @@ export class PaymentService {
 
     return this.paymentRepository
       .createQueryBuilder('p')
-      .where('p.deleted = :deleted', { deleted: false })
       .andWhere('p.status = :status', { status: PaymentStatus.PLANNED })
       .andWhere('p.plannedDate < :today', { today })
       .orderBy('p.plannedDate', 'ASC')
@@ -145,7 +141,6 @@ export class PaymentService {
 
     const overduePayments = await this.paymentRepository
       .createQueryBuilder('p')
-      .where('p.deleted = :deleted', { deleted: false })
       .andWhere('p.status = :status', { status: PaymentStatus.PLANNED })
       .andWhere('p.plannedDate < :today', { today })
       .getMany()

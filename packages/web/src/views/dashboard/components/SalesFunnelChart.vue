@@ -22,7 +22,7 @@
                 <div class="summary-item">
                   <span class="summary-label">赢单率</span>
                   <span class="summary-value win-rate"
-                    >{{ (funnelData.winRate * 100).toFixed(1) }}%</span
+                  >{{ (funnelData.winRate * 100).toFixed(1) }}%</span
                   >
                 </div>
                 <el-divider />
@@ -37,7 +37,7 @@
                       />
                     </div>
                     <span class="conversion-rate"
-                      >{{ (item.conversionRate * 100).toFixed(1) }}%</span
+                    >{{ (item.conversionRate * 100).toFixed(1) }}%</span
                     >
                   </div>
                 </div>

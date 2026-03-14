@@ -9,8 +9,9 @@ import { Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { JwtService } from '@nestjs/jwt'
 import { Server, Socket } from 'socket.io'
+import { randomUUID } from 'crypto'
 import { NotificationPayload } from './notification.types'
-import { AuthService } from '../auth/auth.service'
+import { TokenService } from '../auth/token.service'
 
 function resolveWsCorsOrigins(): string[] {
   const raw = process.env.CORS_ORIGINS ?? 'http://localhost:5173,http://localhost:3001'
@@ -60,7 +61,7 @@ export class NotificationGateway
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-    private readonly authService: AuthService,
+    private readonly tokenService: TokenService,
   ) {}
 
   afterInit() {
@@ -105,23 +106,29 @@ export class NotificationGateway
 
   /**
    * Broadcast a notification to all connected clients.
+   * Automatically assigns an eventId if not already present.
    */
   broadcast(payload: NotificationPayload) {
-    this.server.emit('notification', payload)
-    this.logger.debug(`Broadcast: ${payload.type} - ${payload.message}`)
+    const enriched = this.ensureEventId(payload)
+    this.server.emit('notification', enriched)
+    this.logger.debug(
+      `Broadcast: ${enriched.type} - ${enriched.message} (eventId: ${enriched.eventId})`,
+    )
   }
 
   /**
    * Send a notification to a specific user (all their connected sockets).
+   * Automatically assigns an eventId if not already present.
    */
   sendToUser(userId: number, payload: NotificationPayload) {
     const socketIds = this.userSockets.get(userId)
     if (!socketIds || socketIds.size === 0) return
 
+    const enriched = this.ensureEventId(payload)
     for (const socketId of socketIds) {
-      this.server.to(socketId).emit('notification', payload)
+      this.server.to(socketId).emit('notification', enriched)
     }
-    this.logger.debug(`Sent to user ${userId}: ${payload.type}`)
+    this.logger.debug(`Sent to user ${userId}: ${enriched.type} (eventId: ${enriched.eventId})`)
   }
 
   /**
@@ -168,7 +175,7 @@ export class NotificationGateway
         return null
       }
 
-      const isBlacklisted = await this.authService.isTokenBlacklisted(token)
+      const isBlacklisted = await this.tokenService.isTokenBlacklisted(token)
       if (isBlacklisted) {
         return null
       }
@@ -177,5 +184,11 @@ export class NotificationGateway
     } catch {
       return null
     }
+  }
+
+  /** Assign a UUID eventId if not already present */
+  private ensureEventId(payload: NotificationPayload): NotificationPayload {
+    if (payload.eventId) return payload
+    return { ...payload, eventId: randomUUID() }
   }
 }

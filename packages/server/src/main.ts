@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core'
 import { ValidationPipe } from '@nestjs/common'
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger'
 import { ConfigService } from '@nestjs/config'
+import * as cookieParser from 'cookie-parser'
 import { AppModule } from './app.module'
 import { HttpExceptionFilter } from './common/filters/http-exception.filter'
 import { ResponseInterceptor } from './common/interceptors/response.interceptor'
@@ -10,6 +11,8 @@ import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
 import { DataMaskInterceptor } from './common/interceptors/data-mask.interceptor'
 import { SanitizeHtmlPipe } from './common/pipes/sanitize-html.pipe'
 import { SqlInjectionMiddleware } from './common/middleware/sql-injection.middleware'
+import { RequestContextMiddleware } from './common/middleware/request-context.middleware'
+import { CsrfMiddleware } from './common/middleware/csrf.middleware'
 import { WinstonLoggerService } from './common/logger/winston-logger.service'
 
 async function bootstrap() {
@@ -35,9 +38,31 @@ async function bootstrap() {
   app.enableCors({
     origin: corsOrigins.split(',').map((o) => o.trim()),
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Signature', 'X-Timestamp', 'X-Nonce'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Signature',
+      'X-Timestamp',
+      'X-Nonce',
+      'X-Request-Id',
+      'X-XSRF-TOKEN',
+    ],
+    exposedHeaders: ['X-Request-Id'],
     credentials: true,
   })
+
+  // Cookie parser — required for CSRF double-submit cookie pattern
+  app.use(cookieParser())
+
+  // Request context middleware — traceId via AsyncLocalStorage (must be first)
+  const requestContextMiddleware = new RequestContextMiddleware()
+  app.use((req: unknown, res: unknown, next: unknown) =>
+    requestContextMiddleware.use(
+      req as Parameters<RequestContextMiddleware['use']>[0],
+      res as Parameters<RequestContextMiddleware['use']>[1],
+      next as Parameters<RequestContextMiddleware['use']>[2],
+    ),
+  )
 
   // SQL injection detection middleware (#164)
   const sqlInjectionMiddleware = new SqlInjectionMiddleware()
@@ -46,6 +71,16 @@ async function bootstrap() {
       req as Parameters<SqlInjectionMiddleware['use']>[0],
       res as Parameters<SqlInjectionMiddleware['use']>[1],
       next as Parameters<SqlInjectionMiddleware['use']>[2],
+    ),
+  )
+
+  // CSRF double-submit cookie validation
+  const csrfMiddleware = new CsrfMiddleware()
+  app.use((req: unknown, res: unknown, next: unknown) =>
+    csrfMiddleware.use(
+      req as Parameters<CsrfMiddleware['use']>[0],
+      res as Parameters<CsrfMiddleware['use']>[1],
+      next as Parameters<CsrfMiddleware['use']>[2],
     ),
   )
 

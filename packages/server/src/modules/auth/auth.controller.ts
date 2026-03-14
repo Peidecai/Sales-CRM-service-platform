@@ -15,6 +15,8 @@ import { Request } from 'express'
 import { v4 as uuidv4 } from 'uuid'
 import * as svgCaptcha from 'svg-captcha'
 import { AuthService } from './auth.service'
+import { WxAuthService } from './wx-auth.service'
+import { CaptchaService } from './captcha.service'
 import { LoginDto } from './dto/login.dto'
 import { RefreshTokenDto } from './dto/refresh-token.dto'
 import { UpdateProfileDto } from './dto/update-profile.dto'
@@ -23,14 +25,14 @@ import { WxLoginDto } from './dto/wx-login.dto'
 import { BindPhoneDto } from './dto/bind-phone.dto'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
-import { RedisService } from '../../common/redis'
 
 @ApiTags('认证')
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-    private readonly redisService: RedisService,
+    private readonly wxAuthService: WxAuthService,
+    private readonly captchaService: CaptchaService,
   ) {}
 
   @Post('login')
@@ -58,7 +60,7 @@ export class AuthController {
     })
     const captchaId = uuidv4()
     // Store captcha text in Redis for 5 minutes
-    await this.redisService.set(`captcha:${captchaId}`, captcha.text, 300)
+    await this.captchaService.store(captchaId, captcha.text, 300)
     return {
       captchaId,
       svg: captcha.data,
@@ -133,7 +135,7 @@ export class AuthController {
   @ApiResponse({ status: 200, description: '登录成功，返回 JWT 令牌' })
   @ApiResponse({ status: 400, description: '微信登录失败' })
   wxLogin(@Body() dto: WxLoginDto) {
-    return this.authService.wxLogin(dto.code)
+    return this.wxAuthService.wxLogin(dto.code)
   }
 
   @Post('bind-phone')
@@ -145,6 +147,6 @@ export class AuthController {
   @ApiResponse({ status: 200, description: '绑定成功' })
   @ApiResponse({ status: 400, description: '获取手机号失败' })
   bindPhone(@CurrentUser('id') userId: number, @Body() dto: BindPhoneDto) {
-    return this.authService.bindPhone(userId, dto.code)
+    return this.wxAuthService.bindPhone(userId, dto.code)
   }
 }

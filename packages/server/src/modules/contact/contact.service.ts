@@ -25,7 +25,6 @@ export class ContactService {
     const qb = this.contactRepository
       .createQueryBuilder('contact')
       .where('contact.customer_id = :customerId', { customerId })
-      .andWhere('contact.deleted = :deleted', { deleted: false })
 
     if (keyword) {
       qb.andWhere('(contact.name LIKE :kw OR contact.mobile LIKE :kw)', { kw: `%${keyword}%` })
@@ -48,7 +47,7 @@ export class ContactService {
     duplicateWarnings: Array<{ id: number; name: string; mobile: string; email: string }>
   }> {
     const customer = await this.customerRepository.findOne({
-      where: { id: customerId, deleted: false },
+      where: { id: customerId },
     })
     if (!customer) {
       throw new NotFoundException(`Customer ${customerId} not found`)
@@ -72,7 +71,7 @@ export class ContactService {
 
   async update(id: number, dto: UpdateContactDto): Promise<Contact> {
     const contact = await this.contactRepository.findOne({
-      where: { id, deleted: false },
+      where: { id },
     })
     if (!contact) {
       throw new NotFoundException(`Contact ${id} not found`)
@@ -84,22 +83,19 @@ export class ContactService {
 
   async remove(id: number): Promise<void> {
     const contact = await this.contactRepository.findOne({
-      where: { id, deleted: false },
+      where: { id },
     })
     if (!contact) {
       throw new NotFoundException(`Contact ${id} not found`)
     }
 
-    contact.deleted = true
-    await this.contactRepository.save(contact)
+    await this.contactRepository.softRemove(contact)
   }
 
   async checkDuplicate(mobile?: string, email?: string): Promise<Contact[]> {
     if (!mobile && !email) return []
 
-    const qb = this.contactRepository
-      .createQueryBuilder('contact')
-      .where('contact.deleted = :deleted', { deleted: false })
+    const qb = this.contactRepository.createQueryBuilder('contact')
 
     const conditions: string[] = []
     const params: Record<string, string> = {}
@@ -119,7 +115,7 @@ export class ContactService {
 
   async setPrimary(contactId: number): Promise<Contact> {
     const contact = await this.contactRepository.findOne({
-      where: { id: contactId, deleted: false },
+      where: { id: contactId },
     })
     if (!contact) {
       throw new NotFoundException(`Contact ${contactId} not found`)
@@ -133,7 +129,7 @@ export class ContactService {
       // Reset all contacts for this customer
       await queryRunner.manager.update(
         Contact,
-        { customerId: contact.customerId, deleted: false },
+        { customerId: contact.customerId },
         { isPrimary: false },
       )
       // Set the target contact as primary

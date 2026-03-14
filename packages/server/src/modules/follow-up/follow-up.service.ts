@@ -47,12 +47,12 @@ export class FollowUpService {
     const { page = 1, pageSize = 20, type } = query
 
     const cacheKey = `${CACHE_KEYS.FOLLOW_UP_LIST}:${customerId}:${JSON.stringify({ page, pageSize, type, _role: user.role, _uid: user.role === UserRole.SALES ? user.id : 0 })}`
-    const cached = await this.redisService.get(cacheKey)
+    const cached = await this.redisService.safeGet(cacheKey)
     if (cached) {
       return JSON.parse(cached) as { list: FollowUp[]; total: number }
     }
 
-    const where: Record<string, unknown> = { customerId, deleted: false }
+    const where: Record<string, unknown> = { customerId }
     if (type) {
       where['type'] = type
     }
@@ -71,7 +71,7 @@ export class FollowUpService {
   }
 
   async findOne(id: number): Promise<FollowUp> {
-    const followUp = await this.followUpRepo.findOne({ where: { id, deleted: false } })
+    const followUp = await this.followUpRepo.findOne({ where: { id } })
     if (!followUp) {
       throw new NotFoundException(`FollowUp with ID ${id} not found`)
     }
@@ -103,8 +103,7 @@ export class FollowUpService {
       throw new ForbiddenException('您无权删除此跟进记录')
     }
 
-    followUp.deleted = true
-    await this.followUpRepo.save(followUp)
+    await this.followUpRepo.softRemove(followUp)
     await this.invalidateCustomerCache(followUp.customerId)
   }
 
@@ -114,7 +113,7 @@ export class FollowUpService {
 
   private async ensureCustomerAccessible(customerId: number, user: AuthUser): Promise<void> {
     const customer = await this.customerRepo.findOne({
-      where: { id: customerId, deleted: false },
+      where: { id: customerId },
     })
     if (!customer) {
       throw new NotFoundException(`Customer with ID ${customerId} not found`)

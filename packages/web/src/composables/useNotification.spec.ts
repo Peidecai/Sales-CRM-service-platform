@@ -179,6 +179,91 @@ describe('useNotification', () => {
     expect(api.connected.value).toBe(false)
   })
 
+  it('deduplicates notifications by eventId', async () => {
+    const userStore = useUserStore()
+    userStore.token = 'token-dedup'
+    userStore.userInfo = { id: 300, username: 'sales', name: 'Sales', role: 'sales' }
+
+    const socket = createMockSocket(false)
+    ioMock.mockReturnValue(socket)
+
+    const { wrapper, api } = mountUseNotification(pinia)
+    await nextTick()
+
+    const basePayload: NotificationPayload = {
+      type: 'customer:created',
+      eventId: 'evt-001',
+      actorId: 999,
+      actorName: 'Other',
+      resource: 'customer',
+      resourceId: 1,
+      message: 'customer created',
+      timestamp: new Date().toISOString(),
+    }
+
+    // First delivery should be accepted
+    socket.handlers.notification?.(basePayload)
+    expect(api.notifications.value).toHaveLength(1)
+    expect(notificationMock).toHaveBeenCalledTimes(1)
+
+    // Duplicate with same eventId should be silently ignored
+    socket.handlers.notification?.(basePayload)
+    expect(api.notifications.value).toHaveLength(1)
+    expect(notificationMock).toHaveBeenCalledTimes(1)
+
+    // Different eventId should be accepted
+    socket.handlers.notification?.({ ...basePayload, eventId: 'evt-002', message: 'another' })
+    expect(api.notifications.value).toHaveLength(2)
+    expect(notificationMock).toHaveBeenCalledTimes(2)
+
+    // Notification without eventId should always be accepted (no dedup)
+    const noIdPayload: NotificationPayload = { ...basePayload, eventId: undefined, message: 'no id 1' }
+    socket.handlers.notification?.(noIdPayload)
+    socket.handlers.notification?.(noIdPayload)
+    expect(api.notifications.value).toHaveLength(4)
+
+    wrapper.unmount()
+    api.disconnect()
+  })
+
+  it('evicts oldest eventIds when max capacity exceeded', async () => {
+    const userStore = useUserStore()
+    userStore.token = 'token-evict'
+    userStore.userInfo = { id: 400, username: 'admin2', name: 'Admin2', role: 'admin' }
+
+    const socket = createMockSocket(false)
+    ioMock.mockReturnValue(socket)
+
+    const { wrapper, api } = mountUseNotification(pinia)
+    await nextTick()
+
+    const makePayload = (eventId: string): NotificationPayload => ({
+      type: 'opportunity:updated',
+      eventId,
+      actorId: 999,
+      actorName: 'Other',
+      resource: 'opportunity',
+      resourceId: 1,
+      message: `event ${eventId}`,
+      timestamp: new Date().toISOString(),
+    })
+
+    // Fill the Set to exceed PROCESSED_EVENT_IDS_MAX (1000)
+    for (let i = 0; i < 1010; i++) {
+      socket.handlers.notification?.(makePayload(`fill-${i}`))
+    }
+
+    // After eviction, old eventIds should no longer be tracked, so they'd be accepted again
+    // The first ~500 should have been evicted (deleteCount = floor(1000/2) = 500)
+    api.clearNotifications()
+    socket.handlers.notification?.(makePayload('fill-0'))
+    // fill-0 was evicted, so it should be accepted as new
+    expect(api.notifications.value).toHaveLength(1)
+
+    wrapper.unmount()
+    api.disconnect()
+  })
+
   it('uses a singleton socket across multiple consumers', async () => {
     const userStore = useUserStore()
     userStore.token = 'token-2'

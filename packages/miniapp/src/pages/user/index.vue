@@ -1,6 +1,6 @@
 <template>
   <view class="user-page">
-    <TabBar :selected="3" />
+    <TabBar :selected="4" />
 
     <!-- User Header -->
     <view class="user-header">

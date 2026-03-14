@@ -4,7 +4,7 @@ import { BullModule } from '@nestjs/bull'
 import { RecordingFile } from './entities/recording-file.entity'
 import { AsrTask } from './entities/asr-task.entity'
 import { CallTranscript } from './entities/call-transcript.entity'
-import { CallRecord } from '../call-record/call-record.entity'
+import { CallRecordModule } from '../call-record/call-record.module'
 import { OssRecordingService } from './oss-recording.service'
 import { XunfeiAsrAdapter } from './adapters/xunfei-asr.adapter'
 import { RecordingService } from './recording.service'
@@ -13,8 +13,17 @@ import { AsrProcessor } from './asr.processor'
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([RecordingFile, AsrTask, CallTranscript, CallRecord]),
-    BullModule.registerQueue({ name: 'asr' }),
+    TypeOrmModule.forFeature([RecordingFile, AsrTask, CallTranscript]),
+    CallRecordModule,
+    BullModule.registerQueue({
+      name: 'asr',
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5000 },
+        removeOnComplete: 100,
+        removeOnFail: 200,
+      },
+    }),
   ],
   controllers: [RecordingController],
   providers: [

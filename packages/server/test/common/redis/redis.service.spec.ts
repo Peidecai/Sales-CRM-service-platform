@@ -126,14 +126,15 @@ describe('RedisService', () => {
     expect(result).toBe(2)
   })
 
-  it('delByPattern should reject on stream error', async () => {
+  it('delByPattern should resolve 0 on stream error (graceful)', async () => {
     const stream = new EventEmitter()
     mockClient.scanStream.mockReturnValue(stream)
 
     const promise = service.delByPattern('cache:*')
     stream.emit('error', new Error('scan failed'))
 
-    await expect(promise).rejects.toThrow('scan failed')
+    const result = await promise
+    expect(result).toBe(0)
   })
 
   it('exists should map 1 to true and 0 to false', async () => {

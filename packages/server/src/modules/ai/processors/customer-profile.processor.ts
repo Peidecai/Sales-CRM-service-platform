@@ -1,10 +1,12 @@
-import { Process, Processor } from '@nestjs/bull'
+import { Process, Processor, OnQueueFailed } from '@nestjs/bull'
 import { Logger } from '@nestjs/common'
 import { Job } from 'bull'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { CustomerProfile } from '../entities/customer-profile.entity'
 import { AiFallbackService } from '../ai-fallback.service'
+import { NotificationService } from '../../notification/notification.service'
+import { NotificationType } from '../../notification/notification.types'
 
 export interface CustomerProfileJobData {
   customerId: number
@@ -18,6 +20,7 @@ export class CustomerProfileProcessor {
     @InjectRepository(CustomerProfile)
     private readonly profileRepo: Repository<CustomerProfile>,
     private readonly aiFallback: AiFallbackService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   @Process()
@@ -73,6 +76,27 @@ export class CustomerProfileProcessor {
     } catch (error) {
       this.logger.error(`Failed to generate profile for customer #${customerId}`, String(error))
       throw error
+    }
+  }
+
+  @OnQueueFailed()
+  async handleFailed(job: Job<CustomerProfileJobData>, error: Error): Promise<void> {
+    const maxAttempts = job.opts.attempts ?? 1
+    this.logger.error(
+      `客户画像任务失败 (${job.attemptsMade}/${maxAttempts}): ${error.message}`,
+      error.stack,
+    )
+
+    if (job.attemptsMade >= maxAttempts) {
+      this.notificationService.notify({
+        type: NotificationType.QUEUE_JOB_FAILED,
+        actorId: 0,
+        actorName: '系统',
+        resource: 'customer-profile',
+        resourceId: job.data.customerId,
+        message: `客户 #${job.data.customerId} 画像生成任务在 ${maxAttempts} 次重试后最终失败: ${error.message}`,
+        data: { queue: 'customer-profile', jobId: job.id, error: error.message },
+      })
     }
   }
 }

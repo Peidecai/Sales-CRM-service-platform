@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { Repository, DataSource } from 'typeorm'
 import { Customer } from '../customer/customer.entity'
 import { CustomerPoolLog, PoolAction } from './entities/customer-pool-log.entity'
 import { CustomerPoolConfigService } from './customer-pool-config.service'
@@ -19,21 +19,15 @@ export class CustomerPoolService {
     private readonly customerRepository: Repository<Customer>,
     @InjectRepository(CustomerPoolLog)
     private readonly poolLogRepository: Repository<CustomerPoolLog>,
+    private readonly dataSource: DataSource,
     private readonly configService: CustomerPoolConfigService,
     private readonly redisService: RedisService,
   ) {}
 
   async claim(userId: number, customerId: number): Promise<Customer> {
-    const customer = await this.customerRepository.findOne({
-      where: { id: customerId, isInPool: true, deleted: false },
-    })
-    if (!customer) {
-      throw new NotFoundException('客户不在公海池中')
-    }
-
     const config = await this.configService.getConfig()
 
-    // Check cooldown period
+    // Check cooldown period (read-only, safe outside transaction)
     const lastReturn = await this.poolLogRepository
       .createQueryBuilder('log')
       .where('log.customer_id = :customerId', { customerId })
@@ -50,7 +44,7 @@ export class CustomerPoolService {
       }
     }
 
-    // Check daily claim limit
+    // Check daily claim limit (Redis atomic incr, safe outside transaction)
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, '')
     const claimKey = `pool:claim:${userId}:${today}`
     const claimCount = await this.redisService.incr(claimKey)
@@ -61,27 +55,38 @@ export class CustomerPoolService {
       throw new BadRequestException(`今日领取已达上限(${config.daily_claim_limit}个)`)
     }
 
-    // Check max holding
-    const holdingCount = await this.customerRepository.count({
-      where: { assignedUserId: userId, deleted: false, isInPool: false },
-    })
-    if (holdingCount >= config.max_holding) {
-      throw new BadRequestException(`持有客户数已达上限(${config.max_holding}个)`)
-    }
-
-    // Execute claim in transaction
-    const queryRunner = this.customerRepository.manager.connection.createQueryRunner()
+    const queryRunner = this.dataSource.createQueryRunner()
     await queryRunner.connect()
     await queryRunner.startTransaction()
 
     try {
+      // Pessimistic lock: prevent concurrent claims on the same customer
+      const customer = await queryRunner.manager
+        .createQueryBuilder(Customer, 'customer')
+        .setLock('pessimistic_write')
+        .where('customer.id = :id', { id: customerId })
+        .andWhere('customer.isInPool = true')
+        .getOne()
+
+      if (!customer) {
+        throw new NotFoundException('客户不在公海池中或已被其他人领取')
+      }
+
+      // Check max holding inside transaction to avoid race condition
+      const holdingCount = await queryRunner.manager.count(Customer, {
+        where: { assignedUserId: userId, isInPool: false },
+      })
+      if (holdingCount >= config.max_holding) {
+        throw new BadRequestException(`持有客户数已达上限(${config.max_holding}个)`)
+      }
+
       const protectDays = config.protect_days_new
       const protectUntil = new Date()
       protectUntil.setDate(protectUntil.getDate() + protectDays)
 
       customer.isInPool = false
       customer.assignedUserId = userId
-      customer.poolEnterTime = null as unknown as Date
+      customer.poolEnteredAt = null as unknown as Date
       customer.protectUntil = protectUntil
       await queryRunner.manager.save(customer)
 
@@ -93,6 +98,10 @@ export class CustomerPoolService {
       await queryRunner.manager.save(log)
 
       await queryRunner.commitTransaction()
+
+      // Invalidate cache only after successful commit
+      await this.redisService.delByPattern('cache:customers:*')
+
       return customer
     } catch (err) {
       await queryRunner.rollbackTransaction()
@@ -122,7 +131,7 @@ export class CustomerPoolService {
 
   async assign(managerId: number, customerId: number, toUserId: number): Promise<Customer> {
     const customer = await this.customerRepository.findOne({
-      where: { id: customerId, isInPool: true, deleted: false },
+      where: { id: customerId, isInPool: true },
     })
     if (!customer) {
       throw new NotFoundException('客户不在公海池中')
@@ -139,7 +148,7 @@ export class CustomerPoolService {
 
       customer.isInPool = false
       customer.assignedUserId = toUserId
-      customer.poolEnterTime = null as unknown as Date
+      customer.poolEnteredAt = null as unknown as Date
       customer.protectUntil = protectUntil
       await queryRunner.manager.save(customer)
 
@@ -163,7 +172,7 @@ export class CustomerPoolService {
 
   async returnToPool(userId: number, customerId: number, reason?: string): Promise<void> {
     const customer = await this.customerRepository.findOne({
-      where: { id: customerId, deleted: false },
+      where: { id: customerId },
     })
     if (!customer) {
       throw new NotFoundException('客户不存在')
@@ -179,7 +188,7 @@ export class CustomerPoolService {
     try {
       customer.isInPool = true
       customer.assignedUserId = null as unknown as number
-      customer.poolEnterTime = new Date()
+      customer.poolEnteredAt = new Date()
       customer.protectUntil = null as unknown as Date
       await queryRunner.manager.save(customer)
 
@@ -225,7 +234,6 @@ export class CustomerPoolService {
     const qb = this.customerRepository
       .createQueryBuilder('customer')
       .where('customer.is_in_pool = true')
-      .andWhere('customer.deleted = false')
 
     if (keyword) {
       qb.andWhere('(customer.name LIKE :kw OR customer.company LIKE :kw)', { kw: `%${keyword}%` })
@@ -237,7 +245,7 @@ export class CustomerPoolService {
       qb.andWhere('customer.region LIKE :region', { region: `%${region}%` })
     }
 
-    qb.orderBy('customer.pool_enter_time', 'DESC')
+    qb.orderBy('customer.pool_entered_at', 'DESC')
       .skip((page - 1) * pageSize)
       .take(pageSize)
 

@@ -177,6 +177,7 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
+import { UserRole } from '@crm/shared'
 import {
   HomeFilled,
   User,
@@ -201,7 +202,7 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const isCollapsed = ref(false)
-const isAdmin = computed(() => userStore.userRole === 'admin')
+const isAdmin = computed(() => userStore.userRole === UserRole.ADMIN)
 
 // WebSocket notifications
 const { connected: wsConnected, notifications, clearNotifications } = useNotification()

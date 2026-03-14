@@ -46,7 +46,7 @@
 
       <!-- Content -->
       <el-card shadow="never" class="article-content-card">
-        <div class="article-content" v-html="renderedContent" />
+        <div v-safe-html="renderedContent" class="article-content" />
       </el-card>
 
       <!-- Comments -->

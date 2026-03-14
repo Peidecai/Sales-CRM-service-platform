@@ -122,11 +122,11 @@ function onSearch() {
   resetAndLoad()
 }
 
-function resetAndLoad() {
+async function resetAndLoad() {
   page.value = 1
   noMore.value = false
   customerList.value = []
-  loadCustomers()
+  await loadCustomers()
 }
 
 async function loadCustomers() {

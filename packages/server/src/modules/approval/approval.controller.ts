@@ -27,7 +27,7 @@ import { QueryApprovalDto } from './dto/query-approval.dto'
 
 @ApiTags('审批流程')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @UseInterceptors(AuditLogInterceptor)
 @Controller('approvals')
 export class ApprovalController {
@@ -72,7 +72,6 @@ export class ApprovalController {
   }
 
   @Put(':id/process')
-  @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.SALES)
   @ApiOperation({ summary: '处理审批（通过/驳回/转交）' })
   @ApiParam({ name: 'id', type: Number })

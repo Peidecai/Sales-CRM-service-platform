@@ -12,32 +12,32 @@ export class EnhanceAuditLogsPartition1709000053000 implements MigrationInterfac
     // Add response_data column for storing masked response
     await queryRunner.query(`
       ALTER TABLE audit_logs
-      ADD COLUMN IF NOT EXISTS response_data JSON NULL AFTER \`after\`
-    `)
+      ADD COLUMN response_data JSON NULL AFTER \`after\`
+    `).catch(() => { /* column may already exist */ })
 
     // Add archive_status column for hot/warm/cold management
     await queryRunner.query(`
       ALTER TABLE audit_logs
-      ADD COLUMN IF NOT EXISTS archive_status VARCHAR(10) DEFAULT 'hot' AFTER ip
-    `)
+      ADD COLUMN archive_status VARCHAR(10) DEFAULT 'hot' AFTER ip
+    `).catch(() => { /* column may already exist */ })
 
     // Add index for archive queries
     await queryRunner.query(`
-      CREATE INDEX IF NOT EXISTS IDX_AUDIT_LOGS_ARCHIVE_STATUS
+      CREATE INDEX IDX_AUDIT_LOGS_ARCHIVE_STATUS
       ON audit_logs (archive_status)
-    `)
+    `).catch(() => { /* index may already exist */ })
 
     // Add composite index for monthly partition queries
     await queryRunner.query(`
-      CREATE INDEX IF NOT EXISTS IDX_AUDIT_LOGS_CREATED_ARCHIVE
+      CREATE INDEX IDX_AUDIT_LOGS_CREATED_ARCHIVE
       ON audit_logs (created_at, archive_status)
-    `)
+    `).catch(() => { /* index may already exist */ })
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX IF EXISTS IDX_AUDIT_LOGS_CREATED_ARCHIVE ON audit_logs`)
-    await queryRunner.query(`DROP INDEX IF EXISTS IDX_AUDIT_LOGS_ARCHIVE_STATUS ON audit_logs`)
-    await queryRunner.query(`ALTER TABLE audit_logs DROP COLUMN IF EXISTS archive_status`)
-    await queryRunner.query(`ALTER TABLE audit_logs DROP COLUMN IF EXISTS response_data`)
+    await queryRunner.query(`DROP INDEX IDX_AUDIT_LOGS_CREATED_ARCHIVE ON audit_logs`).catch(() => {})
+    await queryRunner.query(`DROP INDEX IDX_AUDIT_LOGS_ARCHIVE_STATUS ON audit_logs`).catch(() => {})
+    await queryRunner.query(`ALTER TABLE audit_logs DROP COLUMN archive_status`).catch(() => {})
+    await queryRunner.query(`ALTER TABLE audit_logs DROP COLUMN response_data`).catch(() => {})
   }
 }

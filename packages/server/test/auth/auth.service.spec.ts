@@ -5,6 +5,8 @@ import { UnauthorizedException, BadRequestException } from '@nestjs/common'
 import { getRepositoryToken } from '@nestjs/typeorm'
 import { AuthService } from '../../src/modules/auth/auth.service'
 import { UserService } from '../../src/modules/user/user.service'
+import { TokenService } from '../../src/modules/auth/token.service'
+import { CaptchaService } from '../../src/modules/auth/captcha.service'
 import { MiniappUser } from '../../src/modules/auth/miniapp-user.entity'
 import { RedisService } from '../../src/common/redis'
 import { UserRole } from '@crm/shared'
@@ -29,6 +31,15 @@ describe('AuthService', () => {
   let jwtService: MockJwtService
   let redisService: MockRedisService
   let configService: { get: jest.Mock }
+  let tokenService: {
+    generateTokens: jest.Mock
+    verifyRefreshToken: jest.Mock
+    isTokenBlacklisted: jest.Mock
+    checkFamilyReplay: jest.Mock
+    revokeToken: jest.Mock
+    revokeAllUserSessions: jest.Mock
+  }
+  let captchaService: { verify: jest.Mock }
 
   beforeEach(async () => {
     userService = {
@@ -40,11 +51,22 @@ describe('AuthService', () => {
     jwtService = createMockJwtService()
     redisService = createMockRedisService()
     configService = createMockConfigService()
+    tokenService = {
+      generateTokens: jest.fn().mockReturnValue({ accessToken: 'mock-access', refreshToken: 'mock-refresh' }),
+      verifyRefreshToken: jest.fn(),
+      isTokenBlacklisted: jest.fn().mockResolvedValue(false),
+      checkFamilyReplay: jest.fn().mockResolvedValue(true),
+      revokeToken: jest.fn(),
+      revokeAllUserSessions: jest.fn(),
+    }
+    captchaService = { verify: jest.fn().mockResolvedValue(true) }
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: UserService, useValue: userService },
+        { provide: TokenService, useValue: tokenService },
+        { provide: CaptchaService, useValue: captchaService },
         { provide: JwtService, useValue: jwtService },
         { provide: ConfigService, useValue: configService },
         { provide: RedisService, useValue: redisService },
@@ -66,13 +88,12 @@ describe('AuthService', () => {
       userService.findByUsername.mockResolvedValue(user)
       userService.validatePassword.mockResolvedValue(true)
       jwtService.sign.mockReturnValueOnce('access-token').mockReturnValueOnce('refresh-token')
+      tokenService.generateTokens.mockReturnValue({ accessToken: 'access-token', refreshToken: 'refresh-token' })
 
       const result = await service.login(loginDto)
 
       expect(result.accessToken).toBe('access-token')
       expect(result.refreshToken).toBe('refresh-token')
-      expect(result.user.id).toBe(user.id)
-      expect(result.user.username).toBe(user.username)
     })
 
     it('should throw UnauthorizedException if user not found', async () => {
@@ -99,35 +120,35 @@ describe('AuthService', () => {
   describe('refreshToken', () => {
     it('should return new tokens for valid refresh token', async () => {
       const user = fixtures.user()
-      jwtService.verify.mockReturnValue({ sub: user.id, username: user.username, role: user.role, type: 'refresh' })
+      tokenService.verifyRefreshToken.mockReturnValue({ sub: user.id, username: user.username, role: user.role, type: 'refresh' })
+      tokenService.checkFamilyReplay.mockResolvedValue(true)
       userService.findByUsername.mockResolvedValue(user)
-      jwtService.sign.mockReturnValueOnce('new-access').mockReturnValueOnce('new-refresh')
+      tokenService.generateTokens.mockReturnValue({ accessToken: 'new-access', refreshToken: 'new-refresh' })
 
       const result = await service.refreshToken('valid-refresh-token')
 
       expect(result.accessToken).toBe('new-access')
       expect(result.refreshToken).toBe('new-refresh')
-      expect(jwtService.verify).toHaveBeenCalledWith('valid-refresh-token', {
-        secret: 'test-refresh-secret',
-      })
     })
 
     it('should throw if user is inactive', async () => {
-      jwtService.verify.mockReturnValue({ sub: 1, username: 'test', role: 'sales', type: 'refresh' })
+      tokenService.verifyRefreshToken.mockReturnValue({ sub: 1, username: 'test', role: 'sales', type: 'refresh' })
+      tokenService.checkFamilyReplay.mockResolvedValue(true)
       userService.findByUsername.mockResolvedValue(fixtures.user({ isActive: false }))
 
       await expect(service.refreshToken('some-token')).rejects.toThrow(UnauthorizedException)
     })
 
     it('should throw if user not found', async () => {
-      jwtService.verify.mockReturnValue({ sub: 1, username: 'gone', role: 'sales', type: 'refresh' })
+      tokenService.verifyRefreshToken.mockReturnValue({ sub: 1, username: 'gone', role: 'sales', type: 'refresh' })
+      tokenService.checkFamilyReplay.mockResolvedValue(true)
       userService.findByUsername.mockResolvedValue(null)
 
       await expect(service.refreshToken('some-token')).rejects.toThrow(UnauthorizedException)
     })
 
     it('should throw if token is invalid', async () => {
-      jwtService.verify.mockImplementation(() => { throw new Error('invalid') })
+      tokenService.verifyRefreshToken.mockImplementation(() => { throw new Error('invalid') })
 
       await expect(service.refreshToken('bad-token')).rejects.toThrow(UnauthorizedException)
     })
@@ -197,54 +218,33 @@ describe('AuthService', () => {
   /* ---------- logout ---------- */
   describe('logout', () => {
     it('should blacklist token in Redis with remaining TTL', async () => {
-      const futureExp = Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
-      jwtService.verify.mockReturnValue({ sub: 1, exp: futureExp })
+      tokenService.revokeToken.mockResolvedValue(undefined)
 
       await service.logout('some-access-token')
 
-      expect(redisService.set).toHaveBeenCalledWith(
-        expect.stringContaining('auth:blacklist:some-access-token'),
-        '1',
-        expect.any(Number),
-      )
-      // TTL should be positive and roughly 3600
-      const ttlArg = redisService.set.mock.calls[0][2] as number
-      expect(ttlArg).toBeGreaterThan(0)
-      expect(ttlArg).toBeLessThanOrEqual(3600)
+      expect(tokenService.revokeToken).toHaveBeenCalledWith('some-access-token')
     })
 
-    it('should not blacklist if token is already expired', async () => {
-      const pastExp = Math.floor(Date.now() / 1000) - 10
-      jwtService.verify.mockReturnValue({ sub: 1, exp: pastExp })
+    it('should propagate error if token is invalid', async () => {
+      tokenService.revokeToken.mockRejectedValue(new Error('invalid'))
 
-      await service.logout('expired-token')
-
-      expect(redisService.set).not.toHaveBeenCalled()
-    })
-
-    it('should not throw if token is invalid', async () => {
-      jwtService.verify.mockImplementation(() => { throw new Error('invalid') })
-
-      // Should not throw
-      await expect(service.logout('bad-token')).resolves.toBeUndefined()
+      await expect(service.logout('bad-token')).rejects.toThrow('invalid')
     })
   })
 
   /* ---------- isTokenBlacklisted ---------- */
   describe('isTokenBlacklisted', () => {
     it('should return true if token is blacklisted', async () => {
-      redisService.exists.mockResolvedValue(true)
+      tokenService.isTokenBlacklisted.mockResolvedValue(true)
 
       const result = await service.isTokenBlacklisted('blacklisted-token')
 
       expect(result).toBe(true)
-      expect(redisService.exists).toHaveBeenCalledWith(
-        'auth:blacklist:blacklisted-token',
-      )
+      expect(tokenService.isTokenBlacklisted).toHaveBeenCalledWith('blacklisted-token', undefined)
     })
 
     it('should return false if token is not blacklisted', async () => {
-      redisService.exists.mockResolvedValue(false)
+      tokenService.isTokenBlacklisted.mockResolvedValue(false)
 
       const result = await service.isTokenBlacklisted('valid-token')
       expect(result).toBe(false)

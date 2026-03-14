@@ -38,34 +38,39 @@ FROM node:20-alpine AS production
 # Install tini for proper PID 1 signal handling
 RUN apk add --no-cache tini
 
+# Create non-root user/group
+RUN addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 nestjs
+
 WORKDIR /app
 
 # Copy workspace config (needed for pnpm workspace resolution)
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-COPY packages/shared/package.json ./packages/shared/
-COPY packages/server/package.json ./packages/server/
+COPY --chown=nestjs:nodejs pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY --chown=nestjs:nodejs packages/shared/package.json ./packages/shared/
+COPY --chown=nestjs:nodejs packages/server/package.json ./packages/server/
 
 # Copy node_modules from deps stage (preserves native bindings)
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages/server/node_modules ./packages/server/node_modules
-COPY --from=builder /app/packages/shared/node_modules ./packages/shared/node_modules
+COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nestjs:nodejs /app/packages/server/node_modules ./packages/server/node_modules
+COPY --from=builder --chown=nestjs:nodejs /app/packages/shared/node_modules ./packages/shared/node_modules
 
 # Copy built shared package
-COPY --from=builder /app/packages/shared/ ./packages/shared/
+COPY --from=builder --chown=nestjs:nodejs /app/packages/shared/ ./packages/shared/
 
 # Copy built server (dist + database migrations)
-COPY --from=builder /app/packages/server/dist/ ./packages/server/dist/
-COPY --from=builder /app/packages/server/database/ ./packages/server/database/
+COPY --from=builder --chown=nestjs:nodejs /app/packages/server/dist/ ./packages/server/dist/
+COPY --from=builder --chown=nestjs:nodejs /app/packages/server/database/ ./packages/server/database/
 
 # Create runtime directories and symlink for Swagger metadata resolution
-RUN mkdir -p /app/packages/server/data \
+RUN mkdir -p /app/packages/server/data /app/packages/server/logs \
     && ln -sfn /app/packages/shared /app/packages/server/shared \
-    && chown -R node:node /app/packages/server/data
+    && chown -R nestjs:nodejs /app/packages/server/data \
+    && chown -R nestjs:nodejs /app/packages/server/logs
 
 WORKDIR /app/packages/server
 
-# Run as non-root user (node user is built-in to node:alpine)
-USER node
+# Run as non-root user
+USER nestjs
 
 EXPOSE 3000
 
@@ -75,4 +80,4 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
 # Use tini as PID 1 for proper signal forwarding
 ENTRYPOINT ["/sbin/tini", "--"]
 
-CMD ["node", "dist/src/main"]
+CMD ["node", "dist/src/main.js"]

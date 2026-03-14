@@ -22,7 +22,9 @@
         :image-size="90"
       >
         <el-button type="primary" @click="$router.push('/knowledge')"
-          >Go Favorite Articles</el-button
+        >
+          Go Favorite Articles
+        </el-button
         >
       </el-empty>
 
@@ -31,9 +33,11 @@
           <div class="item-main">
             <div class="item-title" @click="openDetail(item.id)">{{ item.title }}</div>
             <div class="item-meta">
-              <el-tag size="small" effect="plain">{{
-                item.isPublished ? 'Published' : 'Draft'
-              }}</el-tag>
+              <el-tag size="small" effect="plain">
+                {{
+                  item.isPublished ? 'Published' : 'Draft'
+                }}
+              </el-tag>
               <span>Category: {{ getCategoryName(item.categoryId) }}</span>
               <span>Likes: {{ item.likeCount }}</span>
               <span>Views: {{ item.viewCount }}</span>

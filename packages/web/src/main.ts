@@ -5,6 +5,7 @@ import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import App from './App.vue'
 import router from './router/index'
 import { setupPermissionDirective } from '@/directives/permission'
+import { vSafeHtml } from '@/directives/safe-html'
 import '@/assets/styles/variables.css'
 
 const app = createApp(App)
@@ -13,6 +14,7 @@ const pinia = createPinia()
 pinia.use(piniaPluginPersistedstate)
 
 app.directive('loading', ElLoadingDirective)
+app.directive('safe-html', vSafeHtml)
 app.use(pinia)
 app.use(router)
 setupPermissionDirective(app)

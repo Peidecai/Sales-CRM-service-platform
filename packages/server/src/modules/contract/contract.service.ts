@@ -59,9 +59,7 @@ export class ContractService {
     query: QueryContractDto,
   ): Promise<{ list: Contract[]; total: number; page: number; pageSize: number }> {
     const { page = 1, pageSize = 20, keyword, status, contractType, customerId, ownerId } = query
-    const qb = this.contractRepository
-      .createQueryBuilder('c')
-      .where('c.deleted = :deleted', { deleted: false })
+    const qb = this.contractRepository.createQueryBuilder('c')
 
     if (keyword) {
       qb.andWhere('(c.contract_no LIKE :kw OR c.title LIKE :kw)', { kw: `%${keyword}%` })
@@ -88,7 +86,7 @@ export class ContractService {
   }
 
   async findOne(id: number): Promise<Contract> {
-    const contract = await this.contractRepository.findOne({ where: { id, deleted: false } })
+    const contract = await this.contractRepository.findOne({ where: { id } })
     if (!contract) throw new NotFoundException(`Contract ${id} not found`)
     return contract
   }
@@ -101,8 +99,7 @@ export class ContractService {
 
   async remove(id: number): Promise<void> {
     const contract = await this.findOne(id)
-    contract.deleted = true
-    await this.contractRepository.save(contract)
+    await this.contractRepository.softRemove(contract)
   }
 
   // ─── Sign ──────────────────────────────────────────────────────────────
@@ -126,7 +123,6 @@ export class ContractService {
 
     return this.contractRepository
       .createQueryBuilder('c')
-      .where('c.deleted = :deleted', { deleted: false })
       .andWhere('c.status IN (:...activeStatuses)', {
         activeStatuses: [ContractStatus.SIGNED, ContractStatus.EXECUTING],
       })

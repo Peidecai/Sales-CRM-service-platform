@@ -19,9 +19,7 @@ export class MaterialService {
 
   async findAll(query: MaterialListQuery): Promise<{ list: MaterialFile[]; total: number }> {
     const { category, mimeType, page = 1, pageSize = 20 } = query
-    const qb = this.materialRepository
-      .createQueryBuilder('m')
-      .where('m.deleted = :deleted', { deleted: false })
+    const qb = this.materialRepository.createQueryBuilder('m')
     if (category) qb.andWhere('m.category = :category', { category })
     if (mimeType) qb.andWhere('m.mimeType LIKE :mimeType', { mimeType: `${mimeType}%` })
     qb.orderBy('m.createdAt', 'DESC')
@@ -32,7 +30,7 @@ export class MaterialService {
   }
 
   async findOne(id: number): Promise<MaterialFile> {
-    const file = await this.materialRepository.findOne({ where: { id, deleted: false } })
+    const file = await this.materialRepository.findOne({ where: { id } })
     if (!file) throw new NotFoundException(`Material ${id} not found`)
     return file
   }
@@ -46,8 +44,7 @@ export class MaterialService {
 
   async remove(id: number): Promise<void> {
     const file = await this.findOne(id)
-    file.deleted = true
-    await this.materialRepository.save(file)
+    await this.materialRepository.softRemove(file)
   }
 
   async createFromCallback(data: {
@@ -71,7 +68,6 @@ export class MaterialService {
 
   async getStats(): Promise<{ byType: Record<string, number>; total: number }> {
     const list = await this.materialRepository.find({
-      where: { deleted: false },
       select: ['mimeType'],
     })
     const byType: Record<string, number> = {}

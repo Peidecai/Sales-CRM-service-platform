@@ -210,7 +210,7 @@ function handleKeydown(event: KeyboardEvent) {
       </div>
 
       <div v-if="previewMode !== 'edit'" class="md-preview-pane">
-        <div class="md-preview" :style="{ minHeight: `${height}px` }" v-html="preview" />
+        <div v-safe-html="preview" class="md-preview" :style="{ minHeight: `${height}px` }" />
       </div>
     </div>
   </div>

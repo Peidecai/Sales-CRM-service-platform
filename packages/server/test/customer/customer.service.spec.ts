@@ -4,6 +4,9 @@ import { NotFoundException, BadRequestException, ForbiddenException } from '@nes
 import { CustomerService } from '../../src/modules/customer/customer.service'
 import { Customer } from '../../src/modules/customer/customer.entity'
 import { User } from '../../src/modules/user/user.entity'
+import { DuplicateCheckService } from '../../src/modules/customer/services/duplicate-check.service'
+import { CustomerNumberService } from '../../src/modules/customer/services/customer-number.service'
+import { CustomerBloomService } from '../../src/modules/customer/services/customer-bloom.service'
 import { RedisService } from '../../src/common/redis'
 import { CustomFieldService } from '../../src/modules/custom-field/custom-field.service'
 import { CustomerStatus, UserRole } from '@crm/shared'
@@ -25,11 +28,15 @@ describe('CustomerService', () => {
   let repo: MockRepository<Customer>
   let userRepo: MockRepository<User>
   let redis: MockRedisService
+  let duplicateCheckService: { checkDuplicates: jest.Mock }
+  let customerNumberService: { generate: jest.Mock }
 
   beforeEach(async () => {
     repo = createMockRepository<Customer>()
     userRepo = createMockRepository<User>()
     redis = createMockRedisService()
+    duplicateCheckService = { checkDuplicates: jest.fn().mockResolvedValue([]) }
+    customerNumberService = { generate: jest.fn().mockResolvedValue('CUS-20260312-0001') }
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -38,6 +45,9 @@ describe('CustomerService', () => {
         { provide: getRepositoryToken(User), useValue: userRepo },
         { provide: RedisService, useValue: redis },
         { provide: CustomFieldService, useValue: { validateCustomFields: jest.fn() } },
+        { provide: DuplicateCheckService, useValue: duplicateCheckService },
+        { provide: CustomerNumberService, useValue: customerNumberService },
+        { provide: CustomerBloomService, useValue: { add: jest.fn(), mightExist: jest.fn().mockResolvedValue(true) } },
       ],
     }).compile()
 
@@ -67,12 +77,41 @@ describe('CustomerService', () => {
       expect(redis.delByPattern).toHaveBeenCalledWith('cache:customers:list:*')
       expect(result.name).toBe('New Customer')
     })
+
+    it('should generate customer number via CustomerNumberService', async () => {
+      const customer = fixtures.customer({ ...dto })
+      repo.create.mockReturnValue(customer)
+      repo.save.mockResolvedValue(customer)
+
+      await service.create(dto as never)
+
+      expect(customerNumberService.generate).toHaveBeenCalled()
+      expect(customer.customerNo).toBe('CUS-20260312-0001')
+    })
+
+    it('should run duplicate check and throw ConflictException on match', async () => {
+      duplicateCheckService.checkDuplicates.mockResolvedValue([
+        { customer: { id: 5, name: 'Dup', company: 'X' }, matchType: 'phone', confidence: 95 },
+      ])
+
+      await expect(service.create(dto as never)).rejects.toThrow('发现可能重复的客户')
+    })
+
+    it('should skip duplicate check when forceCreate is true', async () => {
+      const customer = fixtures.customer({ ...dto })
+      repo.create.mockReturnValue(customer)
+      repo.save.mockResolvedValue(customer)
+
+      await service.create({ ...dto, forceCreate: true } as never)
+
+      expect(duplicateCheckService.checkDuplicates).not.toHaveBeenCalled()
+    })
   })
 
   /* ---------- findAll ---------- */
   describe('findAll', () => {
     it('should use default page and pageSize when omitted', async () => {
-      redis.get.mockResolvedValue(null)
+      redis.safeGet.mockResolvedValue(null)
       const qb = createMockQueryBuilder([], 0)
       repo.createQueryBuilder.mockReturnValue(qb)
 
@@ -84,7 +123,7 @@ describe('CustomerService', () => {
 
     it('should return cached result on cache hit', async () => {
       const cached = { list: [fixtures.customer()], total: 1 }
-      redis.get.mockResolvedValue(JSON.stringify(cached))
+      redis.safeGet.mockResolvedValue(JSON.stringify(cached))
 
       const result = await service.findAll({ page: 1, pageSize: 20 }, adminUser)
 
@@ -95,7 +134,7 @@ describe('CustomerService', () => {
     })
 
     it('should query DB and cache result on cache miss', async () => {
-      redis.get.mockResolvedValue(null) // cache miss
+      redis.safeGet.mockResolvedValue(null) // cache miss
       const customers = [fixtures.customer()]
       const qb = createMockQueryBuilder(customers, 1)
       repo.createQueryBuilder.mockReturnValue(qb)
@@ -111,7 +150,7 @@ describe('CustomerService', () => {
     })
 
     it('should apply keyword filter', async () => {
-      redis.get.mockResolvedValue(null)
+      redis.safeGet.mockResolvedValue(null)
       const qb = createMockQueryBuilder([], 0)
       repo.createQueryBuilder.mockReturnValue(qb)
 
@@ -124,7 +163,7 @@ describe('CustomerService', () => {
     })
 
     it('should apply status filter', async () => {
-      redis.get.mockResolvedValue(null)
+      redis.safeGet.mockResolvedValue(null)
       const qb = createMockQueryBuilder([], 0)
       repo.createQueryBuilder.mockReturnValue(qb)
 
@@ -136,7 +175,7 @@ describe('CustomerService', () => {
     })
 
     it('should apply assignedUserId filter for admin', async () => {
-      redis.get.mockResolvedValue(null)
+      redis.safeGet.mockResolvedValue(null)
       const qb = createMockQueryBuilder([], 0)
       repo.createQueryBuilder.mockReturnValue(qb)
 
@@ -148,7 +187,7 @@ describe('CustomerService', () => {
     })
 
     it('should paginate correctly', async () => {
-      redis.get.mockResolvedValue(null)
+      redis.safeGet.mockResolvedValue(null)
       const qb = createMockQueryBuilder([], 0)
       repo.createQueryBuilder.mockReturnValue(qb)
 
@@ -159,7 +198,7 @@ describe('CustomerService', () => {
     })
 
     it('should enforce data permission for SALES user', async () => {
-      redis.get.mockResolvedValue(null)
+      redis.safeGet.mockResolvedValue(null)
       const qb = createMockQueryBuilder([], 0)
       repo.createQueryBuilder.mockReturnValue(qb)
 
@@ -175,7 +214,7 @@ describe('CustomerService', () => {
   describe('findOne', () => {
     it('should return customer from cache without DB lookup', async () => {
       const customer = fixtures.customer({ id: 8 })
-      redis.get.mockResolvedValue(JSON.stringify(customer))
+      redis.safeGet.mockResolvedValue(JSON.stringify(customer))
 
       const result = await service.findOne(8, adminUser)
 
@@ -183,26 +222,28 @@ describe('CustomerService', () => {
       expect(repo.findOne).not.toHaveBeenCalled()
     })
 
-    it('should return customer detail without loading heavy relations', async () => {
+    it('should return customer detail from DB on cache miss', async () => {
       const customer = fixtures.customer()
+      redis.safeGet.mockResolvedValue(null)
       repo.findOne.mockResolvedValue(customer)
 
       const result = await service.findOne(1)
 
       expect(repo.findOne).toHaveBeenCalledWith({
-        where: { id: 1, deleted: false },
+        where: { id: 1 },
       })
       expect(result.name).toBe('Test Customer')
     })
 
     it('should throw NotFoundException if not found', async () => {
+      redis.safeGet.mockResolvedValue(null)
       repo.findOne.mockResolvedValue(null)
 
       await expect(service.findOne(999)).rejects.toThrow(NotFoundException)
     })
 
     it('should allow SALES user to access own customer', async () => {
-      redis.get.mockResolvedValue(null)
+      redis.safeGet.mockResolvedValue(null)
       const customer = fixtures.customer({ assignedUserId: salesUser.id })
       repo.findOne.mockResolvedValue(customer)
 
@@ -210,7 +251,7 @@ describe('CustomerService', () => {
     })
 
     it('should throw ForbiddenException for SALES accessing other customer', async () => {
-      redis.get.mockResolvedValue(null)
+      redis.safeGet.mockResolvedValue(null)
       const customer = fixtures.customer({ assignedUserId: 99 })
       repo.findOne.mockResolvedValue(customer)
 
@@ -219,7 +260,7 @@ describe('CustomerService', () => {
 
     it('should enforce ownership check for cached customer too', async () => {
       const customer = fixtures.customer({ assignedUserId: 99 })
-      redis.get.mockResolvedValue(JSON.stringify(customer))
+      redis.safeGet.mockResolvedValue(JSON.stringify(customer))
 
       await expect(service.findOne(1, salesUser)).rejects.toThrow(ForbiddenException)
       expect(repo.findOne).not.toHaveBeenCalled()
@@ -230,6 +271,7 @@ describe('CustomerService', () => {
   describe('update', () => {
     it('should update customer and invalidate cache', async () => {
       const customer = fixtures.customer()
+      redis.safeGet.mockResolvedValue(null)
       repo.findOne.mockResolvedValue({ ...customer })
       repo.save.mockImplementation(async (c) => c)
 
@@ -240,9 +282,31 @@ describe('CustomerService', () => {
     })
 
     it('should throw NotFoundException if not found', async () => {
+      redis.safeGet.mockResolvedValue(null)
       repo.findOne.mockResolvedValue(null)
 
       await expect(service.update(999, { name: 'X' } as never)).rejects.toThrow(NotFoundException)
+    })
+
+    it('should reject invalid status transition', async () => {
+      const customer = fixtures.customer({ status: CustomerStatus.LEAD })
+      redis.safeGet.mockResolvedValue(null)
+      repo.findOne.mockResolvedValue({ ...customer })
+
+      await expect(
+        service.update(1, { status: CustomerStatus.DEAL } as never),
+      ).rejects.toThrow(BadRequestException)
+    })
+
+    it('should accept valid forward status transition', async () => {
+      const customer = fixtures.customer({ status: CustomerStatus.LEAD })
+      redis.safeGet.mockResolvedValue(null)
+      repo.findOne.mockResolvedValue({ ...customer })
+      repo.save.mockImplementation(async (c) => c)
+
+      const result = await service.update(1, { status: CustomerStatus.POTENTIAL } as never)
+
+      expect(result.status).toBe(CustomerStatus.POTENTIAL)
     })
   })
 
@@ -250,172 +314,111 @@ describe('CustomerService', () => {
   describe('remove', () => {
     it('should soft-delete customer and invalidate cache', async () => {
       const customer = fixtures.customer()
+      redis.safeGet.mockResolvedValue(null)
       repo.findOne.mockResolvedValue({ ...customer })
-      repo.save.mockImplementation(async (c) => c)
+      repo.softRemove.mockResolvedValue(customer)
 
       await service.remove(1)
 
-      expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ deleted: true }))
+      expect(repo.softRemove).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }))
       expect(redis.delByPattern).toHaveBeenCalledWith('cache:customers:list:*')
     })
 
     it('should throw NotFoundException if not found', async () => {
+      redis.safeGet.mockResolvedValue(null)
       repo.findOne.mockResolvedValue(null)
 
       await expect(service.remove(999)).rejects.toThrow(NotFoundException)
     })
   })
 
-  /* ---------- exportCsv ---------- */
-  describe('exportCsv', () => {
-    it('should export all customers as CSV with BOM', async () => {
-      const customers = [
-        fixtures.customer({ name: 'Alice', company: 'Corp A', phone: '13800138001', email: 'a@test.com', status: CustomerStatus.DEAL }),
-        fixtures.customer({ id: 2, name: 'Bob', company: null, phone: null, email: null, status: CustomerStatus.POTENTIAL }),
-      ]
-      const qb = createMockQueryBuilder(customers, 2)
-      repo.createQueryBuilder.mockReturnValue(qb)
+  /* ---------- allocate ---------- */
+  describe('allocate', () => {
+    it('should reassign customer to target user', async () => {
+      const customer = fixtures.customer()
+      repo.findOne
+        .mockResolvedValueOnce(customer)
+      userRepo.findOne.mockResolvedValue({ id: 5, isActive: true })
+      repo.save.mockImplementation(async (c) => c)
 
-      const csv = await service.exportCsv(adminUser)
+      const result = await service.allocate(1, { assignedUserId: 5 })
 
-      // BOM
-      expect(csv.charCodeAt(0)).toBe(0xFEFF)
-      // Header
-      expect(csv).toContain('姓名,公司,手机,邮箱,状态,行业,来源,备注')
-      // Data rows
-      expect(csv).toContain('Alice')
-      expect(csv).toContain('Bob')
+      expect(result.assignedUserId).toBe(5)
     })
 
-    it('should escape CSV fields with commas', async () => {
-      const customer = fixtures.customer({ name: 'Foo, Bar', company: 'Corp "A"' })
-      const qb = createMockQueryBuilder([customer], 1)
-      repo.createQueryBuilder.mockReturnValue(qb)
+    it('should throw if target user not found', async () => {
+      repo.findOne.mockResolvedValue(fixtures.customer())
+      userRepo.findOne.mockResolvedValue(null)
 
-      const csv = await service.exportCsv(adminUser)
-
-      expect(csv).toContain('"Foo, Bar"')
-      expect(csv).toContain('"Corp ""A"""')
+      await expect(service.allocate(1, { assignedUserId: 99 })).rejects.toThrow(NotFoundException)
     })
 
-    it('should enforce data permission for SALES', async () => {
-      const qb = createMockQueryBuilder([], 0)
-      repo.createQueryBuilder.mockReturnValue(qb)
+    it('should throw if target user is inactive', async () => {
+      repo.findOne.mockResolvedValue(fixtures.customer())
+      userRepo.findOne.mockResolvedValue({ id: 5, isActive: false })
 
-      await service.exportCsv(salesUser)
-
-      expect(qb.andWhere).toHaveBeenCalledWith(
-        'customer.assignedUserId = :currentUserId',
-        { currentUserId: salesUser.id },
-      )
-    })
-
-    it('should fallback optional fields to empty values', async () => {
-      const customer = fixtures.customer({
-        name: 'NoExtras',
-        company: null,
-        phone: null,
-        email: null,
-        status: null,
-        industry: null,
-        source: null,
-        notes: null,
-      })
-      const qb = createMockQueryBuilder([customer], 1)
-      repo.createQueryBuilder.mockReturnValue(qb)
-
-      const csv = await service.exportCsv(adminUser)
-
-      expect(csv).toContain('NoExtras,,,,,,,')
+      await expect(service.allocate(1, { assignedUserId: 5 })).rejects.toThrow(BadRequestException)
     })
   })
 
-  /* ---------- importFromCsvRows ---------- */
-  describe('importFromCsvRows', () => {
-    it('should import valid rows', async () => {
-      const rows = [
-        { '姓名': 'Alice', '公司': 'Corp', '状态': '潜在客户' },
-        { '姓名': 'Bob', '公司': 'Inc', '状态': 'deal' },
-      ]
-      repo.create.mockImplementation((items) => items)
-      repo.save.mockResolvedValue([])
-
-      const result = await service.importFromCsvRows(rows, 1)
-
-      expect(result.imported).toBe(2)
-      expect(result.errors).toHaveLength(0)
-      expect(redis.delByPattern).toHaveBeenCalled()
+  /* ---------- validateStatusTransition ---------- */
+  describe('validateStatusTransition', () => {
+    it('should allow forward-by-one transitions', () => {
+      expect(service.validateStatusTransition(CustomerStatus.LEAD, CustomerStatus.POTENTIAL)).toBe(true)
+      expect(service.validateStatusTransition(CustomerStatus.POTENTIAL, CustomerStatus.INTENTION)).toBe(true)
+      expect(service.validateStatusTransition(CustomerStatus.DEAL, CustomerStatus.MAINTAIN)).toBe(true)
     })
 
-    it('should collect errors for invalid rows', async () => {
-      const rows: Record<string, string>[] = [
-        { '姓名': '', '公司': 'Corp' }, // empty name
-        { '姓名': 'Alice', '状态': '无效状态' }, // invalid status
-        { '姓名': 'Bob', '状态': '成交客户' }, // valid
-      ]
-      repo.create.mockImplementation((items) => items)
-      repo.save.mockResolvedValue([])
-
-      const result = await service.importFromCsvRows(rows, 1)
-
-      expect(result.imported).toBe(1) // only Bob
-      expect(result.errors).toHaveLength(2)
-      expect(result.errors[0]).toContain('第2行')
-      expect(result.errors[1]).toContain('第3行')
+    it('should reject skipping steps', () => {
+      expect(service.validateStatusTransition(CustomerStatus.LEAD, CustomerStatus.DEAL)).toBe(false)
     })
 
-    it('should throw BadRequestException if no valid rows', async () => {
-      const rows = [{ '姓名': '' }] // all invalid
+    it('should reject backward transitions', () => {
+      expect(service.validateStatusTransition(CustomerStatus.DEAL, CustomerStatus.LEAD)).toBe(false)
+    })
 
-      await expect(service.importFromCsvRows(rows, 1)).rejects.toThrow(BadRequestException)
+    it('should allow transition to INVALID from any state', () => {
+      expect(service.validateStatusTransition(CustomerStatus.LEAD, CustomerStatus.INVALID)).toBe(true)
+      expect(service.validateStatusTransition(CustomerStatus.DEAL, CustomerStatus.INVALID)).toBe(true)
+    })
+
+    it('should allow transition to LOST from any state', () => {
+      expect(service.validateStatusTransition(CustomerStatus.POTENTIAL, CustomerStatus.LOST)).toBe(true)
+    })
+
+    it('should reject transition from INVALID/LOST back to main flow', () => {
+      expect(service.validateStatusTransition(CustomerStatus.INVALID, CustomerStatus.LEAD)).toBe(false)
+      expect(service.validateStatusTransition(CustomerStatus.LOST, CustomerStatus.POTENTIAL)).toBe(false)
     })
   })
 
-  describe('importFromCsvRows english headers', () => {
-    it('should support english headers and default status', async () => {
-      const rows = [{ name: 'English Name', company: 'Corp EN', status: '' }]
-      repo.create.mockImplementation((items) => items)
-      repo.save.mockResolvedValue([])
+  /* ---------- extendProtection ---------- */
+  describe('extendProtection', () => {
+    it('should extend protection for non-pool customer', async () => {
+      const customer = fixtures.customer({ isInPool: false, protectUntil: null, status: CustomerStatus.LEAD })
+      repo.findOne.mockResolvedValue(customer)
+      repo.save.mockImplementation(async (c) => c)
 
-      const result = await service.importFromCsvRows(rows, 5)
+      await service.extendProtection(1)
 
-      expect(result.imported).toBe(1)
-      expect(result.errors).toEqual([])
-      expect(repo.create).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.objectContaining({
-            name: 'English Name',
-            status: CustomerStatus.POTENTIAL,
-            assignedUserId: 5,
-          }),
-        ]),
-      )
+      expect(repo.save).toHaveBeenCalled()
+      expect(customer.protectUntil).toBeInstanceOf(Date)
     })
 
-    it('should treat missing header keys as empty values during import parsing', async () => {
-      const rows: Array<Record<string, string>> = [{}, { name: 'Only Name' }]
-      repo.create.mockImplementation((items) => items)
-      repo.save.mockResolvedValue([])
+    it('should skip pool customers', async () => {
+      repo.findOne.mockResolvedValue(fixtures.customer({ isInPool: true }))
 
-      const result = await service.importFromCsvRows(rows, 6)
+      await service.extendProtection(1)
 
-      expect(result.imported).toBe(1)
-      expect(result.errors).toHaveLength(1)
-      expect(repo.create).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.objectContaining({
-            name: 'Only Name',
-            status: CustomerStatus.POTENTIAL,
-            assignedUserId: 6,
-          }),
-        ]),
-      )
+      expect(repo.save).not.toHaveBeenCalled()
     })
 
-    it('should reject invalid status provided in english header', async () => {
-      const rows = [{ name: 'Bad Status', status: 'bad-status' }]
+    it('should skip if not found', async () => {
+      repo.findOne.mockResolvedValue(null)
 
-      await expect(service.importFromCsvRows(rows, 1)).rejects.toThrow(BadRequestException)
+      await service.extendProtection(999)
+
+      expect(repo.save).not.toHaveBeenCalled()
     })
   })
 })

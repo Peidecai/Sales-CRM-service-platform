@@ -5,7 +5,9 @@
         <div class="card-header">
           <span>购买意向预测</span>
           <el-button type="primary" :loading="predicting" @click="triggerBatchPredict"
-            >批量重新预测</el-button
+          >
+            批量重新预测
+          </el-button
           >
         </div>
       </template>
@@ -43,7 +45,9 @@
         <el-table-column label="操作" width="120" align="center">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="repredictOne(row.customerId)"
-              >重新预测</el-button
+            >
+              重新预测
+            </el-button
             >
           </template>
         </el-table-column>

@@ -13,16 +13,16 @@ export class MaterialFile extends BaseEntity {
   @Column({ name: 'oss_bucket', length: 100 })
   ossBucket!: string
 
-  @Column({ length: 32, nullable: true })
+  @Column({ type: 'varchar', length: 32, nullable: true })
   md5!: string | null
 
   @Column({ name: 'file_size', type: 'bigint', default: 0 })
   fileSize!: number
 
-  @Column({ name: 'mime_type', length: 100, nullable: true })
+  @Column({ type: 'varchar', name: 'mime_type', length: 100, nullable: true })
   mimeType!: string | null
 
-  @Column({ name: 'thumbnail_key', length: 500, nullable: true })
+  @Column({ type: 'varchar', name: 'thumbnail_key', length: 500, nullable: true })
   thumbnailKey!: string | null
 
   @Column({ type: 'int', nullable: true })
@@ -38,7 +38,7 @@ export class MaterialFile extends BaseEntity {
   extraMeta!: Record<string, unknown> | null
 
   @Index()
-  @Column({ length: 50, nullable: true })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   category!: string | null
 
   @Column({ name: 'created_by', type: 'int', nullable: true })

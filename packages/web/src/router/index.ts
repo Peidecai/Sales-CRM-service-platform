@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { UserRole } from '@crm/shared'
 import { useUserStore } from '@/stores/user'
 
 const routes: RouteRecordRaw[] = [
@@ -162,19 +163,19 @@ const routes: RouteRecordRaw[] = [
         path: 'customer-tag',
         name: 'CustomerTag',
         component: () => import('@/views/customer-tag/index.vue'),
-        meta: { title: '标签管理', breadcrumb: ['标签管理'], roles: ['admin', 'manager'] },
+        meta: { title: '标签管理', breadcrumb: ['标签管理'], roles: [UserRole.ADMIN, UserRole.MANAGER] },
       },
       {
         path: 'audit-log',
         name: 'AuditLog',
         component: () => import('@/views/audit-log/index.vue'),
-        meta: { title: '审计日志', breadcrumb: ['审计日志'], roles: ['admin'] },
+        meta: { title: '审计日志', breadcrumb: ['审计日志'], roles: [UserRole.ADMIN] },
       },
       {
         path: 'user',
         name: 'UserManagement',
         component: () => import('@/views/user/index.vue'),
-        meta: { title: '用户管理', breadcrumb: ['用户管理'], roles: ['admin'] },
+        meta: { title: '用户管理', breadcrumb: ['用户管理'], roles: [UserRole.ADMIN] },
       },
       {
         path: 'profile',
@@ -243,9 +244,9 @@ router.beforeEach((to, _from, next) => {
   }
 
   // Role-based access control
-  const requiredRoles = to.meta.roles as string[] | undefined
+  const requiredRoles = to.meta.roles as UserRole[] | undefined
   if (requiredRoles && requiredRoles.length > 0) {
-    const userRole = userStore.userRole
+    const userRole = userStore.userRole as UserRole
     if (!requiredRoles.includes(userRole)) {
       ElMessage.warning('您没有权限访问该页面')
       next({ path: '/' })

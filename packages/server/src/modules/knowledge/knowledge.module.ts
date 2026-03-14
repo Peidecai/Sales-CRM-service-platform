@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common'
+import { Module, forwardRef } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { BullModule } from '@nestjs/bull'
 import { KnowledgeArticle } from './entities/knowledge-article.entity'
@@ -20,11 +20,20 @@ import { AiModule } from '../ai/ai.module'
       ArticleFavorite,
       ArticleComment,
     ]),
-    BullModule.registerQueue({ name: 'embedding' }),
-    AiModule,
+    forwardRef(() => AiModule), // Circular: AiModule ↔ KnowledgeModule
+    // Register embedding queue directly — AiModule no longer re-exports BullModule
+    BullModule.registerQueue({
+      name: 'embedding',
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5000 },
+        removeOnComplete: 100,
+        removeOnFail: 200,
+      },
+    }),
   ],
   controllers: [KnowledgeController],
   providers: [KnowledgeService, ArticleCommentService],
-  exports: [KnowledgeService],
+  exports: [KnowledgeService, TypeOrmModule],
 })
 export class KnowledgeModule {}

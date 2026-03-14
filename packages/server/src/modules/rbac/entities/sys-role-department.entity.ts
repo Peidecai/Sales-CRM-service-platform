@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm'
+import { Entity, Column, Index, PrimaryGeneratedColumn } from 'typeorm'
 
 @Entity('sys_role_departments')
 export class SysRoleDepartment {
@@ -8,6 +8,7 @@ export class SysRoleDepartment {
   @Column({ name: 'role_id' })
   roleId!: number
 
+  @Index()
   @Column({ name: 'department_id' })
   departmentId!: number
 }

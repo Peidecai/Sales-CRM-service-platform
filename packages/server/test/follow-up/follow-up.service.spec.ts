@@ -146,7 +146,7 @@ describe('FollowUpService', () => {
 
     it('allows ADMIN to read follow-ups for any customer', async () => {
       customerRepo.findOne.mockResolvedValue(fixtures.customer({ id: 10, assignedUserId: 999 }))
-      redis.get.mockResolvedValue(null)
+      redis.safeGet.mockResolvedValue(null)
       followUpRepo.findAndCount.mockResolvedValue([[makeFollowUp()], 1])
 
       const result = await service.findByCustomer(10, { page: 1, pageSize: 20 }, adminUser)
@@ -158,7 +158,7 @@ describe('FollowUpService', () => {
     it('returns cached result on cache hit', async () => {
       customerRepo.findOne.mockResolvedValue(fixtures.customer({ id: 10, assignedUserId: 999 }))
       const cached = { list: [makeFollowUp()], total: 1 }
-      redis.get.mockResolvedValue(JSON.stringify(cached))
+      redis.safeGet.mockResolvedValue(JSON.stringify(cached))
 
       const result = await service.findByCustomer(10, { page: 1, pageSize: 20 }, adminUser)
 
@@ -169,7 +169,7 @@ describe('FollowUpService', () => {
     it('queries repo and caches result on cache miss', async () => {
       customerRepo.findOne.mockResolvedValue(fixtures.customer({ id: 10, assignedUserId: 999 }))
       const rows = [makeFollowUp()]
-      redis.get.mockResolvedValue(null)
+      redis.safeGet.mockResolvedValue(null)
       followUpRepo.findAndCount.mockResolvedValue([rows, 1])
 
       const result = await service.findByCustomer(
@@ -179,7 +179,7 @@ describe('FollowUpService', () => {
       )
 
       expect(followUpRepo.findAndCount).toHaveBeenCalledWith({
-        where: { customerId: 10, deleted: false, type: FollowUpType.CALL },
+        where: { customerId: 10, type: FollowUpType.CALL },
         relations: ['user'],
         order: { createdAt: 'DESC' },
         skip: 10,
@@ -195,13 +195,13 @@ describe('FollowUpService', () => {
 
     it('supports empty paged result', async () => {
       customerRepo.findOne.mockResolvedValue(fixtures.customer({ id: 10, assignedUserId: 999 }))
-      redis.get.mockResolvedValue(null)
+      redis.safeGet.mockResolvedValue(null)
       followUpRepo.findAndCount.mockResolvedValue([[], 0])
 
       const result = await service.findByCustomer(10, { page: 3, pageSize: 5 }, adminUser)
 
       expect(followUpRepo.findAndCount).toHaveBeenCalledWith({
-        where: { customerId: 10, deleted: false },
+        where: { customerId: 10 },
         relations: ['user'],
         order: { createdAt: 'DESC' },
         skip: 10,
@@ -257,13 +257,13 @@ describe('FollowUpService', () => {
     })
 
     it('soft deletes follow-up and invalidates cache', async () => {
-      const entity = makeFollowUp({ userId: adminUser.id, customerId: 10, deleted: false })
+      const entity = makeFollowUp({ userId: adminUser.id, customerId: 10 })
       followUpRepo.findOne.mockResolvedValue(entity)
-      followUpRepo.save.mockResolvedValue({ ...entity, deleted: true })
+      followUpRepo.softRemove.mockResolvedValue({ ...entity })
 
       await service.remove(100, adminUser)
 
-      expect(followUpRepo.save).toHaveBeenCalledWith(expect.objectContaining({ deleted: true }))
+      expect(followUpRepo.softRemove).toHaveBeenCalled()
       expect(redis.delByPattern).toHaveBeenCalledWith('cache:follow-ups:customer:10:*')
     })
   })

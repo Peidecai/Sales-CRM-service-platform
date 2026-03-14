@@ -28,6 +28,8 @@ import { CurrentUser, type AuthUser } from '../../common/decorators/current-user
 import { AuditLogInterceptor } from '../../common/interceptors/audit-log.interceptor'
 import { UserRole } from '@crm/shared'
 import { CustomerService } from './customer.service'
+import { CustomerExportService } from './services/customer-export.service'
+import { CustomerImportService } from './services/customer-import.service'
 import { DuplicateCheckService } from './services/duplicate-check.service'
 import { CustomerMergeService } from './services/customer-merge.service'
 import { NotificationService } from '../notification/notification.service'
@@ -36,6 +38,8 @@ import { UpdateCustomerDto } from './dto/update-customer.dto'
 import { QueryCustomerDto } from './dto/query-customer.dto'
 import { AllocateCustomerDto } from './dto/allocate-customer.dto'
 import { CheckDuplicateDto } from './dto/check-duplicate.dto'
+import { ImportCustomerDto } from './dto/import-customer.dto'
+import { MergeCustomerDto } from './dto/merge-customer.dto'
 import { CustomerImportLog, ImportStatus } from './entities/customer-import-log.entity'
 
 @ApiTags('客户管理')
@@ -46,6 +50,8 @@ import { CustomerImportLog, ImportStatus } from './entities/customer-import-log.
 export class CustomerController {
   constructor(
     private readonly customerService: CustomerService,
+    private readonly exportService: CustomerExportService,
+    private readonly importService: CustomerImportService,
     private readonly duplicateCheckService: DuplicateCheckService,
     private readonly mergeService: CustomerMergeService,
     private readonly notificationService: NotificationService,
@@ -71,7 +77,7 @@ export class CustomerController {
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Export all customers as Excel' })
   async exportExcel(@Res() res: Response, @CurrentUser() user: AuthUser) {
-    const buffer = await this.customerService.exportExcel(user)
+    const buffer = await this.exportService.exportExcel(user)
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -84,7 +90,7 @@ export class CustomerController {
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Download import template' })
   async downloadTemplate(@Res() res: Response) {
-    const buffer = await this.customerService.generateImportTemplate()
+    const buffer = await this.importService.generateImportTemplate()
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -97,7 +103,7 @@ export class CustomerController {
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Get system field list for import mapping' })
   async getSystemFields() {
-    return this.customerService.getSystemFields()
+    return this.importService.getSystemFields()
   }
 
   @Post('import')
@@ -106,30 +112,22 @@ export class CustomerController {
   @ApiOperation({ summary: 'Import customers from CSV data (async via Bull queue)' })
   @ApiResponse({ status: 200, description: 'Import job submitted' })
   @ApiResponse({ status: 403, description: 'Forbidden — requires ADMIN or MANAGER role' })
-  async importCsv(
-    @Body()
-    body: {
-      rows: Array<Record<string, string>>
-      mapping: Record<string, string>
-      fileName?: string
-    },
-    @CurrentUser() user: AuthUser,
-  ) {
-    if (!body.rows || !Array.isArray(body.rows) || body.rows.length === 0) {
+  async importCsv(@Body() dto: ImportCustomerDto, @CurrentUser() user: AuthUser) {
+    if (!dto.rows || !Array.isArray(dto.rows) || dto.rows.length === 0) {
       throw new BadRequestException('请提供有效的 CSV 数据')
     }
-    if (body.rows.length > 1000) {
+    if (dto.rows.length > 1000) {
       throw new BadRequestException('单次导入不能超过 1000 条记录')
     }
-    if (!body.mapping || Object.keys(body.mapping).length === 0) {
+    if (!dto.mapping || Object.keys(dto.mapping).length === 0) {
       throw new BadRequestException('请提供字段映射关系')
     }
 
     // Create import log record
     const log = this.importLogRepo.create({
       userId: user.id,
-      fileName: body.fileName || `import_${Date.now()}.csv`,
-      totalCount: body.rows.length,
+      fileName: dto.fileName || `import_${Date.now()}.csv`,
+      totalCount: dto.rows.length,
       status: ImportStatus.PENDING,
     })
     await this.importLogRepo.save(log)
@@ -137,9 +135,9 @@ export class CustomerController {
     // Add job to Bull queue
     await this.importQueue.add({
       logId: log.id,
-      rows: body.rows,
+      rows: dto.rows,
       userId: user.id,
-      mapping: body.mapping,
+      mapping: dto.mapping,
     })
 
     return { logId: log.id, message: '导入任务已提交，处理中...' }
@@ -154,15 +152,15 @@ export class CustomerController {
   @Post('merge/preview')
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @HttpCode(HttpStatus.OK)
-  async previewMerge(@Body() body: { primaryId: number; secondaryId: number }) {
-    return this.mergeService.previewMerge(body.primaryId, body.secondaryId)
+  async previewMerge(@Body() dto: MergeCustomerDto) {
+    return this.mergeService.previewMerge(dto.primaryId, dto.secondaryId)
   }
 
   @Post('merge')
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @HttpCode(HttpStatus.OK)
-  async executeMerge(@Body() body: { primaryId: number; secondaryId: number }) {
-    return this.mergeService.executeMerge(body.primaryId, body.secondaryId)
+  async executeMerge(@Body() dto: MergeCustomerDto) {
+    return this.mergeService.executeMerge(dto.primaryId, dto.secondaryId)
   }
 
   @Post()

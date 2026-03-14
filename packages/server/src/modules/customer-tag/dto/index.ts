@@ -40,3 +40,9 @@ export class BatchTagDto {
   @IsInt({ each: true })
   tagIds!: number[]
 }
+
+export class AddTagsDto {
+  @IsArray()
+  @IsInt({ each: true })
+  tagIds!: number[]
+}

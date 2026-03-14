@@ -60,7 +60,7 @@ export class CreateRecordingFilesTable1709000032000 implements MigrationInterfac
             name: 'created_at',
             type: 'datetime',
             precision: 6,
-            default: 'CURRENT_TIMESTAMP',
+            default: 'CURRENT_TIMESTAMP(6)',
           },
         ],
       }),

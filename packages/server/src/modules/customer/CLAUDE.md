@@ -77,7 +77,7 @@ export class Customer extends BaseEntity {
 
 ## 注意事项
 
-1. 查询时必须过滤 `deleted = false`
+1. 查询时 TypeORM 自动过滤软删除记录（`deleted_at IS NOT NULL`），无需手动添加条件
 2. 状态变更需记录操作日志
 3. 导入时需验证手机号格式
 4. 列表查询默认按 `updatedAt DESC` 排序

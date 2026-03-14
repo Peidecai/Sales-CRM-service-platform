@@ -16,7 +16,7 @@ export interface CommentTreeNode {
   parentId: number | null
   content: string
   createdAt: Date
-  deleted: boolean
+  deletedAt: Date | null
   children: CommentTreeNode[]
 }
 
@@ -43,7 +43,7 @@ export class ArticleCommentService {
     pageSize: number,
   ): Promise<{ list: CommentTreeNode[]; total: number }> {
     const all = await this.commentRepository.find({
-      where: { articleId, deleted: false },
+      where: { articleId },
       order: { createdAt: 'ASC' },
     })
     const byParent = new Map<number | null, ArticleComment[]>()
@@ -61,7 +61,7 @@ export class ArticleCommentService {
         parentId: c.parentId,
         content: c.content,
         createdAt: c.createdAt,
-        deleted: c.deleted,
+        deletedAt: c.deletedAt,
         children: build(c.id),
       }))
     }
@@ -77,7 +77,6 @@ export class ArticleCommentService {
     if (comment.userId !== userId && userRole !== UserRole.ADMIN && userRole !== UserRole.MANAGER) {
       throw new ForbiddenException('Only author or admin can delete')
     }
-    comment.deleted = true
-    await this.commentRepository.save(comment)
+    await this.commentRepository.softRemove(comment)
   }
 }

@@ -5,6 +5,8 @@ import { useUserStore } from '@/stores/user'
 
 export interface NotificationPayload {
   type: string
+  /** Unique event ID for deduplication */
+  eventId?: string
   actorId: number
   actorName: string
   resource: string
@@ -44,6 +46,10 @@ const incomingCallPopup = ref<{
 } | null>(null)
 let consumerCount = 0
 
+/** Dedup: track processed event IDs to ignore duplicates from reconnection / broadcast storms */
+const processedEventIds = new Set<string>()
+const PROCESSED_EVENT_IDS_MAX = 1000
+
 function connectNotificationSocket(token: string | null, currentUserId?: number) {
   if (!token || socket) return
 
@@ -78,6 +84,23 @@ function connectNotificationSocket(token: string | null, currentUserId?: number)
   socket.on('notification', (payload: NotificationPayload) => {
     if (currentUserId !== undefined && payload.actorId === currentUserId) return
 
+    // Dedup by eventId — silently ignore duplicate notifications
+    if (payload.eventId) {
+      if (processedEventIds.has(payload.eventId)) return
+      processedEventIds.add(payload.eventId)
+      // Evict oldest entries when the set grows too large
+      if (processedEventIds.size > PROCESSED_EVENT_IDS_MAX) {
+        const iter = processedEventIds.values()
+        // Delete the first (oldest) half
+        const deleteCount = Math.floor(PROCESSED_EVENT_IDS_MAX / 2)
+        for (let i = 0; i < deleteCount; i++) {
+          const oldest = iter.next()
+          if (oldest.done) break
+          processedEventIds.delete(oldest.value)
+        }
+      }
+    }
+
     notifications.value.unshift(payload)
     if (notifications.value.length > 50) {
       notifications.value = notifications.value.slice(0, 50)
@@ -109,6 +132,7 @@ export function disconnectNotificationSocket() {
 export function __resetNotificationStateForTest() {
   disconnectNotificationSocket()
   notifications.value = []
+  processedEventIds.clear()
   consumerCount = 0
 }
 

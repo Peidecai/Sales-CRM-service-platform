@@ -1,8 +1,16 @@
-import { Injectable, NotFoundException, ForbiddenException, Inject } from '@nestjs/common'
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  Inject,
+} from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { CallRecord } from '../call-record/call-record.entity'
+import { Customer } from '../customer/customer.entity'
 import type { VoiceProviderAdapter } from './adapters/voice-provider.adapter'
+import { AgentStatusService, AgentStatus } from '../agent/agent-status.service'
 import { CallDirection, CallType, CallStatus } from '@crm/shared'
 import type { AuthUser } from '../../common/decorators/current-user.decorator'
 import { UserRole } from '@crm/shared'
@@ -20,8 +28,11 @@ export class CallService {
   constructor(
     @InjectRepository(CallRecord)
     private readonly callRecordRepository: Repository<CallRecord>,
+    @InjectRepository(Customer)
+    private readonly customerRepository: Repository<Customer>,
     @Inject('VOICE_PROVIDER')
     private readonly voiceAdapter: VoiceProviderAdapter,
+    private readonly agentStatusService: AgentStatusService,
   ) {}
 
   async dial(
@@ -33,6 +44,40 @@ export class CallService {
     },
     user: AuthUser,
   ): Promise<{ callId: string; recordId: number }> {
+    // ── Pre-dial validation ──────────────────────────────────────────
+
+    // 1) Agent status check — must be IDLE to initiate a call
+    const agentStatus = await this.agentStatusService.getStatus(user.id)
+    if (agentStatus !== AgentStatus.IDLE) {
+      throw new BadRequestException(`坐席当前状态为 ${agentStatus}，只有 IDLE 状态才可发起外呼`)
+    }
+
+    // 2) Duplicate call detection — prevent concurrent calls by same agent
+    const activeCall = await this.callRecordRepository.findOne({
+      where: [
+        { userId: user.id, status: CallStatus.RINGING },
+        { userId: user.id, status: CallStatus.CONNECTED },
+        { userId: user.id, status: CallStatus.ON_HOLD },
+      ],
+    })
+    if (activeCall) {
+      throw new BadRequestException('当前已有进行中的通话，请先结束后再发起新呼叫')
+    }
+
+    // 3) Customer ownership verification — SALES can only call own customers
+    if (dto.customerId) {
+      const customer = await this.customerRepository.findOne({
+        where: { id: dto.customerId },
+      })
+      if (!customer) {
+        throw new NotFoundException(`客户 ID ${dto.customerId} 不存在`)
+      }
+      if (user.role === UserRole.SALES && customer.assignedUserId !== user.id) {
+        throw new ForbiddenException('SALES 角色只能呼叫自己负责的客户')
+      }
+    }
+
+    // ── Proceed with dial ────────────────────────────────────────────
     const agentId = String(user.id)
     const result = await this.voiceAdapter.dial({
       agentId,
@@ -60,14 +105,14 @@ export class CallService {
     const id = parseInt(callId, 10)
     if (Number.isNaN(id)) {
       const byProvider = await this.callRecordRepository.findOne({
-        where: { providerCallId: callId, deleted: false },
+        where: { providerCallId: callId },
       })
       if (!byProvider) throw new NotFoundException('Call not found')
       this.checkCallOwnership(byProvider, user)
       return byProvider
     }
     const record = await this.callRecordRepository.findOne({
-      where: { id, deleted: false },
+      where: { id },
     })
     if (!record) throw new NotFoundException('Call not found')
     this.checkCallOwnership(record, user)
@@ -141,7 +186,6 @@ export class CallService {
       .createQueryBuilder('cr')
       .leftJoinAndSelect('cr.customer', 'customer')
       .leftJoinAndSelect('cr.opportunity', 'opportunity')
-      .where('cr.deleted = :deleted', { deleted: false })
 
     if (user.role === UserRole.SALES) {
       qb.andWhere('(cr.userId = :uid OR cr.agentId = :uid)', { uid: user.id })
@@ -165,7 +209,7 @@ export class CallService {
 
   async getRecordDetail(id: number, user: AuthUser): Promise<CallRecord> {
     const record = await this.callRecordRepository.findOne({
-      where: { id, deleted: false },
+      where: { id },
       relations: ['customer', 'opportunity'],
     })
     if (!record) throw new NotFoundException('Call record not found')
@@ -183,7 +227,6 @@ export class CallService {
     today.setHours(0, 0, 0, 0)
     const qb = this.callRecordRepository
       .createQueryBuilder('cr')
-      .where('cr.deleted = :deleted', { deleted: false })
       .andWhere('cr.callAt >= :today', { today })
     if (user.role === UserRole.SALES) {
       qb.andWhere('(cr.userId = :uid OR cr.agentId = :uid)', { uid: user.id })

@@ -153,7 +153,7 @@ export class AiFallbackService {
 
   private async getCachedResult(feature: string, input: string): Promise<string | null> {
     const key = `ai:cache:${feature}:${this.hashInput(input)}`
-    return this.redisService.get(key)
+    return this.redisService.safeGet(key)
   }
 
   private hashInput(input: string): string {

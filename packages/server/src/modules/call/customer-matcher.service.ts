@@ -34,7 +34,7 @@ export class CustomerMatcherService {
     if (!normalized) return null
 
     const customer = await this.customerRepository.findOne({
-      where: { phone: normalized, deleted: false },
+      where: { phone: normalized },
     })
     if (customer) {
       return { customer, source: 'customer' }
@@ -50,7 +50,7 @@ export class CustomerMatcherService {
 
     if (contact) {
       const cust = await this.customerRepository.findOne({
-        where: { id: contact.customerId, deleted: false },
+        where: { id: contact.customerId },
       })
       if (cust) return { customer: cust, contact, source: 'contact' }
     }

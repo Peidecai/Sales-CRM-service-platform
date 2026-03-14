@@ -1,5 +1,6 @@
 import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm'
 import { BaseEntity } from '../../common/entities/base.entity'
+import { EncryptionService } from '../../common/security/encryption.service'
 import { Customer } from '../customer/customer.entity'
 
 export enum Gender {
@@ -28,14 +29,24 @@ export class Contact extends BaseEntity {
   gender!: Gender
 
   @Index()
-  @Column({ length: 20, nullable: true, comment: '手机号' })
+  @Column({
+    length: 255,
+    nullable: true,
+    comment: '手机号',
+    transformer: EncryptionService.columnTransformer(),
+  })
   mobile!: string
 
   @Column({ length: 20, nullable: true, comment: '座机' })
   landline!: string
 
   @Index()
-  @Column({ length: 100, nullable: true, comment: '邮箱' })
+  @Column({
+    length: 255,
+    nullable: true,
+    comment: '邮箱',
+    transformer: EncryptionService.columnTransformer(),
+  })
   email!: string
 
   @Column({ length: 50, nullable: true, comment: '微信号' })

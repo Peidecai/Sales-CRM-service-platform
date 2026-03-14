@@ -33,7 +33,13 @@ export class Quotation extends BaseEntity {
   @Column({ type: 'decimal', precision: 15, scale: 2, default: 0, comment: '小计金额（折前）' })
   subtotal!: number
 
-  @Column({ name: 'discount_type', length: 10, nullable: true, comment: '折扣类型: PERCENT/FIXED' })
+  @Column({
+    type: 'varchar',
+    name: 'discount_type',
+    length: 10,
+    nullable: true,
+    comment: '折扣类型: PERCENT/FIXED',
+  })
   discountType!: string | null
 
   @Column({
@@ -89,10 +95,22 @@ export class Quotation extends BaseEntity {
   @Column({ name: 'valid_until', type: 'date', comment: '报价有效期' })
   validUntil!: Date
 
-  @Column({ name: 'payment_terms', length: 500, nullable: true, comment: '付款条款' })
+  @Column({
+    type: 'varchar',
+    name: 'payment_terms',
+    length: 500,
+    nullable: true,
+    comment: '付款条款',
+  })
   paymentTerms!: string | null
 
-  @Column({ name: 'delivery_terms', length: 500, nullable: true, comment: '交付条款' })
+  @Column({
+    type: 'varchar',
+    name: 'delivery_terms',
+    length: 500,
+    nullable: true,
+    comment: '交付条款',
+  })
   deliveryTerms!: string | null
 
   @Column({ type: 'text', nullable: true, comment: '备注' })

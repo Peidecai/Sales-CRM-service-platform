@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common'
 import { Request, Response } from 'express'
+import { BusinessException } from '../exceptions/business.exception'
 
 /**
  * Error code mapping per CLAUDE.md conventions:
@@ -50,6 +51,25 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let status = HttpStatus.INTERNAL_SERVER_ERROR
     let message = '服务器内部错误'
     let validationErrors: string[] | undefined
+
+    // BusinessException carries a domain-specific bizCode
+    if (exception instanceof BusinessException) {
+      status = exception.getStatus()
+      message = exception.message
+      const code = exception.bizCode
+
+      this.logger.warn(
+        `[${request.method}] ${request.url} → ${status} (bizCode: ${code}): ${message}`,
+      )
+
+      response.status(status).json({
+        code,
+        message,
+        data: null,
+        timestamp: new Date().toISOString(),
+      })
+      return
+    }
 
     if (exception instanceof HttpException) {
       status = exception.getStatus()

@@ -11,10 +11,16 @@ export class QuotationItem {
   @Column({ name: 'product_name', length: 200, comment: '产品名称' })
   productName!: string
 
-  @Column({ name: 'product_spec', length: 500, nullable: true, comment: '产品规格' })
+  @Column({
+    type: 'varchar',
+    name: 'product_spec',
+    length: 500,
+    nullable: true,
+    comment: '产品规格',
+  })
   productSpec!: string | null
 
-  @Column({ length: 20, nullable: true, comment: '单位' })
+  @Column({ type: 'varchar', length: 20, nullable: true, comment: '单位' })
   unit!: string | null
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 1, comment: '数量' })
@@ -49,7 +55,7 @@ export class QuotationItem {
   @Column({ name: 'sort_order', type: 'int', default: 0, comment: '排序' })
   sortOrder!: number
 
-  @Column({ length: 500, nullable: true, comment: '行备注' })
+  @Column({ type: 'varchar', length: 500, nullable: true, comment: '行备注' })
   remark!: string | null
 
   @ManyToOne('Quotation', 'items', { createForeignKeyConstraints: false })

@@ -51,7 +51,7 @@ describe('UserService', () => {
       const result = await service.create(dto as never)
 
       expect(repo.findOne).toHaveBeenCalledWith({
-        where: { username: dto.username, deleted: false },
+        where: { username: dto.username },
       })
       expect(repo.create).toHaveBeenCalled()
       // password should have been hashed (bcrypt hash starts with $2a$)
@@ -144,7 +144,7 @@ describe('UserService', () => {
       const result = await service.findByUsername('testuser')
 
       expect(repo.findOne).toHaveBeenCalledWith({
-        where: { username: 'testuser', deleted: false },
+        where: { username: 'testuser' },
       })
       expect(result).toBeDefined()
     })
@@ -179,7 +179,7 @@ describe('UserService', () => {
 
       await service.update(1, { password: 'newpass123' } as never)
 
-      expect(bcrypt.hash).toHaveBeenCalledWith('newpass123', 10)
+      expect(bcrypt.hash).toHaveBeenCalledWith('newpass123', 12)
     })
 
     it('should throw NotFoundException if user not found', async () => {
@@ -194,11 +194,11 @@ describe('UserService', () => {
     it('should soft-delete user', async () => {
       const user = fixtures.user()
       repo.findOne.mockResolvedValue({ ...user })
-      repo.save.mockImplementation(async (u) => u)
+      repo.softRemove.mockImplementation(async (u) => u)
 
       await service.remove(1)
 
-      expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ deleted: true }))
+      expect(repo.softRemove).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }))
     })
 
     it('should throw NotFoundException if user not found', async () => {

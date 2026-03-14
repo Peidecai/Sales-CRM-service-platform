@@ -2,6 +2,7 @@ import {
   IsString,
   IsNotEmpty,
   IsOptional,
+  IsBoolean,
   IsEmail,
   IsEnum,
   IsInt,
@@ -165,4 +166,9 @@ export class CreateCustomerDto {
   @IsOptional()
   @IsString()
   description?: string
+
+  @ApiPropertyOptional({ description: '强制创建（跳过重复检查）', default: false })
+  @IsOptional()
+  @IsBoolean()
+  forceCreate?: boolean
 }

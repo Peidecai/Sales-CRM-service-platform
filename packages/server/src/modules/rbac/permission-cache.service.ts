@@ -25,7 +25,7 @@ export class PermissionCacheService {
    */
   async getPermissionCodes(userId: number): Promise<string[]> {
     const cacheKey = `${CACHE_KEY_PREFIX}:${userId}`
-    const cached = await this.redisService.get(cacheKey)
+    const cached = await this.redisService.safeGet(cacheKey)
     if (cached) {
       return JSON.parse(cached) as string[]
     }

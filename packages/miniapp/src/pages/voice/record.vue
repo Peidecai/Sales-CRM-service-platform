@@ -82,7 +82,12 @@
 
 <script setup lang="ts">
 import { ref, onUnmounted } from 'vue'
-import { http } from '@/api/request'
+import { BASE_URL, TOKEN_KEY } from '@/api/request'
+
+function getAuthHeader(): Record<string, string> {
+  const token = uni.getStorageSync(TOKEN_KEY) as string
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 const isRecording = ref(false)
 const isPlaying = ref(false)
@@ -184,12 +189,13 @@ async function handleUpload() {
   uploading.value = true
 
   try {
-    // Upload to stub API
+    // Upload to recordings API
     const uploadResult = await new Promise<UniApp.UploadFileSuccessCallbackResult>((resolve, reject) => {
       uni.uploadFile({
-        url: `${http.get ? '' : ''}http://localhost:3000/api/v1/recordings/upload`,
+        url: `${BASE_URL}/recordings/upload`,
         filePath: recordedFile.value,
         name: 'file',
+        header: getAuthHeader(),
         success: resolve,
         fail: reject,
       })

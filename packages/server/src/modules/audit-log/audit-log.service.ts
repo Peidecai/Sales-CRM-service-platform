@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
+import { plainToInstance } from 'class-transformer'
 import { AuditLog, AuditAction } from './audit-log.entity'
+import { AuditLogResponseDto } from './dto/audit-log-response.dto'
 
 /** Sensitive fields to mask before writing to audit log */
 const SENSITIVE_FIELDS = new Set([
@@ -62,7 +64,7 @@ export class AuditLogService {
     resource?: string
     action?: AuditAction
     archiveStatus?: string
-  }) {
+  }): Promise<{ list: AuditLogResponseDto[]; total: number; page: number; pageSize: number }> {
     const page = query.page ?? 1
     const pageSize = query.pageSize ?? 20
 
@@ -86,7 +88,14 @@ export class AuditLogService {
     }
 
     const [list, total] = await qb.getManyAndCount()
-    return { list, total, page, pageSize }
+    return {
+      list: list.map((log) =>
+        plainToInstance(AuditLogResponseDto, log, { excludeExtraneousValues: true }),
+      ),
+      total,
+      page,
+      pageSize,
+    }
   }
 
   /** Recursively mask sensitive fields in an object before persisting to audit log */

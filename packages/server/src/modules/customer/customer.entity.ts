@@ -1,5 +1,6 @@
 import { Entity, Column, Index, OneToMany } from 'typeorm'
 import { BaseEntity } from '../../common/entities/base.entity'
+import { EncryptionService } from '../../common/security/encryption.service'
 import {
   CustomerStatus,
   CustomerSource,
@@ -32,10 +33,20 @@ export class Customer extends BaseEntity {
   @Column({ length: 200, nullable: true, comment: '公司名称' })
   company!: string
 
-  @Column({ length: 20, nullable: true, comment: '手机号' })
+  @Column({
+    length: 255,
+    nullable: true,
+    comment: '手机号',
+    transformer: EncryptionService.columnTransformer(),
+  })
   phone!: string
 
-  @Column({ length: 100, nullable: true, comment: '邮箱' })
+  @Column({
+    length: 255,
+    nullable: true,
+    comment: '邮箱',
+    transformer: EncryptionService.columnTransformer(),
+  })
   email!: string
 
   @Column({ type: 'enum', enum: CustomerStatus, default: CustomerStatus.LEAD, comment: '客户状态' })
@@ -110,7 +121,7 @@ export class Customer extends BaseEntity {
   @Column({
     name: 'registered_capital',
     type: 'decimal',
-    precision: 12,
+    precision: 15,
     scale: 2,
     nullable: true,
     comment: '注册资本(万元)',
@@ -120,7 +131,7 @@ export class Customer extends BaseEntity {
   @Column({
     name: 'annual_revenue',
     type: 'decimal',
-    precision: 14,
+    precision: 15,
     scale: 2,
     nullable: true,
     comment: '年营收(万元)',
@@ -136,8 +147,8 @@ export class Customer extends BaseEntity {
   @Column({ name: 'is_in_pool', default: false, comment: '是否在公海池' })
   isInPool!: boolean
 
-  @Column({ name: 'pool_enter_time', type: 'datetime', nullable: true, comment: '进入公海池时间' })
-  poolEnterTime!: Date
+  @Column({ name: 'pool_entered_at', type: 'datetime', nullable: true, comment: '进入公海池时间' })
+  poolEnteredAt!: Date
 
   @Column({ name: 'protect_until', type: 'datetime', nullable: true, comment: '保护期截止时间' })
   protectUntil!: Date

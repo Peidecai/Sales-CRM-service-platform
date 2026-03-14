@@ -42,10 +42,18 @@ export enum NotificationType {
 
   /** Incoming call popup for agent workspace */
   INCOMING_CALL_POPUP = 'INCOMING_CALL_POPUP',
+
+  /** Background queue job failed after all retries */
+  QUEUE_JOB_FAILED = 'queue:job_failed',
+
+  /** A new announcement has been published */
+  ANNOUNCEMENT_PUBLISHED = 'announcement:published',
 }
 
 export interface NotificationPayload {
   type: NotificationType
+  /** Unique event ID (UUID) — assigned by gateway before emitting */
+  eventId?: string
   /** User ID who triggered the action (0 for system actions) */
   actorId: number
   /** Actor display name */

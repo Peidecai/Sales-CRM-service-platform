@@ -1,16 +1,32 @@
 /**
  * Shared test utilities — mock factories and fixtures.
  */
-import { UserRole, CustomerStatus, OpportunityStage } from '@crm/shared'
+import {
+  UserRole,
+  CustomerStatus,
+  OpportunityStage,
+  PaymentStatus,
+  PaymentMethod,
+  ContractStatus,
+  ContractType,
+  QuotationStatus,
+} from '@crm/shared'
+import { CampaignTaskStatus } from '../src/modules/campaign/entities/campaign-task.entity'
+import { CampaignCallStatus } from '../src/modules/campaign/entities/campaign-call-item.entity'
 
 /* ---------- Mock Repository Factory ---------- */
 
 export type MockRepository<T = unknown> = Record<
   | 'find'
   | 'findOne'
+  | 'findOneOrFail'
+  | 'findAndCount'
   | 'create'
   | 'save'
+  | 'remove'
+  | 'softRemove'
   | 'delete'
+  | 'update'
   | 'increment'
   | 'decrement'
   | 'createQueryBuilder'
@@ -22,13 +38,39 @@ export function createMockRepository<T = unknown>(): MockRepository<T> {
   return {
     find: jest.fn(),
     findOne: jest.fn(),
+    findOneOrFail: jest.fn(),
+    findAndCount: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
+    remove: jest.fn(),
+    softRemove: jest.fn(),
     delete: jest.fn(),
+    update: jest.fn(),
     increment: jest.fn(),
     decrement: jest.fn(),
     count: jest.fn(),
     createQueryBuilder: jest.fn(),
+  }
+}
+
+/* ---------- Mock DataSource ---------- */
+
+export function createMockDataSource() {
+  const mockQueryRunner = {
+    connect: jest.fn(),
+    startTransaction: jest.fn(),
+    commitTransaction: jest.fn(),
+    rollbackTransaction: jest.fn(),
+    release: jest.fn(),
+    manager: {
+      save: jest.fn().mockImplementation(async (entity) => entity),
+      findOne: jest.fn(),
+      update: jest.fn(),
+    },
+  }
+  return {
+    createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
+    mockQueryRunner,
   }
 }
 
@@ -48,6 +90,8 @@ export interface MockQueryBuilder {
   getRawOne: jest.Mock
   getRawMany: jest.Mock
   leftJoinAndSelect: jest.Mock
+  leftJoin: jest.Mock
+  innerJoin: jest.Mock
   select: jest.Mock
   addSelect: jest.Mock
   groupBy: jest.Mock
@@ -69,6 +113,8 @@ export function createMockQueryBuilder(data: unknown[] = [], total = 0): MockQue
     getRawOne: jest.fn().mockResolvedValue(null),
     getRawMany: jest.fn().mockResolvedValue([]),
     leftJoinAndSelect: jest.fn().mockReturnThis(),
+    leftJoin: jest.fn().mockReturnThis(),
+    innerJoin: jest.fn().mockReturnThis(),
     select: jest.fn().mockReturnThis(),
     addSelect: jest.fn().mockReturnThis(),
     groupBy: jest.fn().mockReturnThis(),
@@ -81,27 +127,37 @@ export function createMockQueryBuilder(data: unknown[] = [], total = 0): MockQue
 
 export interface MockRedisService {
   get: jest.Mock
+  safeGet: jest.Mock
   set: jest.Mock
   del: jest.Mock
   delByPattern: jest.Mock
   exists: jest.Mock
+  safeExists: jest.Mock
   ping: jest.Mock
   getClient: jest.Mock
   incr: jest.Mock
   expire: jest.Mock
+  zAdd: jest.Mock
+  zRem: jest.Mock
+  zRangeByScore: jest.Mock
 }
 
 export function createMockRedisService(): MockRedisService {
   return {
     get: jest.fn().mockResolvedValue(null),
+    safeGet: jest.fn().mockResolvedValue(null),
     set: jest.fn().mockResolvedValue(undefined),
     del: jest.fn().mockResolvedValue(0),
     delByPattern: jest.fn().mockResolvedValue(0),
     exists: jest.fn().mockResolvedValue(false),
+    safeExists: jest.fn().mockResolvedValue(false),
     ping: jest.fn().mockResolvedValue('PONG'),
     getClient: jest.fn(),
     incr: jest.fn().mockResolvedValue(1),
     expire: jest.fn().mockResolvedValue(undefined),
+    zAdd: jest.fn().mockResolvedValue(1),
+    zRem: jest.fn().mockResolvedValue(0),
+    zRangeByScore: jest.fn().mockResolvedValue([]),
   }
 }
 
@@ -146,9 +202,16 @@ export const fixtures = {
     phone: '13800138000',
     role: UserRole.SALES,
     isActive: true,
-    deleted: false,
+    skills: null as number[] | null,
+    deletedAt: null as Date | null,
     createdAt: new Date('2025-01-01'),
     updatedAt: new Date('2025-01-01'),
+    hasId: () => true,
+    save: jest.fn(),
+    remove: jest.fn(),
+    softRemove: jest.fn(),
+    recover: jest.fn(),
+    reload: jest.fn(),
     ...overrides,
   }),
 
@@ -161,9 +224,16 @@ export const fixtures = {
     phone: '13900139000',
     role: UserRole.ADMIN,
     isActive: true,
-    deleted: false,
+    skills: null as number[] | null,
+    deletedAt: null as Date | null,
     createdAt: new Date('2025-01-01'),
     updatedAt: new Date('2025-01-01'),
+    hasId: () => true,
+    save: jest.fn(),
+    remove: jest.fn(),
+    softRemove: jest.fn(),
+    recover: jest.fn(),
+    reload: jest.fn(),
     ...overrides,
   }),
 
@@ -179,11 +249,15 @@ export const fixtures = {
     tags: ['vip'],
     industry: 'IT',
     source: 'website',
-    deleted: false,
+    deletedAt: null as Date | null,
     createdAt: new Date('2025-01-01'),
     updatedAt: new Date('2025-01-01'),
     opportunities: [],
     callRecords: [],
+    customerNo: null as string | null,
+    isInPool: false,
+    poolEnteredAt: null as Date | null,
+    protectUntil: null as Date | null,
     ...overrides,
   }),
 
@@ -198,7 +272,7 @@ export const fixtures = {
     expectedCloseDate: new Date('2025-06-30'),
     assignedUserId: 1,
     description: 'Test description',
-    deleted: false,
+    deletedAt: null as Date | null,
     createdAt: new Date('2025-01-01'),
     updatedAt: new Date('2025-01-01'),
     ...overrides,
@@ -216,7 +290,7 @@ export const fixtures = {
     notes: 'Test call notes',
     aiSummary: null,
     recordingUrl: null,
-    deleted: false,
+    deletedAt: null as Date | null,
     createdAt: new Date('2025-01-01'),
     updatedAt: new Date('2025-01-01'),
     ...overrides,
@@ -233,7 +307,7 @@ export const fixtures = {
     likeCount: 0,
     tags: ['test'],
     isPublished: true,
-    deleted: false,
+    deletedAt: null as Date | null,
     createdAt: new Date('2025-01-01'),
     updatedAt: new Date('2025-01-01'),
     ...overrides,
@@ -248,9 +322,148 @@ export const fixtures = {
     parent: null,
     children: [],
     articles: [],
-    deleted: false,
+    deletedAt: null as Date | null,
     createdAt: new Date('2025-01-01'),
     updatedAt: new Date('2025-01-01'),
+    ...overrides,
+  }),
+
+  payment: (overrides: Record<string, unknown> = {}) => ({
+    id: 1,
+    paymentNo: 'PAY-20250101-0001',
+    contractId: 1,
+    opportunityId: null,
+    customerId: 1,
+    ownerId: 1,
+    periodNo: 1,
+    plannedAmount: 10000,
+    actualAmount: null,
+    plannedDate: new Date('2025-03-15'),
+    actualDate: null,
+    paymentMethod: null,
+    bankTransactionNo: null,
+    invoiceNo: null,
+    isOverdue: false,
+    overdueDays: 0,
+    status: PaymentStatus.PLANNED,
+    confirmUserId: null,
+    confirmedAt: null,
+    remark: null,
+    attachments: null,
+    createdBy: 1,
+    createdAt: new Date('2025-01-01'),
+    updatedAt: new Date('2025-01-01'),
+    deletedAt: null,
+    ...overrides,
+  }),
+
+  contract: (overrides: Record<string, unknown> = {}) => ({
+    id: 1,
+    contractNo: 'CON-20250101-0001',
+    title: 'Test Contract',
+    contractType: ContractType.SALES,
+    opportunityId: 1,
+    quotationId: null,
+    customerId: 1,
+    ownerId: 1,
+    ourEntity: 'Our Company',
+    customerEntity: 'Customer Company',
+    currency: 'CNY',
+    totalAmount: 100000,
+    paidAmount: 0,
+    startDate: '2025-01-01',
+    endDate: '2025-12-31',
+    signDate: null,
+    paymentTerms: null,
+    deliveryTerms: null,
+    status: ContractStatus.DRAFT,
+    signFileUrl: null,
+    renewalReminderDays: 30,
+    parentContractId: null,
+    attachments: null,
+    customFields: null,
+    createdBy: 1,
+    createdAt: new Date('2025-01-01'),
+    updatedAt: new Date('2025-01-01'),
+    deletedAt: null,
+    ...overrides,
+  }),
+
+  quotation: (overrides: Record<string, unknown> = {}) => ({
+    id: 1,
+    quotationNo: 'QUO-20250101-0001',
+    title: 'Test Quotation',
+    opportunityId: 1,
+    customerId: 1,
+    contactId: null,
+    ownerId: 1,
+    version: 1,
+    currency: 'CNY',
+    subtotal: 10000,
+    discountType: null,
+    discountValue: 0,
+    discountAmount: 0,
+    taxRate: 13,
+    taxAmount: 1300,
+    totalAmount: 11300,
+    validUntil: new Date('2025-06-30'),
+    paymentTerms: null,
+    deliveryTerms: null,
+    remark: null,
+    status: QuotationStatus.DRAFT,
+    sentAt: null,
+    acceptedAt: null,
+    attachments: null,
+    createdBy: 1,
+    items: [],
+    createdAt: new Date('2025-01-01'),
+    updatedAt: new Date('2025-01-01'),
+    deletedAt: null,
+    ...overrides,
+  }),
+
+  quotationItem: (overrides: Record<string, unknown> = {}) => ({
+    id: 1,
+    quotationId: 1,
+    productName: 'Test Product',
+    productSpec: null,
+    unit: '个',
+    quantity: 10,
+    unitPrice: 1000,
+    listPrice: 1200,
+    discountRate: 0,
+    lineAmount: 10000,
+    sortOrder: 0,
+    remark: null,
+    ...overrides,
+  }),
+
+  campaignTask: (overrides: Record<string, unknown> = {}) => ({
+    id: 1,
+    name: 'Test Campaign',
+    status: CampaignTaskStatus.DRAFT,
+    totalCount: 0,
+    completedCount: 0,
+    successCount: 0,
+    startedAt: null as Date | null,
+    endedAt: null as Date | null,
+    createdBy: 1,
+    createdAt: new Date('2025-01-01'),
+    updatedAt: new Date('2025-01-01'),
+    ...overrides,
+  }),
+
+  campaignCallItem: (overrides: Record<string, unknown> = {}) => ({
+    id: 1,
+    campaignTaskId: 1,
+    customerId: 10,
+    contactId: null as number | null,
+    phone: '13800000001',
+    callStatus: CampaignCallStatus.PENDING,
+    callRecordId: null as number | null,
+    dialAt: null as Date | null,
+    completedAt: null as Date | null,
+    createdAt: new Date('2025-01-01'),
     ...overrides,
   }),
 }

@@ -36,7 +36,7 @@ export class ApprovalService {
   async createInstance(dto: CreateApprovalInstanceDto, user: AuthUser): Promise<ApprovalInstance> {
     // 查找对应业务类型已启用的流程定义
     const flow = await this.flowRepository.findOne({
-      where: { bizType: dto.bizType, isEnabled: true, deleted: false },
+      where: { bizType: dto.bizType, isEnabled: true },
     })
     if (!flow) {
       throw new BadRequestException(`业务类型 ${dto.bizType} 暂无可用的审批流程定义`)
@@ -70,9 +70,7 @@ export class ApprovalService {
   async findAll(query: QueryApprovalDto, _user: AuthUser): Promise<PageResult<ApprovalInstance>> {
     const { page = 1, pageSize = 20, status, bizType, applicantId } = query
 
-    const qb = this.instanceRepository
-      .createQueryBuilder('i')
-      .where('i.deleted = :deleted', { deleted: false })
+    const qb = this.instanceRepository.createQueryBuilder('i')
 
     if (status) qb.andWhere('i.status = :status', { status })
     if (bizType) qb.andWhere('i.bizType = :bizType', { bizType })
@@ -96,17 +94,17 @@ export class ApprovalService {
     _user: AuthUser,
   ): Promise<{ instance: ApprovalInstance; records: ApprovalRecord[]; flow: ApprovalFlow | null }> {
     const instance = await this.instanceRepository.findOne({
-      where: { id, deleted: false },
+      where: { id },
     })
     if (!instance) throw new NotFoundException(`审批实例 ${id} 不存在`)
 
     const records = await this.recordRepository.find({
-      where: { instanceId: id, deleted: false },
+      where: { instanceId: id },
       order: { createdAt: 'ASC' },
     })
 
     const flow = await this.flowRepository.findOne({
-      where: { id: instance.flowDefinitionId, deleted: false },
+      where: { id: instance.flowDefinitionId },
     })
 
     return { instance, records, flow }
@@ -126,7 +124,7 @@ export class ApprovalService {
     user: AuthUser,
   ): Promise<ApprovalInstance> {
     const instance = await this.instanceRepository.findOne({
-      where: { id: instanceId, deleted: false },
+      where: { id: instanceId },
     })
     if (!instance) throw new NotFoundException(`审批实例 ${instanceId} 不存在`)
 
@@ -136,7 +134,7 @@ export class ApprovalService {
 
     // 获取当前节点信息
     const flow = await this.flowRepository.findOne({
-      where: { id: instance.flowDefinitionId, deleted: false },
+      where: { id: instance.flowDefinitionId },
     })
     if (!flow) throw new NotFoundException('关联的流程定义不存在')
 
@@ -196,7 +194,7 @@ export class ApprovalService {
    */
   async withdraw(instanceId: number, user: AuthUser): Promise<ApprovalInstance> {
     const instance = await this.instanceRepository.findOne({
-      where: { id: instanceId, deleted: false },
+      where: { id: instanceId },
     })
     if (!instance) throw new NotFoundException(`审批实例 ${instanceId} 不存在`)
 
@@ -226,7 +224,6 @@ export class ApprovalService {
     return this.instanceRepository.find({
       where: {
         status: ApprovalStatus.PENDING,
-        deleted: false,
       },
       order: { createdAt: 'DESC' },
     })

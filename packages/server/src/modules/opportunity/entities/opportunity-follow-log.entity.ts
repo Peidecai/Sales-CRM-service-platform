@@ -31,10 +31,16 @@ export class OpportunityFollowLog extends BaseEntity {
   @Column({ type: 'text', comment: '跟进内容' })
   content!: string
 
-  @Column({ name: 'result', length: 500, nullable: true, comment: '跟进结果' })
+  @Column({ type: 'varchar', name: 'result', length: 500, nullable: true, comment: '跟进结果' })
   result!: string | null
 
-  @Column({ name: 'next_step', length: 500, nullable: true, comment: '下一步计划' })
+  @Column({
+    type: 'varchar',
+    name: 'next_step',
+    length: 500,
+    nullable: true,
+    comment: '下一步计划',
+  })
   nextStep!: string | null
 
   @Column({ type: 'json', nullable: true, comment: '附件列表' })

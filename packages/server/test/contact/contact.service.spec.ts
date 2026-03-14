@@ -66,7 +66,6 @@ describe('ContactService', () => {
       const result = await service.findByCustomer(1, { page: 1, pageSize: 20 } as never)
 
       expect(qb.where).toHaveBeenCalledWith('contact.customer_id = :customerId', { customerId: 1 })
-      expect(qb.andWhere).toHaveBeenCalledWith('contact.deleted = :deleted', { deleted: false })
       expect(result.list).toHaveLength(1)
       expect(result.total).toBe(1)
     })
@@ -110,7 +109,7 @@ describe('ContactService', () => {
       const dto = { customerId: 1, name: '张三', mobile: '13800138000' } as never
       const result = await service.create(1, dto)
 
-      expect(customerRepo.findOne).toHaveBeenCalledWith({ where: { id: 1, deleted: false } })
+      expect(customerRepo.findOne).toHaveBeenCalledWith({ where: { id: 1 } })
       expect(contactRepo.save).toHaveBeenCalled()
       expect(result.contact).toBeDefined()
       expect(result.duplicateWarnings).toEqual([])
@@ -167,11 +166,11 @@ describe('ContactService', () => {
     it('should soft-delete contact', async () => {
       const contact = mockContact()
       contactRepo.findOne.mockResolvedValue({ ...contact })
-      contactRepo.save.mockImplementation(async (r) => r)
+      contactRepo.softRemove.mockResolvedValue(contact)
 
       await service.remove(1)
 
-      expect(contactRepo.save).toHaveBeenCalledWith(expect.objectContaining({ deleted: true }))
+      expect(contactRepo.softRemove).toHaveBeenCalled()
     })
 
     it('should throw NotFoundException if contact not found', async () => {
@@ -260,7 +259,7 @@ describe('ContactService', () => {
       expect(mockQueryRunner.startTransaction).toHaveBeenCalled()
       expect(mockQueryRunner.manager.update).toHaveBeenCalledWith(
         Contact,
-        { customerId: 1, deleted: false },
+        { customerId: 1 },
         { isPrimary: false },
       )
       expect(mockQueryRunner.commitTransaction).toHaveBeenCalled()

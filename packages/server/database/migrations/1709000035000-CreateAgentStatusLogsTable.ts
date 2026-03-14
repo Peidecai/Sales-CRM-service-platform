@@ -43,7 +43,7 @@ export class CreateAgentStatusLogsTable1709000035000 implements MigrationInterfa
             name: 'created_at',
             type: 'datetime',
             precision: 6,
-            default: 'CURRENT_TIMESTAMP',
+            default: 'CURRENT_TIMESTAMP(6)',
           },
         ],
       }),

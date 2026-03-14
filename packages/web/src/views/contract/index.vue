@@ -45,9 +45,11 @@
         </el-table-column>
         <el-table-column label="状态" width="110" align="center">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" size="small">{{
-              statusLabels[row.status] || row.status
-            }}</el-tag>
+            <el-tag :type="getStatusType(row.status)" size="small">
+              {{
+                statusLabels[row.status] || row.status
+              }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="开始日期" prop="startDate" width="120" />
@@ -61,7 +63,9 @@
               link
               size="small"
               @click="confirmSign(row.id)"
-              >签署</el-button
+            >
+              签署
+            </el-button
             >
           </template>
         </el-table-column>

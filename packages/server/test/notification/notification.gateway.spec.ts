@@ -2,14 +2,14 @@ import { ConfigService } from '@nestjs/config'
 import { JwtService } from '@nestjs/jwt'
 import { Logger } from '@nestjs/common'
 import { NotificationGateway } from '../../src/modules/notification/notification.gateway'
-import { AuthService } from '../../src/modules/auth/auth.service'
+import { TokenService } from '../../src/modules/auth/token.service'
 import { NotificationType } from '../../src/modules/notification/notification.types'
 
 describe('NotificationGateway', () => {
   let gateway: NotificationGateway
   let jwtService: { verify: jest.Mock }
   let configService: { get: jest.Mock }
-  let authService: { isTokenBlacklisted: jest.Mock }
+  let tokenService: { isTokenBlacklisted: jest.Mock }
 
   beforeEach(() => {
     jwtService = {
@@ -18,14 +18,14 @@ describe('NotificationGateway', () => {
     configService = {
       get: jest.fn().mockReturnValue('test-secret'),
     }
-    authService = {
+    tokenService = {
       isTokenBlacklisted: jest.fn().mockResolvedValue(false),
     }
 
     gateway = new NotificationGateway(
       jwtService as unknown as JwtService,
       configService as unknown as ConfigService,
-      authService as unknown as AuthService,
+      tokenService as unknown as TokenService,
     )
   })
 
@@ -120,7 +120,7 @@ describe('NotificationGateway', () => {
       disconnect: jest.fn(),
     }
     jwtService.verify.mockReturnValue({ sub: 1, username: 'u1', role: 'sales' })
-    authService.isTokenBlacklisted.mockResolvedValue(true)
+    tokenService.isTokenBlacklisted.mockResolvedValue(true)
 
     await gateway.handleConnection(client as never)
 
@@ -160,6 +160,7 @@ describe('NotificationGateway', () => {
 
     gateway.broadcast({
       type: NotificationType.CUSTOMER_CREATED,
+      eventId: 'evt-1',
       actorId: 1,
       actorName: 'alice',
       resource: 'customer',
@@ -196,6 +197,7 @@ describe('NotificationGateway', () => {
 
     gateway.sendToUser(88, {
       type: NotificationType.CALL_RECORD_CREATED,
+      eventId: 'evt-2',
       actorId: 1,
       actorName: 'alice',
       resource: 'call_record',
@@ -216,6 +218,7 @@ describe('NotificationGateway', () => {
 
     gateway.sendToUser(404, {
       type: NotificationType.CALL_RECORD_CREATED,
+      eventId: 'evt-3',
       actorId: 1,
       actorName: 'alice',
       resource: 'call_record',

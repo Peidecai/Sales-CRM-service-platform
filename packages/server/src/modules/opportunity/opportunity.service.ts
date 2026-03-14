@@ -1,6 +1,11 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common'
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository, SelectQueryBuilder } from 'typeorm'
+import { Repository, SelectQueryBuilder, DataSource } from 'typeorm'
 import { OpportunityStage, UserRole } from '@crm/shared'
 import { Opportunity } from './opportunity.entity'
 import { OpportunityStageLog } from './entities/opportunity-stage-log.entity'
@@ -20,6 +25,28 @@ const STAGE_PROBABILITY: Record<OpportunityStage, number> = {
   [OpportunityStage.NEGOTIATION]: 75,
   [OpportunityStage.CLOSED_WON]: 100,
   [OpportunityStage.CLOSED_LOST]: 0,
+}
+
+/** Allowed stage transitions — terminal stages (CLOSED_WON/CLOSED_LOST) cannot transition */
+const ALLOWED_STAGE_TRANSITIONS: Record<OpportunityStage, OpportunityStage[]> = {
+  [OpportunityStage.LEAD]: [OpportunityStage.QUALIFIED, OpportunityStage.CLOSED_LOST],
+  [OpportunityStage.QUALIFIED]: [
+    OpportunityStage.LEAD,
+    OpportunityStage.PROPOSAL,
+    OpportunityStage.CLOSED_LOST,
+  ],
+  [OpportunityStage.PROPOSAL]: [
+    OpportunityStage.QUALIFIED,
+    OpportunityStage.NEGOTIATION,
+    OpportunityStage.CLOSED_LOST,
+  ],
+  [OpportunityStage.NEGOTIATION]: [
+    OpportunityStage.PROPOSAL,
+    OpportunityStage.CLOSED_WON,
+    OpportunityStage.CLOSED_LOST,
+  ],
+  [OpportunityStage.CLOSED_WON]: [],
+  [OpportunityStage.CLOSED_LOST]: [],
 }
 
 export interface PageResult<T> {
@@ -61,6 +88,7 @@ export class OpportunityService {
     private readonly opportunityRepository: Repository<Opportunity>,
     @InjectRepository(OpportunityStageLog)
     private readonly stageLogRepository: Repository<OpportunityStageLog>,
+    private readonly dataSource: DataSource,
     private readonly redisService: RedisService,
   ) {}
 
@@ -72,6 +100,7 @@ export class OpportunityService {
       ...dto,
       stage,
       probability,
+      weightedAmount: this.calculateWeightedAmount(dto.amount ?? 0, probability),
     })
 
     const saved = await this.opportunityRepository.save(opportunity)
@@ -85,7 +114,6 @@ export class OpportunityService {
     const qb = this.opportunityRepository
       .createQueryBuilder('opportunity')
       .leftJoinAndSelect('opportunity.customer', 'customer')
-      .where('opportunity.deleted = :deleted', { deleted: false })
 
     this.applyDataPermission(qb, user)
 
@@ -116,7 +144,7 @@ export class OpportunityService {
 
   async findOne(id: number, user?: AuthUser): Promise<Opportunity> {
     const cacheKey = `${CACHE_KEYS.OPPORTUNITY_DETAIL}:${id}`
-    const cached = await this.redisService.get(cacheKey)
+    const cached = await this.redisService.safeGet(cacheKey)
     if (cached) {
       const opportunity = JSON.parse(cached) as Opportunity
       this.checkOwnership(opportunity, user)
@@ -124,7 +152,7 @@ export class OpportunityService {
     }
 
     const opportunity = await this.opportunityRepository.findOne({
-      where: { id, deleted: false },
+      where: { id },
       relations: ['customer'],
     })
 
@@ -141,6 +169,14 @@ export class OpportunityService {
   async update(id: number, dto: UpdateOpportunityDto, user?: AuthUser): Promise<Opportunity> {
     const opportunity = await this.findOne(id, user)
     Object.assign(opportunity, dto)
+
+    if (dto.amount !== undefined || dto.probability !== undefined) {
+      opportunity.weightedAmount = this.calculateWeightedAmount(
+        opportunity.amount,
+        opportunity.probability,
+      )
+    }
+
     const saved = await this.opportunityRepository.save(opportunity)
     await this.invalidateStatsCache()
     await this.invalidateDetailCache(id)
@@ -154,56 +190,87 @@ export class OpportunityService {
   ): Promise<OpportunityStageUpdateResult> {
     const opportunity = await this.findOne(id, user)
     const previousStage = opportunity.stage
+
+    // Validate stage transition
+    const allowedTargets = ALLOWED_STAGE_TRANSITIONS[previousStage]
+    if (!allowedTargets.includes(dto.stage)) {
+      throw new BadRequestException(`不允许从 ${previousStage} 阶段转换到 ${dto.stage} 阶段`)
+    }
+
     const fromProbability = opportunity.probability
     const toProbability = STAGE_PROBABILITY[dto.stage]
 
-    opportunity.stage = dto.stage
-    opportunity.probability = toProbability
-    const saved = await this.opportunityRepository.save(opportunity)
+    const queryRunner = this.dataSource.createQueryRunner()
+    await queryRunner.connect()
+    await queryRunner.startTransaction()
 
-    const lastLog = await this.stageLogRepository.findOne({
-      where: { opportunityId: id },
-      order: { createdAt: 'DESC' },
-    })
-    const now = new Date()
-    const previousStageEnteredAt = lastLog ? lastLog.createdAt : opportunity.createdAt
-    const stayDays = Math.max(
-      0,
-      Math.floor((now.getTime() - new Date(previousStageEnteredAt).getTime()) / 86400000),
-    )
+    try {
+      opportunity.stage = dto.stage
+      opportunity.probability = toProbability
+      opportunity.weightedAmount = this.calculateWeightedAmount(opportunity.amount, toProbability)
 
-    const stageLog = this.stageLogRepository.create({
-      opportunityId: id,
-      fromStage: previousStage,
-      toStage: dto.stage,
-      fromProbability,
-      toProbability,
-      stayDays,
-      operatorId: user?.id ?? saved.assignedUserId,
-      remark: null,
-    })
-    await this.stageLogRepository.save(stageLog)
+      // Persist close fields for terminal stages
+      if (dto.stage === OpportunityStage.CLOSED_WON) {
+        opportunity.actualCloseDate = new Date()
+        opportunity.closeReason = dto.closeReason ?? null
+        opportunity.closeRemark = dto.closeRemark ?? null
+      } else if (dto.stage === OpportunityStage.CLOSED_LOST) {
+        opportunity.closeReason = dto.closeReason ?? null
+        opportunity.closeRemark = dto.closeRemark ?? null
+      }
 
-    await this.invalidateStatsCache()
-    await this.invalidateDetailCache(id)
-    return {
-      opportunity: saved,
-      previousStage,
-      currentStage: saved.stage,
+      const saved = await queryRunner.manager.save(opportunity)
+
+      const lastLog = await this.stageLogRepository.findOne({
+        where: { opportunityId: id },
+        order: { createdAt: 'DESC' },
+      })
+      const now = new Date()
+      const previousStageEnteredAt = lastLog ? lastLog.createdAt : opportunity.createdAt
+      const stayDays = Math.max(
+        0,
+        Math.floor((now.getTime() - new Date(previousStageEnteredAt).getTime()) / 86400000),
+      )
+
+      const stageLog = this.stageLogRepository.create({
+        opportunityId: id,
+        fromStage: previousStage,
+        toStage: dto.stage,
+        fromProbability,
+        toProbability,
+        stayDays,
+        operatorId: user?.id ?? saved.assignedUserId,
+        remark: null,
+      })
+      await queryRunner.manager.save(stageLog)
+
+      await queryRunner.commitTransaction()
+
+      await this.invalidateStatsCache()
+      await this.invalidateDetailCache(id)
+      return {
+        opportunity: saved,
+        previousStage,
+        currentStage: saved.stage,
+      }
+    } catch (err) {
+      await queryRunner.rollbackTransaction()
+      throw err
+    } finally {
+      await queryRunner.release()
     }
   }
 
   async remove(id: number): Promise<void> {
     const opportunity = await this.findOne(id)
-    opportunity.deleted = true
-    await this.opportunityRepository.save(opportunity)
+    await this.opportunityRepository.softRemove(opportunity)
     await this.invalidateStatsCache()
     await this.invalidateDetailCache(id)
   }
 
   async getStats(user: AuthUser): Promise<OpportunityStageStats[]> {
     const cacheKey = this.getStatsCacheKey(user)
-    const cached = await this.redisService.get(cacheKey)
+    const cached = await this.redisService.safeGet(cacheKey)
     if (cached) {
       return JSON.parse(cached) as OpportunityStageStats[]
     }
@@ -213,7 +280,6 @@ export class OpportunityService {
       .select('opportunity.stage', 'stage')
       .addSelect('COUNT(*)', 'count')
       .addSelect('SUM(opportunity.amount)', 'totalAmount')
-      .where('opportunity.deleted = :deleted', { deleted: false })
 
     if (user.role === UserRole.SALES) {
       qb.andWhere('opportunity.assignedUserId = :currentUserId', { currentUserId: user.id })
@@ -242,7 +308,7 @@ export class OpportunityService {
    */
   async getSalesFunnel(user: AuthUser): Promise<SalesFunnelResult> {
     const cacheKey = this.getFunnelCacheKey(user)
-    const cached = await this.redisService.get(cacheKey)
+    const cached = await this.redisService.safeGet(cacheKey)
     if (cached) {
       return JSON.parse(cached) as SalesFunnelResult
     }
@@ -261,7 +327,6 @@ export class OpportunityService {
       .select('opportunity.stage', 'stage')
       .addSelect('COUNT(*)', 'count')
       .addSelect('SUM(opportunity.amount)', 'amount')
-      .where('opportunity.deleted = :deleted', { deleted: false })
 
     if (user.role === UserRole.SALES) {
       qb.andWhere('opportunity.assignedUserId = :currentUserId', { currentUserId: user.id })
@@ -332,7 +397,6 @@ export class OpportunityService {
     const qb = this.opportunityRepository
       .createQueryBuilder('opportunity')
       .leftJoinAndSelect('opportunity.customer', 'customer')
-      .where('opportunity.deleted = :deleted', { deleted: false })
 
     this.applyDataPermission(qb, user)
     qb.orderBy('opportunity.updatedAt', 'DESC')
@@ -365,6 +429,11 @@ export class OpportunityService {
 
     // Add BOM for Excel UTF-8 compatibility
     return '\uFEFF' + [header, ...rows].join('\n')
+  }
+
+  /** Calculate weighted amount = amount * probability / 100, rounded to 2 decimals */
+  private calculateWeightedAmount(amount: number, probability: number): number {
+    return Math.round(amount * probability) / 100
   }
 
   /** Apply data permission: SALES users can only see their own records */

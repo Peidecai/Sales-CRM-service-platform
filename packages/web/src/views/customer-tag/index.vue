@@ -135,7 +135,9 @@ const handleDelete = async (id: number) => {
           <template v-if="isAdminOrManager">
             <el-button size="small" text @click="handleEdit(tag)">编辑</el-button>
             <el-button size="small" text type="danger" @click="handleDelete(tag.id as number)"
-              >删除</el-button
+            >
+              删除
+            </el-button
             >
           </template>
         </div>

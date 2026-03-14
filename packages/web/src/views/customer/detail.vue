@@ -243,7 +243,7 @@
                   <el-icon><Calendar /></el-icon>
                   下次跟进：{{ item.nextFollowUpDate }}
                   <span v-if="item.nextFollowUpNote" class="follow-up-next-note"
-                    >— {{ item.nextFollowUpNote }}</span
+                  >— {{ item.nextFollowUpNote }}</span
                   >
                 </div>
               </el-card>

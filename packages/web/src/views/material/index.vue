@@ -62,7 +62,9 @@
             <template #default="{ row }">
               <el-button type="primary" link size="small" @click="previewFile(row)">预览</el-button>
               <el-button type="primary" link size="small" @click="downloadFile(row)"
-                >下载</el-button
+              >
+                下载
+              </el-button
               >
               <el-button type="warning" link size="small" @click="toggleFavorite(row)">
                 {{ row.isFavorited ? '取消收藏' : '收藏' }}
@@ -83,9 +85,11 @@
               <div class="card-info">
                 <p class="file-name" :title="item.fileName">{{ item.fileName }}</p>
                 <p class="file-meta">
-                  <el-tag size="small" type="info">{{
-                    categoryLabels[item.category] || item.category
-                  }}</el-tag>
+                  <el-tag size="small" type="info">
+                    {{
+                      categoryLabels[item.category] || item.category
+                    }}
+                  </el-tag>
                   <span>{{ formatSize(item.fileSize) }}</span>
                 </p>
               </div>

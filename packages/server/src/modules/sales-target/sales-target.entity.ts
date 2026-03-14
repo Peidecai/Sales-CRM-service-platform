@@ -18,10 +18,10 @@ export class SalesTarget extends BaseEntity {
   @Column({ name: 'metric_type', type: 'enum', enum: TargetMetricType })
   metricType!: TargetMetricType
 
-  @Column({ name: 'target_value', type: 'decimal', precision: 14, scale: 2, default: 0 })
+  @Column({ name: 'target_value', type: 'decimal', precision: 15, scale: 2, default: 0 })
   targetValue!: number
 
-  @Column({ name: 'achieved_value', type: 'decimal', precision: 14, scale: 2, default: 0 })
+  @Column({ name: 'achieved_value', type: 'decimal', precision: 15, scale: 2, default: 0 })
   achievedValue!: number
 
   @Column({ type: 'int' })
@@ -40,14 +40,14 @@ export class SalesTarget extends BaseEntity {
   endDate!: Date
 
   @Index()
-  @Column({ name: 'assigned_user_id', nullable: true })
+  @Column({ type: 'int', name: 'assigned_user_id', nullable: true })
   assignedUserId!: number | null
 
-  @Column({ name: 'team_id', length: 100, nullable: true })
+  @Column({ type: 'varchar', name: 'team_id', length: 100, nullable: true })
   teamId!: string | null
 
   @Index()
-  @Column({ name: 'parent_target_id', nullable: true })
+  @Column({ type: 'int', name: 'parent_target_id', nullable: true })
   parentTargetId!: number | null
 
   // Self-referencing relations for target decomposition

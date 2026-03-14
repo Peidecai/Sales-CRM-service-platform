@@ -1,13 +1,15 @@
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm'
+import { Entity, Column, Index, PrimaryGeneratedColumn } from 'typeorm'
 
 @Entity('intent_predictions')
 export class IntentPrediction {
   @PrimaryGeneratedColumn()
   id!: number
 
+  @Index()
   @Column({ name: 'customer_id', type: 'int' })
   customerId!: number
 
+  @Index()
   @Column({ name: 'opportunity_id', type: 'int', nullable: true })
   opportunityId!: number | null
 

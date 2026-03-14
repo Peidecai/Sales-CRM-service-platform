@@ -30,7 +30,9 @@
         <el-table-column label="回款编号" prop="paymentNo" width="180" />
         <el-table-column label="计划金额" width="130" align="right">
           <template #default="{ row }"
-            >¥{{ Number(row.plannedAmount || 0).toLocaleString() }}</template
+          >
+            ¥{{ Number(row.plannedAmount || 0).toLocaleString() }}
+          </template
           >
         </el-table-column>
         <el-table-column label="实际到账" width="130" align="right">
@@ -46,9 +48,11 @@
         </el-table-column>
         <el-table-column label="状态" width="100" align="center">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" size="small">{{
-              statusLabels[row.status]
-            }}</el-tag>
+            <el-tag :type="getStatusType(row.status)" size="small">
+              {{
+                statusLabels[row.status]
+              }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="逾期" width="80" align="center">

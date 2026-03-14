@@ -10,6 +10,6 @@ import { PermissionCacheService } from './permission-cache.service'
 @Module({
   imports: [TypeOrmModule.forFeature([SysRole, SysPermission, SysUserRole, SysRoleDepartment])],
   providers: [PermissionCacheService],
-  exports: [PermissionCacheService, TypeOrmModule],
+  exports: [PermissionCacheService],
 })
 export class RbacModule {}

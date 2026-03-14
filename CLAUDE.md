@@ -9,7 +9,8 @@
 **技术栈**:
 
 - Backend: NestJS 10 + TypeORM 0.3 + MySQL 8.0 + Redis 7 + Bull
-- Frontend: Vue 3.4 + Vite 5 + Element Plus 2 + Pinia + Vue Router 4
+- Frontend (PC): Vue 3.4 + Vite 5 + Element Plus 2 + Pinia + Vue Router 4
+- Frontend (Mobile): uni-app 3.x + Vue 3 + Pinia（微信小程序，`@crm/miniapp`）
 - Language: TypeScript 5.x (strict mode)
 - Package Manager: pnpm (workspace)
 
@@ -23,33 +24,60 @@ crm-sales-platform/
 │   │   ├── src/
 │   │   │   ├── common/
 │   │   │   │   ├── decorators/    # @CurrentUser 自定义装饰器
-│   │   │   │   ├── guards/        # JwtAuthGuard, RolesGuard
+│   │   │   │   ├── guards/        # JwtAuthGuard, RolesGuard, CustomThrottlerGuard
 │   │   │   │   ├── interceptors/  # AuditLogInterceptor, TimeoutInterceptor, ResponseInterceptor
 │   │   │   │   ├── filters/       # HttpExceptionFilter
+│   │   │   │   ├── middleware/    # CSRF, SqlInjection, RequestContext
+│   │   │   │   ├── security/      # EncryptionService (AES-256-GCM), DataMaskingInterceptor
 │   │   │   │   └── redis/         # RedisService, cache-keys
 │   │   │   ├── config/            # 数据库配置
 │   │   │   └── modules/
-│   │   │       ├── auth/          # JWT 双 Token 认证
+│   │   │       ├── auth/          # JWT 双 Token 认证 + 微信 OAuth
 │   │   │       ├── user/          # 用户管理（Admin）
-│   │   │       ├── customer/      # 客户管理
+│   │   │       ├── customer/      # 客户管理（含导入/导出/合并/查重）
 │   │   │       ├── opportunity/   # 商机管理
 │   │   │       ├── call-record/   # 通话记录 + AI 摘要
+│   │   │       ├── call/          # 电话拨打 + 外呼弹屏 + 回调
+│   │   │       ├── recording/     # 录音存储 + ASR 转写
+│   │   │       ├── agent/         # 坐席状态管理 + 来电分配
+│   │   │       ├── campaign/      # 外呼任务/活动管理
 │   │   │       ├── knowledge/     # 知识库 + AI 问答
-│   │   │       ├── ai/            # DashScope AI 集成
+│   │   │       ├── ai/            # AI 集成（DashScope/Claude）
+│   │   │       ├── notification/  # WebSocket 实时通知
+│   │   │       ├── follow-up/     # 跟进提醒调度
+│   │   │       ├── sales-target/  # 销售目标 + 绩效排名
+│   │   │       ├── contact/       # 联系人管理
+│   │   │       ├── customer-pool/ # 客户公海池
+│   │   │       ├── customer-tag/  # 客户标签 + 自动打标
+│   │   │       ├── custom-field/  # 自定义字段
+│   │   │       ├── material/      # 素材管理（OSS 上传）
+│   │   │       ├── announcement/  # 公告管理
+│   │   │       ├── rbac/          # 角色权限表
+│   │   │       ├── route/         # 路由权限
+│   │   │       ├── quotation/     # 报价单
+│   │   │       ├── payment/       # 回款记录
+│   │   │       ├── contract/      # 合同管理
+│   │   │       ├── approval/      # 审批流程
 │   │   │       ├── audit-log/     # 审计日志（全局模块）
 │   │   │       └── health/        # 健康检查
-│   │   ├── database/              # TypeORM migrations (7 个迁移文件)
-│   │   └── test/                  # Jest 单元测试 (60 用例)
-│   └── web/             # @crm/web    — Vue 3 前端
+│   │   ├── database/              # TypeORM migrations
+│   │   └── test/                  # Jest 单元测试
+│   ├── web/             # @crm/web    — Vue 3 前端（PC 管理后台）
+│   │   └── src/
+│   │       ├── api/               # API 封装层 (axios)
+│   │       ├── composables/       # usePermission 等组合式函数
+│   │       ├── directives/        # v-permission 自定义指令
+│   │       ├── layout/            # 布局组件
+│   │       ├── router/            # 路由 + 守卫
+│   │       ├── stores/            # Pinia 状态管理
+│   │       ├── utils/             # 工具函数
+│   │       └── views/             # 页面���件
+│   └── miniapp/         # @crm/miniapp — 微信小程序（uni-app，销售移动端）
 │       └── src/
-│           ├── api/               # API 封装层 (axios)
-│           ├── composables/       # usePermission 等组合式函数
-│           ├── directives/        # v-permission 自定义指令
-│           ├── layout/            # 布局组件
-│           ├── router/            # 路由 + 守卫
-│           ├── stores/            # Pinia 状态管理
-│           ├── utils/             # 工具函数
-│           └── views/             # 页面组件
+│           ├── api/               # API 封装（wx.request 封装 + 离线队列）
+│           ├── pages/             # 页面：首页、客户、跟进、签到、绩效、语音、消息
+│           ├── stores/            # Pinia 状态管理（app/user）
+│           └── utils/             # offline-queue, cache-store, geo
 ├── docker/              # Docker 配置文件 (MySQL/Redis/Nginx)
 ├── docker-compose.yml   # 一键部署编排
 ├── .dockerignore        # Docker 构建排除规则
@@ -69,9 +97,9 @@ crm-sales-platform/
 | Redis 镜像               | `redis:7-alpine`                                  |
 | TypeORM synchronize      | `false` — 必须使用 Migration                      |
 | 响应格式                 | `{ code: number, message: string, data: T }`      |
-| 软删除字段               | `deleted: boolean` (BaseEntity 中定义)            |
-| API 前缀                 | `/api/v1`                                         |
-| 请求限流                 | `@nestjs/throttler` — 全局 30 req/60s，登录 5/min |
+| 软删除字段               | `@DeleteDateColumn deletedAt: Date\|null` (BaseEntity 中定义) |
+| API 前缀                 | `/api/v1`                                                     |
+| 请求限流                 | `@nestjs/throttler` — 全局 60 req/min（认证用户按 userId 计，匿名按 IP），登录 5/min |
 | 请求超时                 | `TimeoutInterceptor` — 全局 30 秒                 |
 | 审计日志                 | `AuditLogInterceptor` — 自动记录 POST/PUT/DELETE  |
 | 权限守卫                 | `RolesGuard` + `@Roles()` 装饰器                  |
@@ -136,8 +164,8 @@ crm-sales-platform/
 
 ## 数据库规范
 
-- 所有实体继承 `BaseEntity`（含 id, createdAt, updatedAt, deleted）
-- 使用软删除，查询时自动过滤 `deleted = true`
+- 所有实体继承 `BaseEntity`（含 id, createdAt, updatedAt, deletedAt）
+- 使用软删除（`@DeleteDateColumn`），TypeORM WithDeleted=false 时自动过滤 `deleted_at IS NOT NULL`
 - 表名使用 snake_case
 - 外键字段命名：`{relation}Id`
 - 必须为常用查询字段添加索引
@@ -203,6 +231,7 @@ docs: 更新 API 文档
 | TM-C | 通话记录 (call-record) | `packages/server/src/modules/call-record/CLAUDE.md` |
 | TM-D | 知识库 (knowledge)     | `packages/server/src/modules/knowledge/CLAUDE.md`   |
 | —    | 审计日志 (audit-log)   | `packages/server/src/modules/audit-log/CLAUDE.md`   |
+| —    | 微信小程序 (miniapp)   | `packages/miniapp/CLAUDE.md`                        |
 
 ## 环境变量
 
@@ -218,10 +247,11 @@ pnpm install
 # 启动开发服务
 pnpm dev:server    # NestJS: http://localhost:3000
 pnpm dev:web       # Vue: http://localhost:5173
+pnpm --filter @crm/miniapp dev:mp-weixin  # 微信小程序（需微信开发者工具）
 
-# 数据库迁移
+# 数据库迁移（必须使用 crm_migrator DDL 账户，不能用 crm_user）
 cd packages/server
-pnpm migration:run
+DB_USERNAME=crm_migrator DB_PASSWORD=<migrator-pwd> pnpm migration:run
 
 # 代码检查
 pnpm lint

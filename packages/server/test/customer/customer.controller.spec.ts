@@ -4,6 +4,8 @@ import { getRepositoryToken } from '@nestjs/typeorm'
 import { UserRole } from '@crm/shared'
 import { CustomerController } from '../../src/modules/customer/customer.controller'
 import { CustomerService } from '../../src/modules/customer/customer.service'
+import { CustomerExportService } from '../../src/modules/customer/services/customer-export.service'
+import { CustomerImportService } from '../../src/modules/customer/services/customer-import.service'
 import { DuplicateCheckService } from '../../src/modules/customer/services/duplicate-check.service'
 import { CustomerMergeService } from '../../src/modules/customer/services/customer-merge.service'
 import { NotificationService } from '../../src/modules/notification/notification.service'
@@ -57,6 +59,8 @@ describe('CustomerController', () => {
       controllers: [CustomerController],
       providers: [
         { provide: CustomerService, useValue: customerService },
+        { provide: CustomerExportService, useValue: { exportExcel: jest.fn(), exportCsv: jest.fn() } },
+        { provide: CustomerImportService, useValue: { processImport: jest.fn() } },
         { provide: DuplicateCheckService, useValue: { checkDuplicates: jest.fn() } },
         { provide: CustomerMergeService, useValue: { previewMerge: jest.fn(), executeMerge: jest.fn() } },
         { provide: NotificationService, useValue: notificationService },

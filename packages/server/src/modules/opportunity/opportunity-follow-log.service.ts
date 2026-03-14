@@ -21,7 +21,7 @@ export class OpportunityFollowLogService {
     user?: AuthUser,
   ): Promise<OpportunityFollowLog[]> {
     const opportunity = await this.opportunityRepository.findOne({
-      where: { id: opportunityId, deleted: false },
+      where: { id: opportunityId },
     })
     if (!opportunity) {
       return []
@@ -30,7 +30,7 @@ export class OpportunityFollowLogService {
       return []
     }
     return this.followLogRepository.find({
-      where: { opportunityId, deleted: false },
+      where: { opportunityId },
       order: { createdAt: 'DESC' },
     })
   }
@@ -41,7 +41,7 @@ export class OpportunityFollowLogService {
     user: AuthUser,
   ): Promise<OpportunityFollowLog> {
     const opportunity = await this.opportunityRepository.findOne({
-      where: { id: opportunityId, deleted: false },
+      where: { id: opportunityId },
     })
     if (!opportunity) {
       throw new NotFoundException(`Opportunity with ID ${opportunityId} not found`)

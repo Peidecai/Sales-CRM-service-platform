@@ -17,10 +17,12 @@ export class CampaignCallItem {
   @Column({ name: 'campaign_task_id' })
   campaignTaskId!: number
 
-  @Column({ name: 'customer_id', nullable: true })
+  @Index()
+  @Column({ type: 'int', name: 'customer_id', nullable: true })
   customerId!: number | null
 
-  @Column({ name: 'contact_id', nullable: true })
+  @Index()
+  @Column({ type: 'int', name: 'contact_id', nullable: true })
   contactId!: number | null
 
   @Column({ length: 20 })
@@ -34,7 +36,8 @@ export class CampaignCallItem {
   })
   callStatus!: CampaignCallStatus
 
-  @Column({ name: 'call_record_id', nullable: true })
+  @Index()
+  @Column({ type: 'int', name: 'call_record_id', nullable: true })
   callRecordId!: number | null
 
   @Column({ name: 'dial_at', type: 'datetime', nullable: true })

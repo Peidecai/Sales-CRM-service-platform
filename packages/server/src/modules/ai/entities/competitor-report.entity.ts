@@ -1,13 +1,15 @@
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm'
+import { Entity, Column, Index, PrimaryGeneratedColumn } from 'typeorm'
 
 @Entity('competitor_reports')
 export class CompetitorReport {
   @PrimaryGeneratedColumn()
   id!: number
 
+  @Index()
   @Column({ name: 'customer_id', type: 'int', nullable: true })
   customerId!: number | null
 
+  @Index()
   @Column({ name: 'opportunity_id', type: 'int', nullable: true })
   opportunityId!: number | null
 

@@ -9,19 +9,26 @@ import {
   Query,
   ParseIntPipe,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiParam } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
+import { RolesGuard } from '../../common/guards/roles.guard'
+import { CallbackSignatureGuard } from '../../common/guards/callback-signature.guard'
+import { ReplayAttackGuard } from '../../common/guards/replay-attack.guard'
 import { Public } from '../../common/decorators/public.decorator'
+import { AuditLogInterceptor } from '../../common/interceptors/audit-log.interceptor'
 import { MaterialService } from './material.service'
 import { OssUploadService } from './oss-upload.service'
 import { PreviewService } from './preview.service'
 import { QueryMaterialDto } from './dto/query-material.dto'
 import { UpdateMaterialDto } from './dto/update-material.dto'
+import { OssCallbackDto } from './dto/oss-callback.dto'
 
 @ApiTags('素材')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@UseInterceptors(AuditLogInterceptor)
 @Controller('materials')
 export class MaterialController {
   constructor(
@@ -45,11 +52,10 @@ export class MaterialController {
 
   @Post('upload/callback')
   @Public()
-  @ApiOperation({ summary: 'OSS upload callback (verify OSS signature in production)' })
-  uploadCallback(@Body() body: Record<string, unknown>) {
-    return this.ossUploadService.handleCallback(
-      body as Parameters<typeof this.ossUploadService.handleCallback>[0],
-    )
+  @UseGuards(CallbackSignatureGuard, ReplayAttackGuard)
+  @ApiOperation({ summary: 'OSS upload callback (signature verified)' })
+  uploadCallback(@Body() dto: OssCallbackDto) {
+    return this.ossUploadService.handleCallback(dto)
   }
 
   @Get('stats')

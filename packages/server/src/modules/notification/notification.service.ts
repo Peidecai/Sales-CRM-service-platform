@@ -211,4 +211,19 @@ export class NotificationService {
       data: { title },
     })
   }
+
+  /**
+   * Announcement notifications
+   */
+  announcementPublished(actorId: number, announcementId: number, title: string) {
+    this.notify({
+      type: NotificationType.ANNOUNCEMENT_PUBLISHED,
+      actorId,
+      actorName: '系统公告',
+      resource: 'announcement',
+      resourceId: announcementId,
+      message: `新公告「${title}」已发布`,
+      data: { title },
+    })
+  }
 }

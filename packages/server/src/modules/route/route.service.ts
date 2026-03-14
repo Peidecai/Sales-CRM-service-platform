@@ -42,7 +42,7 @@ export class RouteService {
   ): Promise<OptimizedRoute> {
     // Load customers with addresses
     const customers = await this.customerRepo.find({
-      where: { id: In(customerIds), deleted: false },
+      where: { id: In(customerIds) },
       select: ['id', 'name', 'address', 'region'],
     })
 

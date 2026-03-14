@@ -65,15 +65,13 @@ export class QuotationService {
 
   async findAll(query: QueryQuotationDto, _user: AuthUser) {
     const { page = 1, pageSize = 20, keyword, status, opportunityId, customerId } = query
-    const where: Record<string, unknown> = { deleted: false }
+    const where: Record<string, unknown> = {}
 
     if (status) where.status = status
     if (opportunityId) where.opportunityId = opportunityId
     if (customerId) where.customerId = customerId
 
-    const qb = this.quotationRepo
-      .createQueryBuilder('q')
-      .where('q.deleted = :deleted', { deleted: false })
+    const qb = this.quotationRepo.createQueryBuilder('q')
 
     if (status) qb.andWhere('q.status = :status', { status })
     if (opportunityId) qb.andWhere('q.opportunityId = :opportunityId', { opportunityId })
@@ -92,7 +90,7 @@ export class QuotationService {
 
   async findOne(id: number, _user: AuthUser) {
     const quotation = await this.quotationRepo.findOne({
-      where: { id, deleted: false },
+      where: { id },
       relations: ['items'],
     })
     if (!quotation) throw new NotFoundException(`报价单 #${id} 不存在`)
@@ -133,9 +131,8 @@ export class QuotationService {
   }
 
   async remove(id: number) {
-    const quotation = await this.quotationRepo.findOne({ where: { id, deleted: false } })
+    const quotation = await this.quotationRepo.findOne({ where: { id } })
     if (!quotation) throw new NotFoundException(`报价单 #${id} 不存在`)
-    quotation.deleted = true
-    await this.quotationRepo.save(quotation)
+    await this.quotationRepo.softRemove(quotation)
   }
 }

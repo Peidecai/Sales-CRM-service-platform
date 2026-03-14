@@ -1,4 +1,10 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  ServiceUnavailableException,
+  GatewayTimeoutException,
+} from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import Anthropic from '@anthropic-ai/sdk'
 
@@ -53,7 +59,9 @@ export class ClaudeService implements OnModuleInit {
     options?: ClaudeOptions,
   ): Promise<ClaudeResult> {
     if (!this.enabled) {
-      throw new Error('ClaudeService is not available — ANTHROPIC_API_KEY not configured')
+      throw new ServiceUnavailableException(
+        'ClaudeService is not available — ANTHROPIC_API_KEY not configured',
+      )
     }
 
     return this.limiter(() => this.executeWithRetry(prompt, options))
@@ -101,12 +109,12 @@ export class ClaudeService implements OnModuleInit {
       }
     }
 
-    throw new Error('All retry attempts exhausted')
+    throw new ServiceUnavailableException('All retry attempts exhausted')
   }
 
   private timeout(ms: number): Promise<never> {
     return new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(`Claude API timeout after ${ms}ms`)), ms),
+      setTimeout(() => reject(new GatewayTimeoutException(`Claude API timeout after ${ms}ms`)), ms),
     )
   }
 

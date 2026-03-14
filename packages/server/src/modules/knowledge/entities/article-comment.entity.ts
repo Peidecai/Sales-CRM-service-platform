@@ -1,4 +1,4 @@
-import { Entity, Column, Index, ManyToOne, JoinColumn } from 'typeorm'
+import { Entity, Column, Index, ManyToOne, JoinColumn, DeleteDateColumn } from 'typeorm'
 import { PrimaryGeneratedColumn, CreateDateColumn } from 'typeorm'
 import type { KnowledgeArticle } from './knowledge-article.entity'
 
@@ -25,8 +25,8 @@ export class ArticleComment {
   @CreateDateColumn({ name: 'created_at', precision: 6 })
   createdAt!: Date
 
-  @Column({ type: 'boolean', default: false })
-  deleted!: boolean
+  @DeleteDateColumn({ name: 'deleted_at' })
+  deletedAt!: Date | null
 
   @ManyToOne('KnowledgeArticle')
   @JoinColumn({ name: 'article_id' })

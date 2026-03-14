@@ -51,7 +51,7 @@ export class CreateCallTranscriptsTable1709000034000 implements MigrationInterfa
             name: 'created_at',
             type: 'datetime',
             precision: 6,
-            default: 'CURRENT_TIMESTAMP',
+            default: 'CURRENT_TIMESTAMP(6)',
           },
         ],
       }),

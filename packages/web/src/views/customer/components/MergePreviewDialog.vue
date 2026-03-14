@@ -92,24 +92,36 @@ const close = () => emit('update:visible', false)
                 </div>
               </template>
               <el-descriptions :column="1" size="small" border>
-                <el-descriptions-item label="公司">{{
-                  primaryCustomer.company || '-'
-                }}</el-descriptions-item>
-                <el-descriptions-item label="手机">{{
-                  primaryCustomer.phone || '-'
-                }}</el-descriptions-item>
-                <el-descriptions-item label="邮箱">{{
-                  primaryCustomer.email || '-'
-                }}</el-descriptions-item>
-                <el-descriptions-item label="状态">{{
-                  primaryCustomer.status || '-'
-                }}</el-descriptions-item>
-                <el-descriptions-item label="行业">{{
-                  primaryCustomer.industry || '-'
-                }}</el-descriptions-item>
-                <el-descriptions-item label="区域">{{
-                  primaryCustomer.region || '-'
-                }}</el-descriptions-item>
+                <el-descriptions-item label="公司">
+                  {{
+                    primaryCustomer.company || '-'
+                  }}
+                </el-descriptions-item>
+                <el-descriptions-item label="手机">
+                  {{
+                    primaryCustomer.phone || '-'
+                  }}
+                </el-descriptions-item>
+                <el-descriptions-item label="邮箱">
+                  {{
+                    primaryCustomer.email || '-'
+                  }}
+                </el-descriptions-item>
+                <el-descriptions-item label="状态">
+                  {{
+                    primaryCustomer.status || '-'
+                  }}
+                </el-descriptions-item>
+                <el-descriptions-item label="行业">
+                  {{
+                    primaryCustomer.industry || '-'
+                  }}
+                </el-descriptions-item>
+                <el-descriptions-item label="区域">
+                  {{
+                    primaryCustomer.region || '-'
+                  }}
+                </el-descriptions-item>
               </el-descriptions>
             </el-card>
           </el-col>
@@ -123,24 +135,36 @@ const close = () => emit('update:visible', false)
                 </div>
               </template>
               <el-descriptions :column="1" size="small" border>
-                <el-descriptions-item label="公司">{{
-                  secondaryCustomer.company || '-'
-                }}</el-descriptions-item>
-                <el-descriptions-item label="手机">{{
-                  secondaryCustomer.phone || '-'
-                }}</el-descriptions-item>
-                <el-descriptions-item label="邮箱">{{
-                  secondaryCustomer.email || '-'
-                }}</el-descriptions-item>
-                <el-descriptions-item label="状态">{{
-                  secondaryCustomer.status || '-'
-                }}</el-descriptions-item>
-                <el-descriptions-item label="行业">{{
-                  secondaryCustomer.industry || '-'
-                }}</el-descriptions-item>
-                <el-descriptions-item label="区域">{{
-                  secondaryCustomer.region || '-'
-                }}</el-descriptions-item>
+                <el-descriptions-item label="公司">
+                  {{
+                    secondaryCustomer.company || '-'
+                  }}
+                </el-descriptions-item>
+                <el-descriptions-item label="手机">
+                  {{
+                    secondaryCustomer.phone || '-'
+                  }}
+                </el-descriptions-item>
+                <el-descriptions-item label="邮箱">
+                  {{
+                    secondaryCustomer.email || '-'
+                  }}
+                </el-descriptions-item>
+                <el-descriptions-item label="状态">
+                  {{
+                    secondaryCustomer.status || '-'
+                  }}
+                </el-descriptions-item>
+                <el-descriptions-item label="行业">
+                  {{
+                    secondaryCustomer.industry || '-'
+                  }}
+                </el-descriptions-item>
+                <el-descriptions-item label="区域">
+                  {{
+                    secondaryCustomer.region || '-'
+                  }}
+                </el-descriptions-item>
               </el-descriptions>
             </el-card>
           </el-col>

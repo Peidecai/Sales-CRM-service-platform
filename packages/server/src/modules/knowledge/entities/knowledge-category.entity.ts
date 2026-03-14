@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, OneToMany, JoinColumn } from 'typeorm'
+import { Entity, Column, Index, ManyToOne, OneToMany, JoinColumn } from 'typeorm'
 import { BaseEntity } from '../../../common/entities/base.entity'
 import { KnowledgeCategoryType } from '@crm/shared'
 import type { KnowledgeArticle } from './knowledge-article.entity'
@@ -8,6 +8,7 @@ export class KnowledgeCategory extends BaseEntity {
   @Column({ length: 100 })
   name!: string
 
+  @Index()
   @Column({ name: 'parent_id', type: 'int', nullable: true, default: null })
   parentId!: number | null
 
@@ -17,7 +18,7 @@ export class KnowledgeCategory extends BaseEntity {
   @Column({ length: 200, nullable: true })
   description!: string
 
-  @Column({ name: 'category_code', length: 50, nullable: true, unique: true })
+  @Column({ type: 'varchar', name: 'category_code', length: 50, nullable: true, unique: true })
   categoryCode!: string | null
 
   @Column({
@@ -28,13 +29,13 @@ export class KnowledgeCategory extends BaseEntity {
   })
   categoryType!: KnowledgeCategoryType
 
-  @Column({ name: 'icon_url', length: 500, nullable: true })
+  @Column({ type: 'varchar', name: 'icon_url', length: 500, nullable: true })
   iconUrl!: string | null
 
   @Column({ type: 'tinyint', default: 1 })
   level!: number
 
-  @Column({ length: 200, nullable: true })
+  @Column({ type: 'varchar', length: 200, nullable: true })
   path!: string | null
 
   @Column({ name: 'article_count', type: 'int', default: 0 })

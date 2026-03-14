@@ -67,7 +67,7 @@ export class Contract extends BaseEntity {
   })
   status!: ContractStatus
 
-  @Column({ name: 'sign_file_url', length: 500, nullable: true })
+  @Column({ type: 'varchar', name: 'sign_file_url', length: 500, nullable: true })
   signFileUrl!: string | null
 
   @Column({ name: 'renewal_reminder_days', type: 'int', default: 30 })

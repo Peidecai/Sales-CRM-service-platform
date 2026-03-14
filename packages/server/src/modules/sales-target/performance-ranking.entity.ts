@@ -1,7 +1,8 @@
-import { Entity, Column, PrimaryGeneratedColumn, Index, CreateDateColumn } from 'typeorm'
+import { Entity, Column, PrimaryGeneratedColumn, Index, CreateDateColumn, Unique } from 'typeorm'
 import { TargetScope, TargetPeriod, TargetMetricType } from '@crm/shared'
 
 @Entity('performance_rankings')
+@Unique('UQ_ranking_snapshot', ['snapshotDate', 'year', 'month', 'metricType', 'userId'])
 export class PerformanceRanking {
   @PrimaryGeneratedColumn()
   id!: number
@@ -19,7 +20,7 @@ export class PerformanceRanking {
   @Column({ name: 'metric_type', type: 'enum', enum: TargetMetricType })
   metricType!: TargetMetricType
 
-  @Column({ name: 'metric_value', type: 'decimal', precision: 14, scale: 2, default: 0 })
+  @Column({ name: 'metric_value', type: 'decimal', precision: 15, scale: 2, default: 0 })
   metricValue!: number
 
   @Column({ type: 'int' })

@@ -26,7 +26,7 @@ export class DuplicateCheckService {
     // Dimension 1: Unified credit code exact match (100%)
     if (input.unifiedCreditCode) {
       const matches = await this.customerRepo.find({
-        where: { unifiedCreditCode: input.unifiedCreditCode, deleted: false },
+        where: { unifiedCreditCode: input.unifiedCreditCode },
       })
       results.push(
         ...matches.map((c) => ({
@@ -40,7 +40,7 @@ export class DuplicateCheckService {
     // Dimension 2: Phone exact match (95%)
     if (input.phone) {
       const matches = await this.customerRepo.find({
-        where: { phone: input.phone, deleted: false },
+        where: { phone: input.phone },
       })
       results.push(
         ...matches.map((c) => ({
@@ -54,7 +54,7 @@ export class DuplicateCheckService {
     // Dimension 3: Email exact match (90%)
     if (input.email) {
       const matches = await this.customerRepo.find({
-        where: { email: input.email, deleted: false },
+        where: { email: input.email },
       })
       results.push(
         ...matches.map((c) => ({
@@ -69,7 +69,6 @@ export class DuplicateCheckService {
     if (input.company) {
       const candidates = await this.customerRepo
         .createQueryBuilder('c')
-        .where('c.deleted = false')
         .andWhere('SOUNDEX(c.company) = SOUNDEX(:company)', {
           company: input.company,
         })
@@ -100,13 +99,13 @@ export class DuplicateCheckService {
     // Dimension 5: Contact mobile cross-match (85%)
     if (input.contactMobile) {
       const contactMatches = await this.contactRepo.find({
-        where: { mobile: input.contactMobile, deleted: false },
+        where: { mobile: input.contactMobile },
       })
       if (contactMatches.length > 0) {
         const customerIds = [...new Set(contactMatches.map((c) => c.customerId))]
         for (const custId of customerIds) {
           const customer = await this.customerRepo.findOne({
-            where: { id: custId, deleted: false },
+            where: { id: custId },
           })
           if (customer) {
             results.push({

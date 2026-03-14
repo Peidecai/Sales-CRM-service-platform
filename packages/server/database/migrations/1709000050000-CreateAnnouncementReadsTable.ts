@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner, Table, TableIndex, TableUnique } from 'typeorm';
+import { MigrationInterface, QueryRunner, Table, TableIndex } from 'typeorm';
 
 export class CreateAnnouncementReadsTable1709000050000 implements MigrationInterface {
   name = 'CreateAnnouncementReadsTable1709000050000';
@@ -36,11 +36,12 @@ export class CreateAnnouncementReadsTable1709000050000 implements MigrationInter
       }),
       true,
     );
-    await queryRunner.createUniqueConstraint(
+    await queryRunner.createIndex(
       'announcement_reads',
-      new TableUnique({
+      new TableIndex({
         name: 'UQ_ANNOUNCEMENT_READS_ANN_USER',
         columnNames: ['announcement_id', 'user_id'],
+        isUnique: true,
       }),
     );
     await queryRunner.createIndex(
@@ -56,7 +57,7 @@ export class CreateAnnouncementReadsTable1709000050000 implements MigrationInter
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.dropIndex('announcement_reads', 'IDX_ANNOUNCEMENT_READS_USER');
     await queryRunner.dropIndex('announcement_reads', 'IDX_ANNOUNCEMENT_READS_ANN');
-    await queryRunner.dropUniqueConstraint('announcement_reads', 'UQ_ANNOUNCEMENT_READS_ANN_USER');
+    await queryRunner.dropIndex('announcement_reads', 'UQ_ANNOUNCEMENT_READS_ANN_USER');
     await queryRunner.dropTable('announcement_reads');
   }
 }

@@ -15,13 +15,13 @@ export class CustomerTagService {
   ) {}
 
   async findAll(group?: string): Promise<CustomerTag[]> {
-    const where: Record<string, unknown> = { deleted: false }
+    const where: Record<string, unknown> = {}
     if (group) where['group'] = group
     return this.tagRepo.find({ where, order: { sort: 'ASC', createdAt: 'DESC' } })
   }
 
   async findByName(name: string): Promise<CustomerTag | null> {
-    return this.tagRepo.findOne({ where: { name, deleted: false } })
+    return this.tagRepo.findOne({ where: { name } })
   }
 
   async create(dto: CreateTagDto): Promise<CustomerTag> {
@@ -34,7 +34,7 @@ export class CustomerTagService {
   }
 
   async update(id: number, dto: Partial<CreateTagDto>): Promise<CustomerTag> {
-    const tag = await this.tagRepo.findOne({ where: { id, deleted: false } })
+    const tag = await this.tagRepo.findOne({ where: { id } })
     if (!tag) throw new NotFoundException(`Tag ${id} not found`)
 
     if (dto.name && dto.name !== tag.name) {
@@ -47,11 +47,10 @@ export class CustomerTagService {
   }
 
   async remove(id: number): Promise<void> {
-    const tag = await this.tagRepo.findOne({ where: { id, deleted: false } })
+    const tag = await this.tagRepo.findOne({ where: { id } })
     if (!tag) throw new NotFoundException(`Tag ${id} not found`)
 
-    tag.deleted = true
-    await this.tagRepo.save(tag)
+    await this.tagRepo.softRemove(tag)
     // Remove all relations for this tag
     await this.relationRepo.delete({ tagId: id })
   }
@@ -86,7 +85,6 @@ export class CustomerTagService {
     return this.tagRepo
       .createQueryBuilder('tag')
       .where('tag.id IN (:...tagIds)', { tagIds })
-      .andWhere('tag.deleted = false')
       .orderBy('tag.sort', 'ASC')
       .getMany()
   }

@@ -10,23 +10,33 @@
           <el-tag>{{ contract.status }}</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="合同金额"
-          >¥{{ Number(contract.totalAmount).toLocaleString() }}</el-descriptions-item
+        >
+          ¥{{ Number(contract.totalAmount).toLocaleString() }}
+        </el-descriptions-item
         >
         <el-descriptions-item label="已回款"
-          >¥{{ Number(contract.paidAmount).toLocaleString() }}</el-descriptions-item
+        >
+          ¥{{ Number(contract.paidAmount).toLocaleString() }}
+        </el-descriptions-item
         >
         <el-descriptions-item label="合同类型">{{ contract.contractType }}</el-descriptions-item>
         <el-descriptions-item label="开始日期">{{ contract.startDate }}</el-descriptions-item>
         <el-descriptions-item label="结束日期">{{ contract.endDate }}</el-descriptions-item>
-        <el-descriptions-item label="签署日期">{{
-          contract.signDate || '未签署'
-        }}</el-descriptions-item>
-        <el-descriptions-item label="我方主体" :span="3">{{
-          contract.ourEntity
-        }}</el-descriptions-item>
-        <el-descriptions-item label="客户主体" :span="3">{{
-          contract.customerEntity
-        }}</el-descriptions-item>
+        <el-descriptions-item label="签署日期">
+          {{
+            contract.signDate || '未签署'
+          }}
+        </el-descriptions-item>
+        <el-descriptions-item label="我方主体" :span="3">
+          {{
+            contract.ourEntity
+          }}
+        </el-descriptions-item>
+        <el-descriptions-item label="客户主体" :span="3">
+          {{
+            contract.customerEntity
+          }}
+        </el-descriptions-item>
       </el-descriptions>
     </el-card>
   </div>

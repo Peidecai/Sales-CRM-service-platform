@@ -6,10 +6,12 @@ import { Opportunity } from '../../src/modules/opportunity/opportunity.entity'
 import { OpportunityStageLog } from '../../src/modules/opportunity/entities/opportunity-stage-log.entity'
 import { RedisService } from '../../src/common/redis'
 import { OpportunityStage, UserRole } from '@crm/shared'
+import { DataSource } from 'typeorm'
 import {
   createMockRepository,
   createMockQueryBuilder,
   createMockRedisService,
+  createMockDataSource,
   fixtures,
   type MockRepository,
   type MockRedisService,
@@ -28,12 +30,14 @@ describe('OpportunityService', () => {
   beforeEach(async () => {
     repo = createMockRepository<Opportunity>()
     redis = createMockRedisService()
+    const { createQueryRunner } = createMockDataSource()
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OpportunityService,
         { provide: getRepositoryToken(Opportunity), useValue: repo },
         { provide: getRepositoryToken(OpportunityStageLog), useValue: createMockRepository() },
+        { provide: DataSource, useValue: { createQueryRunner } },
         { provide: RedisService, useValue: redis },
       ],
     }).compile()
@@ -196,7 +200,7 @@ describe('OpportunityService', () => {
   describe('findOne', () => {
     it('should return opportunity from cache', async () => {
       const opp = fixtures.opportunity()
-      redis.get.mockResolvedValue(JSON.stringify(opp))
+      redis.safeGet.mockResolvedValue(JSON.stringify(opp))
 
       const result = await service.findOne(1, adminUser)
 
@@ -205,14 +209,14 @@ describe('OpportunityService', () => {
     })
 
     it('should query DB on cache miss and cache result', async () => {
-      redis.get.mockResolvedValue(null)
+      redis.safeGet.mockResolvedValue(null)
       const opp = fixtures.opportunity()
       repo.findOne.mockResolvedValue(opp)
 
       const result = await service.findOne(1, adminUser)
 
       expect(repo.findOne).toHaveBeenCalledWith({
-        where: { id: 1, deleted: false },
+        where: { id: 1 },
         relations: ['customer'],
       })
       expect(redis.set).toHaveBeenCalledWith(
@@ -224,14 +228,14 @@ describe('OpportunityService', () => {
     })
 
     it('should throw NotFoundException if not found', async () => {
-      redis.get.mockResolvedValue(null)
+      redis.safeGet.mockResolvedValue(null)
       repo.findOne.mockResolvedValue(null)
 
       await expect(service.findOne(999, adminUser)).rejects.toThrow(NotFoundException)
     })
 
     it('should allow SALES user to access own opportunity', async () => {
-      redis.get.mockResolvedValue(null)
+      redis.safeGet.mockResolvedValue(null)
       const opp = fixtures.opportunity({ assignedUserId: salesUser.id })
       repo.findOne.mockResolvedValue(opp)
 
@@ -240,7 +244,7 @@ describe('OpportunityService', () => {
     })
 
     it('should throw ForbiddenException for SALES accessing other user opportunity', async () => {
-      redis.get.mockResolvedValue(null)
+      redis.safeGet.mockResolvedValue(null)
       const opp = fixtures.opportunity({ assignedUserId: 99 })
       repo.findOne.mockResolvedValue(opp)
 
@@ -251,7 +255,7 @@ describe('OpportunityService', () => {
   /* ---------- update ---------- */
   describe('update', () => {
     it('should update opportunity and invalidate cache', async () => {
-      redis.get.mockResolvedValue(null)
+      redis.safeGet.mockResolvedValue(null)
       const opp = fixtures.opportunity()
       repo.findOne.mockResolvedValue({ ...opp })
       repo.save.mockImplementation(async (o) => o)
@@ -264,14 +268,14 @@ describe('OpportunityService', () => {
     })
 
     it('should throw NotFoundException when updating non-existent', async () => {
-      redis.get.mockResolvedValue(null)
+      redis.safeGet.mockResolvedValue(null)
       repo.findOne.mockResolvedValue(null)
 
       await expect(service.update(999, { title: 'X' } as never, adminUser)).rejects.toThrow(NotFoundException)
     })
 
     it('should throw ForbiddenException for SALES updating other user opportunity', async () => {
-      redis.get.mockResolvedValue(null)
+      redis.safeGet.mockResolvedValue(null)
       const opp = fixtures.opportunity({ assignedUserId: 99 })
       repo.findOne.mockResolvedValue(opp)
 
@@ -282,28 +286,26 @@ describe('OpportunityService', () => {
   /* ---------- updateStage ---------- */
   describe('updateStage', () => {
     it('should update stage and set probability', async () => {
-      redis.get.mockResolvedValue(null)
-      const opp = fixtures.opportunity()
+      redis.safeGet.mockResolvedValue(null)
+      const opp = fixtures.opportunity({ stage: OpportunityStage.LEAD })
       repo.findOne.mockResolvedValue({ ...opp })
-      repo.save.mockImplementation(async (o) => o)
 
       const result = await service.updateStage(
         1,
-        { stage: OpportunityStage.NEGOTIATION } as never,
+        { stage: OpportunityStage.QUALIFIED } as never,
         adminUser,
       )
 
       expect(result.previousStage).toBe(OpportunityStage.LEAD)
-      expect(result.currentStage).toBe(OpportunityStage.NEGOTIATION)
-      expect(result.opportunity.stage).toBe(OpportunityStage.NEGOTIATION)
-      expect(result.opportunity.probability).toBe(75)
+      expect(result.currentStage).toBe(OpportunityStage.QUALIFIED)
+      expect(result.opportunity.stage).toBe(OpportunityStage.QUALIFIED)
+      expect(result.opportunity.probability).toBe(25)
     })
 
     it('should set probability to 100 for CLOSED_WON', async () => {
-      redis.get.mockResolvedValue(null)
-      const opp = fixtures.opportunity()
+      redis.safeGet.mockResolvedValue(null)
+      const opp = fixtures.opportunity({ stage: OpportunityStage.NEGOTIATION })
       repo.findOne.mockResolvedValue({ ...opp })
-      repo.save.mockImplementation(async (o) => o)
 
       const result = await service.updateStage(
         1,
@@ -315,10 +317,9 @@ describe('OpportunityService', () => {
     })
 
     it('should set probability to 0 for CLOSED_LOST', async () => {
-      redis.get.mockResolvedValue(null)
-      const opp = fixtures.opportunity()
+      redis.safeGet.mockResolvedValue(null)
+      const opp = fixtures.opportunity({ stage: OpportunityStage.LEAD })
       repo.findOne.mockResolvedValue({ ...opp })
-      repo.save.mockImplementation(async (o) => o)
 
       const result = await service.updateStage(
         1,
@@ -333,19 +334,19 @@ describe('OpportunityService', () => {
   /* ---------- remove ---------- */
   describe('remove', () => {
     it('should soft-delete and invalidate cache', async () => {
-      redis.get.mockResolvedValue(null)
+      redis.safeGet.mockResolvedValue(null)
       const opp = fixtures.opportunity()
       repo.findOne.mockResolvedValue({ ...opp })
-      repo.save.mockImplementation(async (o) => o)
+      repo.softRemove.mockImplementation(async (o) => o)
 
       await service.remove(1)
 
-      expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ deleted: true }))
+      expect(repo.softRemove).toHaveBeenCalled()
       expect(redis.delByPattern).toHaveBeenCalledWith('cache:opportunities:stats:*')
     })
 
     it('should throw NotFoundException if not found', async () => {
-      redis.get.mockResolvedValue(null)
+      redis.safeGet.mockResolvedValue(null)
       repo.findOne.mockResolvedValue(null)
 
       await expect(service.remove(999)).rejects.toThrow(NotFoundException)
@@ -356,7 +357,7 @@ describe('OpportunityService', () => {
   describe('getStats', () => {
     it('should return cached stats when cache hit', async () => {
       const cached = [{ stage: OpportunityStage.LEAD, count: 2, totalAmount: 10000 }]
-      redis.get.mockResolvedValue(JSON.stringify(cached))
+      redis.safeGet.mockResolvedValue(JSON.stringify(cached))
 
       const result = await service.getStats(adminUser)
 

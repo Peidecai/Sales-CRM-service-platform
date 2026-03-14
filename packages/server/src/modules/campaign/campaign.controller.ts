@@ -8,8 +8,10 @@ import {
   Param,
   Query,
   UseGuards,
+  UseInterceptors,
   ParseIntPipe,
   DefaultValuePipe,
+  ForbiddenException,
 } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiParam, ApiQuery } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
@@ -17,11 +19,14 @@ import { RolesGuard } from '../../common/guards/roles.guard'
 import { Roles } from '../../common/decorators/roles.decorator'
 import { CurrentUser, type AuthUser } from '../../common/decorators/current-user.decorator'
 import { UserRole } from '@crm/shared'
+import { AuditLogInterceptor } from '../../common/interceptors/audit-log.interceptor'
 import { CampaignService } from './campaign.service'
+import { CreateCampaignDto } from './dto/create-campaign.dto'
 
 @ApiTags('外呼任务')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@UseInterceptors(AuditLogInterceptor)
 @Controller('campaigns')
 export class CampaignController {
   constructor(private readonly campaignService: CampaignService) {}
@@ -34,19 +39,15 @@ export class CampaignController {
     @Query('pageSize', new DefaultValuePipe(20), ParseIntPipe) pageSize = 20,
     @CurrentUser() user?: AuthUser,
   ) {
-    if (!user) throw new Error('Unauthorized')
+    if (!user) throw new ForbiddenException('No permission for this campaign')
     return this.campaignService.findAll({ status, page, pageSize }, user)
   }
 
   @Post()
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
-  @UseGuards(RolesGuard)
   @ApiOperation({ summary: '创建外呼任务' })
-  async create(
-    @Body() body: { name: string; customerIds?: number[] },
-    @CurrentUser() user: AuthUser,
-  ) {
-    return this.campaignService.create(body, user)
+  async create(@Body() dto: CreateCampaignDto, @CurrentUser() user: AuthUser) {
+    return this.campaignService.create(dto, user)
   }
 
   @Get(':id')
@@ -77,7 +78,6 @@ export class CampaignController {
 
   @Post(':id/start')
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
-  @UseGuards(RolesGuard)
   @ApiParam({ name: 'id' })
   async start(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
     await this.campaignService.start(id, user)
@@ -86,7 +86,6 @@ export class CampaignController {
 
   @Post(':id/pause')
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
-  @UseGuards(RolesGuard)
   @ApiParam({ name: 'id' })
   async pause(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
     await this.campaignService.pause(id, user)
@@ -95,7 +94,6 @@ export class CampaignController {
 
   @Post(':id/resume')
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
-  @UseGuards(RolesGuard)
   @ApiParam({ name: 'id' })
   async resume(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
     await this.campaignService.resume(id, user)
@@ -104,7 +102,6 @@ export class CampaignController {
 
   @Post(':id/stop')
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
-  @UseGuards(RolesGuard)
   @ApiParam({ name: 'id' })
   async stop(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
     await this.campaignService.stop(id, user)
@@ -122,7 +119,7 @@ export class CampaignController {
     @Query('pageSize', new DefaultValuePipe(20), ParseIntPipe) pageSize = 20,
     @CurrentUser() user?: AuthUser,
   ) {
-    if (!user) throw new Error('Unauthorized')
+    if (!user) throw new ForbiddenException('No permission for this campaign')
     return this.campaignService.getItems(id, page, pageSize, user)
   }
 }

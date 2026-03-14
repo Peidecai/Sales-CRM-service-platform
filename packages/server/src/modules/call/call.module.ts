@@ -1,9 +1,4 @@
 import { Module } from '@nestjs/common'
-import { TypeOrmModule } from '@nestjs/typeorm'
-import { CallRecord } from '../call-record/call-record.entity'
-import { Customer } from '../customer/customer.entity'
-import { Contact } from '../contact/contact.entity'
-import { FollowUp } from '../follow-up/follow-up.entity'
 import { AliyunVoiceAdapter } from './adapters/aliyun-voice.adapter'
 import { CallService } from './call.service'
 import { CallController } from './call.controller'
@@ -12,10 +7,15 @@ import { CallCallbackService } from './call-callback.service'
 import { CallPopupController } from './call-popup.controller'
 import { CustomerMatcherService } from './customer-matcher.service'
 import { PopupAggregateService } from './popup-aggregate.service'
+import { AgentModule } from '../agent/agent.module'
+import { CallRecordModule } from '../call-record/call-record.module'
+import { CustomerModule } from '../customer/customer.module'
+import { ContactModule } from '../contact/contact.module'
+import { FollowUpModule } from '../follow-up/follow-up.module'
 import { CallbackSignatureGuard } from '../../common/guards/callback-signature.guard'
 
 @Module({
-  imports: [TypeOrmModule.forFeature([CallRecord, Customer, Contact, FollowUp])],
+  imports: [AgentModule, CallRecordModule, CustomerModule, ContactModule, FollowUpModule],
   controllers: [CallController, CallCallbackController, CallPopupController],
   providers: [
     CallService,

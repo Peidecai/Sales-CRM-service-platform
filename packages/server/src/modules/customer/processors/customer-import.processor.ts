@@ -1,8 +1,8 @@
-import { Processor, Process } from '@nestjs/bull'
+import { Processor, Process, OnQueueFailed } from '@nestjs/bull'
 import { Logger } from '@nestjs/common'
 import { Job } from 'bull'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { Repository, DataSource } from 'typeorm'
 import { CustomerImportLog, ImportStatus } from '../entities/customer-import-log.entity'
 import { CustomerService } from '../customer.service'
 import { NotificationService } from '../../notification/notification.service'
@@ -15,6 +15,8 @@ interface ImportJobData {
   mapping: Record<string, string>
 }
 
+const CHUNK_SIZE = 100
+
 @Processor('customer-import')
 export class CustomerImportProcessor {
   private readonly logger = new Logger(CustomerImportProcessor.name)
@@ -24,6 +26,7 @@ export class CustomerImportProcessor {
     private readonly logRepo: Repository<CustomerImportLog>,
     private readonly customerService: CustomerService,
     private readonly notificationService: NotificationService,
+    private readonly dataSource: DataSource,
   ) {}
 
   @Process()
@@ -38,34 +41,64 @@ export class CustomerImportProcessor {
     let successCount = 0
     const failDetails: Array<{ row: number; reason: string }> = []
 
-    for (let i = 0; i < rows.length; i++) {
+    // Split rows into chunks of CHUNK_SIZE
+    const chunks: Array<Array<{ row: Record<string, string>; index: number }>> = []
+    for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+      chunks.push(rows.slice(i, i + CHUNK_SIZE).map((row, offset) => ({ row, index: i + offset })))
+    }
+
+    for (let ci = 0; ci < chunks.length; ci++) {
+      const chunk = chunks[ci]
+      const queryRunner = this.dataSource.createQueryRunner()
+      await queryRunner.connect()
+      await queryRunner.startTransaction()
+
       try {
-        const mapped = this.applyMapping(rows[i], mapping)
-        if (!mapped.name) {
-          failDetails.push({ row: i + 2, reason: '客户名称不能为空' })
-          continue
+        for (const { row, index } of chunk) {
+          try {
+            const mapped = this.applyMapping(row, mapping)
+            if (!mapped.name) {
+              failDetails.push({ row: index + 2, reason: '客户名称不能为空' })
+              continue
+            }
+            const createDto = { ...mapped, assignedUserId: userId } as Record<string, unknown>
+            await this.customerService.create(
+              createDto as unknown as Parameters<typeof this.customerService.create>[0],
+              queryRunner.manager,
+            )
+            successCount++
+          } catch (err: unknown) {
+            failDetails.push({ row: index + 2, reason: (err as Error).message || '未知错误' })
+          }
         }
-        const createDto = { ...mapped, assignedUserId: userId } as Record<string, unknown>
-        await this.customerService.create(
-          createDto as unknown as Parameters<typeof this.customerService.create>[0],
-        )
-        successCount++
+
+        await queryRunner.commitTransaction()
       } catch (err: unknown) {
-        failDetails.push({ row: i + 2, reason: (err as Error).message || '未知错误' })
+        await queryRunner.rollbackTransaction()
+        // Mark entire chunk as failed
+        for (const { index } of chunk) {
+          if (!failDetails.some((f) => f.row === index + 2)) {
+            failDetails.push({ row: index + 2, reason: `批次事务失败: ${(err as Error).message}` })
+          }
+        }
+      } finally {
+        await queryRunner.release()
       }
 
-      // Push progress every 10 rows
-      if ((i + 1) % 10 === 0 || i === rows.length - 1) {
-        this.notificationService.notifyUser(userId, {
-          type: NotificationType.IMPORT_PROGRESS,
-          actorId: 0,
-          actorName: '系统',
-          resource: 'customer_import',
-          resourceId: logId,
-          message: `导入进度：已处理 ${i + 1}/${rows.length} 行`,
-          data: { logId, processed: i + 1, total: rows.length, successCount },
-        })
-      }
+      // Report progress after each chunk
+      const processed = Math.min((ci + 1) * CHUNK_SIZE, rows.length)
+      const progress = Math.round((processed / rows.length) * 100)
+      await job.progress(progress)
+
+      this.notificationService.notifyUser(userId, {
+        type: NotificationType.IMPORT_PROGRESS,
+        actorId: 0,
+        actorName: '系统',
+        resource: 'customer_import',
+        resourceId: logId,
+        message: `导入进度：已处理 ${processed}/${rows.length} 行`,
+        data: { logId, processed, total: rows.length, successCount },
+      })
     }
 
     // Update import log
@@ -100,5 +133,26 @@ export class CustomerImportProcessor {
       }
     }
     return result
+  }
+
+  @OnQueueFailed()
+  async handleFailed(job: Job<ImportJobData>, error: Error): Promise<void> {
+    const maxAttempts = job.opts.attempts ?? 1
+    this.logger.error(
+      `导入任务 #${job.data.logId} 失败 (${job.attemptsMade}/${maxAttempts}): ${error.message}`,
+      error.stack,
+    )
+
+    if (job.attemptsMade >= maxAttempts) {
+      this.notificationService.notify({
+        type: NotificationType.QUEUE_JOB_FAILED,
+        actorId: 0,
+        actorName: '系统',
+        resource: 'customer-import',
+        resourceId: job.data.logId,
+        message: `客户导入任务 #${job.data.logId} 在 ${maxAttempts} 次重试后最终失败: ${error.message}`,
+        data: { queue: 'customer-import', jobId: job.id, error: error.message },
+      })
+    }
   }
 }

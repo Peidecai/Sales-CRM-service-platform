@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ---- Lint ----
+  # ── Lint ─────────────────────────────────────────────────────
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -38,7 +38,31 @@ jobs:
       - name: Lint web
         run: pnpm --filter @crm/web lint
 
-  # ---- Type Check ----
+      - name: Lint miniapp
+        run: pnpm --filter @crm/miniapp lint --if-present
+
+      - name: Type check miniapp
+        run: pnpm --filter @crm/miniapp type-check
+
+      - name: Summary — PASS
+        if: success()
+        run: |
+          echo "## ✅ Lint — PASS" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Target | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| @crm/server | ✅ Pass |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| @crm/web    | ✅ Pass |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| @crm/miniapp | ✅ Pass |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Summary — FAIL
+        if: failure()
+        run: |
+          echo "## ❌ Lint — FAIL" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "One or more lint checks failed. Please review the logs above." >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Type Check ───────────────────────────────────────────────
   typecheck:
     name: Type Check
     runs-on: ubuntu-latest
@@ -65,7 +89,24 @@ jobs:
       - name: Type check web
         run: pnpm --filter @crm/web type-check
 
-  # ---- Security ----
+      - name: Summary — PASS
+        if: success()
+        run: |
+          echo "## ✅ Type Check — PASS" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Target | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| @crm/server (nest build) | ✅ Pass |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| @crm/web (vue-tsc)       | ✅ Pass |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Summary — FAIL
+        if: failure()
+        run: |
+          echo "## ❌ Type Check — FAIL" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Type errors found. Please fix TypeScript compilation errors." >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Security ─────────────────────────────────────────────────
   security:
     name: Security Scan
     runs-on: ubuntu-latest
@@ -86,6 +127,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Run dependency audit (high)
+        id: audit
         run: pnpm audit --audit-level high
         continue-on-error: true
 
@@ -100,7 +142,33 @@ jobs:
         if: ${{ env.SNYK_TOKEN == '' }}
         run: echo "SNYK_TOKEN is missing, skip Snyk scan."
 
-  # ---- Backend Tests ----
+      - name: Summary — PASS
+        if: success()
+        run: |
+          echo "## ✅ Security Scan — PASS" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Check | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "${{ steps.audit.outcome }}" == "success" ]]; then
+            echo "| Dependency audit | ✅ No high vulnerabilities |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| Dependency audit | ⚠️ Vulnerabilities found (non-blocking) |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "| License check | ✅ Pass |" >> "$GITHUB_STEP_SUMMARY"
+          if [[ -n "${{ env.SNYK_TOKEN }}" ]]; then
+            echo "| Snyk scan | ✅ Pass |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| Snyk scan | ⏭️ Skipped (no token) |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Summary — FAIL
+        if: failure()
+        run: |
+          echo "## ❌ Security Scan — FAIL" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Security checks failed. Review license or vulnerability issues above." >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Backend Tests ────────────────────────────────────────────
   test-server:
     name: Server Tests (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
@@ -125,7 +193,8 @@ jobs:
         run: pnpm --filter @crm/shared build
 
       - name: Run server tests
-        run: pnpm --filter @crm/server test -- --ci --coverage
+        id: tests
+        run: pnpm --filter @crm/server test -- --ci --coverage 2>&1 | tee test-output.txt
 
       - name: Upload coverage
         if: matrix.node-version == 20
@@ -135,10 +204,42 @@ jobs:
           path: packages/server/coverage/
           retention-days: 7
 
-  # ---- Frontend Build ----
+      - name: Summary — PASS
+        if: success()
+        run: |
+          echo "## ✅ Server Tests (Node ${{ matrix.node-version }}) — PASS" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          # Extract test summary from Jest output
+          if [ -f test-output.txt ]; then
+            SUITES=$(grep -oP 'Test Suites:\s+\K.*' test-output.txt || echo "N/A")
+            TESTS=$(grep -oP 'Tests:\s+\K.*' test-output.txt || echo "N/A")
+            echo "| Metric | Result |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|--------|--------|" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Test Suites | ${SUITES} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Tests | ${TESTS} |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Summary — FAIL
+        if: failure()
+        run: |
+          echo "## ❌ Server Tests (Node ${{ matrix.node-version }}) — FAIL" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "One or more backend tests failed. See logs for details." >> "$GITHUB_STEP_SUMMARY"
+          if [ -f test-output.txt ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "<details><summary>Test Output (last 30 lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            tail -30 test-output.txt >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # ── Frontend Build ──────────────────────────────────────────
   build-web:
     name: Web Build (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    needs: [test-server]
     strategy:
       matrix:
         node-version: [18, 20]
@@ -160,7 +261,8 @@ jobs:
         run: pnpm --filter @crm/shared build
 
       - name: Run web tests
-        run: pnpm --filter @crm/web test
+        id: web-tests
+        run: pnpm --filter @crm/web test 2>&1 | tee web-test-output.txt
 
       - name: Type check
         run: pnpm --filter @crm/web type-check
@@ -176,10 +278,34 @@ jobs:
           path: packages/web/dist/
           retention-days: 7
 
-  # ---- Server Build ----
+      - name: Summary — PASS
+        if: success()
+        run: |
+          echo "## ✅ Web Build (Node ${{ matrix.node-version }}) — PASS" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Step | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Unit tests  | ✅ Pass |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Type check  | ✅ Pass |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Vite build  | ✅ Pass |" >> "$GITHUB_STEP_SUMMARY"
+          if [ -d packages/web/dist ]; then
+            SIZE=$(du -sh packages/web/dist | cut -f1)
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "📦 Build output size: **${SIZE}**" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Summary — FAIL
+        if: failure()
+        run: |
+          echo "## ❌ Web Build (Node ${{ matrix.node-version }}) — FAIL" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Frontend build pipeline failed. Check tests, types, or build step above." >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Server Build ─────────────────────────────────────────────
   build-server:
     name: Server Build
     runs-on: ubuntu-latest
+    needs: [test-server]
     steps:
       - uses: actions/checkout@v4
 
@@ -200,11 +326,25 @@ jobs:
       - name: Build server
         run: pnpm --filter @crm/server build
 
-  # ---- E2E Tests (Playwright) ----
+      - name: Summary — PASS
+        if: success()
+        run: |
+          echo "## ✅ Server Build — PASS" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "NestJS server compiled successfully." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Summary — FAIL
+        if: failure()
+        run: |
+          echo "## ❌ Server Build — FAIL" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "NestJS server compilation failed. Fix build errors above." >> "$GITHUB_STEP_SUMMARY"
+
+  # ── E2E Tests (Playwright) ──────────────────────────────────
   test-e2e:
     name: E2E Tests
     runs-on: ubuntu-latest
-    needs: [build-web]
+    needs: [test-server, build-web]
     steps:
       - uses: actions/checkout@v4
 
@@ -226,7 +366,8 @@ jobs:
         run: npx playwright install chromium --with-deps
 
       - name: Run E2E tests
-        run: npx playwright test
+        id: e2e
+        run: npx playwright test 2>&1 | tee e2e-output.txt
 
       - name: Upload E2E report
         if: ${{ !cancelled() }}
@@ -236,7 +377,33 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
-  # ---- Docker Build Validation ----
+      - name: Summary — PASS
+        if: success()
+        run: |
+          echo "## ✅ E2E Tests — PASS" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f e2e-output.txt ]; then
+            PASSED=$(grep -oP '\d+ passed' e2e-output.txt || echo "N/A")
+            echo "🎭 Playwright: **${PASSED}**" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Summary — FAIL
+        if: failure()
+        run: |
+          echo "## ❌ E2E Tests — FAIL" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "E2E tests failed. Download the [Playwright report](../artifacts) for details." >> "$GITHUB_STEP_SUMMARY"
+          if [ -f e2e-output.txt ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "<details><summary>Test Output (last 30 lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            tail -30 e2e-output.txt >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # ── Docker Build Validation ─────────────────────────────────
   docker-validate:
     name: Docker Build Validate
     runs-on: ubuntu-latest
@@ -261,3 +428,117 @@ jobs:
 
       - name: Build web image
         run: docker build -f docker/web/Dockerfile -t crm-web:ci .
+
+      - name: Verify server image runs as non-root
+        run: |
+          USER_INFO=$(docker run --rm crm-server:ci whoami)
+          echo "Container user: ${USER_INFO}"
+          if [[ "${USER_INFO}" == "root" ]]; then
+            echo "::error::Server container runs as root!"
+            exit 1
+          fi
+
+      - name: Verify web image runs as non-root
+        run: |
+          USER_INFO=$(docker run --rm crm-web:ci whoami)
+          echo "Container user: ${USER_INFO}"
+          if [[ "${USER_INFO}" == "root" ]]; then
+            echo "::error::Web container runs as root!"
+            exit 1
+          fi
+
+      - name: Summary — PASS
+        if: success()
+        run: |
+          echo "## ✅ Docker Build Validate — PASS" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Check | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| docker-compose config | ✅ Valid |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| crm-server:ci build   | ✅ Built |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| crm-web:ci build      | ✅ Built |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| server non-root       | ✅ Verified |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| web non-root          | ✅ Verified |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          # Image sizes
+          SERVER_SIZE=$(docker image inspect crm-server:ci --format='{{.Size}}' | numfmt --to=iec 2>/dev/null || echo "N/A")
+          WEB_SIZE=$(docker image inspect crm-web:ci --format='{{.Size}}' | numfmt --to=iec 2>/dev/null || echo "N/A")
+          echo "📦 Image sizes: server=${SERVER_SIZE}, web=${WEB_SIZE}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Summary — FAIL
+        if: failure()
+        run: |
+          echo "## ❌ Docker Build Validate — FAIL" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Docker build or validation failed. Check logs above." >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Pipeline Summary ────────────────────────────────────────
+  ci-summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      [
+        lint,
+        typecheck,
+        security,
+        test-server,
+        build-web,
+        build-server,
+        test-e2e,
+        docker-validate,
+      ]
+    steps:
+      - name: Generate pipeline summary
+        run: |
+          echo "# 🏗️ CI Pipeline Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Job | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-----|--------|" >> "$GITHUB_STEP_SUMMARY"
+
+          declare -A JOBS
+          JOBS[Lint]="${{ needs.lint.result }}"
+          JOBS[TypeCheck]="${{ needs.typecheck.result }}"
+          JOBS[Security]="${{ needs.security.result }}"
+          JOBS[ServerTests]="${{ needs.test-server.result }}"
+          JOBS[WebBuild]="${{ needs.build-web.result }}"
+          JOBS[ServerBuild]="${{ needs.build-server.result }}"
+          JOBS[E2ETests]="${{ needs.test-e2e.result }}"
+          JOBS[DockerValidate]="${{ needs.docker-validate.result }}"
+
+          ALL_PASS=true
+          for JOB_NAME in Lint TypeCheck Security ServerTests WebBuild ServerBuild E2ETests DockerValidate; do
+            RESULT="${JOBS[$JOB_NAME]}"
+            case "$RESULT" in
+              success)  ICON="✅" ;;
+              failure)  ICON="❌"; ALL_PASS=false ;;
+              cancelled) ICON="⏹️"; ALL_PASS=false ;;
+              skipped)  ICON="⏭️" ;;
+              *)        ICON="❓"; ALL_PASS=false ;;
+            esac
+            echo "| ${JOB_NAME} | ${ICON} ${RESULT} |" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$ALL_PASS" == "true" ]]; then
+            echo "## ✅ Pipeline Result: **PASS**" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## ❌ Pipeline Result: **FAIL**" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "_Triggered by \`${{ github.event_name }}\` on \`${{ github.ref_name }}\` (commit \`${{ github.sha }}\`)_" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail if any job failed
+        if: >-
+          needs.lint.result == 'failure' ||
+          needs.typecheck.result == 'failure' ||
+          needs.security.result == 'failure' ||
+          needs.test-server.result == 'failure' ||
+          needs.build-web.result == 'failure' ||
+          needs.build-server.result == 'failure' ||
+          needs.test-e2e.result == 'failure' ||
+          needs.docker-validate.result == 'failure'
+        run: |
+          echo "::error::One or more CI jobs failed. See summary above."
+          exit 1

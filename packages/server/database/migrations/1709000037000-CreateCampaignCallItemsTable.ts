@@ -61,7 +61,7 @@ export class CreateCampaignCallItemsTable1709000037000 implements MigrationInter
             name: 'created_at',
             type: 'datetime',
             precision: 6,
-            default: 'CURRENT_TIMESTAMP',
+            default: 'CURRENT_TIMESTAMP(6)',
           },
         ],
       }),

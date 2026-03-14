@@ -33,10 +33,10 @@ export class AsrTask {
   })
   status!: AsrTaskStatus
 
-  @Column({ length: 50, nullable: true })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   provider!: string | null
 
-  @Column({ name: 'external_task_id', length: 100, nullable: true })
+  @Column({ type: 'varchar', name: 'external_task_id', length: 100, nullable: true })
   externalTaskId!: string | null
 
   @Column({ name: 'error_message', type: 'text', nullable: true })

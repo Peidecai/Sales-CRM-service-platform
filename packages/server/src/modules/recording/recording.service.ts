@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, Inject } from '@nestjs/common'
+import { Injectable, NotFoundException, ForbiddenException, Inject, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, In } from 'typeorm'
 import { InjectQueue } from '@nestjs/bull'
@@ -19,6 +19,10 @@ export interface AsrJobData {
 
 @Injectable()
 export class RecordingService {
+  private readonly logger = new Logger(RecordingService.name)
+
+  /** Calls shorter than this are too brief for meaningful ASR */
+  private readonly ASR_MIN_DURATION_SECONDS = 8
   constructor(
     @InjectRepository(RecordingFile)
     private readonly recordingFileRepository: Repository<RecordingFile>,
@@ -44,7 +48,6 @@ export class RecordingService {
     const qb = this.recordingFileRepository
       .createQueryBuilder('rf')
       .innerJoin(CallRecord, 'cr', 'cr.id = rf.call_record_id')
-      .where('cr.deleted = :deleted', { deleted: false })
 
     if (user.role === UserRole.SALES) {
       qb.andWhere('(cr.userId = :uid OR cr.agentId = :uid)', { uid: user.id })
@@ -81,6 +84,23 @@ export class RecordingService {
     user: AuthUser,
   ): Promise<{ taskId: number; status: string }> {
     const file = await this.getRecording(recordingId, user)
+
+    // Duration guard — skip ASR for calls too short to produce useful transcripts
+    const fileDuration = file.durationSeconds
+    const duration =
+      fileDuration != null
+        ? fileDuration
+        : await this.callRecordRepository
+            .findOne({ where: { id: file.callRecordId } })
+            .then((cr) => cr?.duration ?? 0)
+
+    if (duration < this.ASR_MIN_DURATION_SECONDS) {
+      this.logger.debug(
+        `ASR skipped: recording ${recordingId} duration ${duration}s < ${this.ASR_MIN_DURATION_SECONDS}s threshold`,
+      )
+      return { taskId: 0, status: 'skipped' }
+    }
+
     let task = await this.asrTaskRepository.findOne({
       where: { recordingFileId: recordingId },
       order: { createdAt: 'DESC' },

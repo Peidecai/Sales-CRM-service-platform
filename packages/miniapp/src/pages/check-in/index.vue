@@ -116,6 +116,7 @@ import { ref, computed, onMounted } from 'vue'
 import { customerApi, type CustomerVO } from '@/api/customer'
 import { checkInApi, type CheckInVO } from '@/api/check-in'
 import { haversineDistance, formatDistance } from '@/utils/geo'
+import { offlineQueue } from '@/utils/offline-queue'
 
 interface Location {
   latitude: number
@@ -138,13 +139,31 @@ const historyList = ref<CheckInVO[]>([])
 
 const distanceInfo = computed(() => {
   if (!currentLocation.value || !selectedCustomer.value) return ''
-  // For demo, use address-based approximate — in production, geocode the customer address
-  // Here we just show a placeholder distance
-  return formatDistance(0)
+  const cust = selectedCustomer.value
+  if (cust.lat && cust.lng) {
+    const dist = haversineDistance(
+      currentLocation.value.latitude,
+      currentLocation.value.longitude,
+      cust.lat,
+      cust.lng,
+    )
+    return formatDistance(dist)
+  }
+  // No geocoded customer location available
+  return '未知距离'
 })
 
 const isWithinRange = computed(() => {
-  return true // Placeholder — real implementation needs customer geocoding
+  if (!currentLocation.value || !selectedCustomer.value) return false
+  const cust = selectedCustomer.value
+  if (!cust.lat || !cust.lng) return true // Allow check-in if distance unknown
+  const dist = haversineDistance(
+    currentLocation.value.latitude,
+    currentLocation.value.longitude,
+    cust.lat,
+    cust.lng,
+  )
+  return dist <= CHECK_IN_RADIUS
 })
 
 const canSubmit = computed(() => {
@@ -211,15 +230,17 @@ async function handleSubmit() {
   if (!currentLocation.value || !selectedCustomer.value) return
   submitting.value = true
 
+  const data = {
+    customerId: selectedCustomer.value.id,
+    latitude: currentLocation.value.latitude,
+    longitude: currentLocation.value.longitude,
+    address: currentAddress.value,
+    photoUrl: photoPath.value || undefined,
+    remark: remark.value || undefined,
+  }
+
   try {
-    const res = await checkInApi.create({
-      customerId: selectedCustomer.value.id,
-      latitude: currentLocation.value.latitude,
-      longitude: currentLocation.value.longitude,
-      address: currentAddress.value,
-      photoUrl: photoPath.value || undefined,
-      remark: remark.value || undefined,
-    })
+    const res = await checkInApi.create(data)
 
     if (res.code === 0) {
       uni.showToast({ title: '打卡成功', icon: 'success' })
@@ -228,7 +249,9 @@ async function handleSubmit() {
       loadHistory()
     }
   } catch {
-    uni.showToast({ title: '打卡失败', icon: 'none' })
+    // Offline — enqueue for later
+    offlineQueue.push('POST', '/attendance/check-in', data as unknown as Record<string, unknown>)
+    uni.showToast({ title: '已加入离线队列，联网后自动提交', icon: 'none', duration: 2500 })
   } finally {
     submitting.value = false
   }

@@ -25,7 +25,7 @@ export class Opportunity extends BaseEntity {
   @Column({ type: 'enum', enum: OpportunityStage, default: OpportunityStage.LEAD })
   stage!: OpportunityStage
 
-  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
   amount!: number
 
   @Column({ name: 'expected_close_date', type: 'date', nullable: true })
@@ -43,7 +43,14 @@ export class Opportunity extends BaseEntity {
 
   // ---- 扩展字段 ----
 
-  @Column({ name: 'opportunity_no', length: 20, unique: true, nullable: true, comment: '商机编号' })
+  @Column({
+    name: 'opportunity_no',
+    type: 'varchar',
+    length: 20,
+    unique: true,
+    nullable: true,
+    comment: '商机编号',
+  })
   opportunityNo!: string | null
 
   @Index()
@@ -53,7 +60,7 @@ export class Opportunity extends BaseEntity {
   @Column({ name: 'team_id', type: 'int', nullable: true, comment: '团队ID' })
   teamId!: number | null
 
-  @Column({ name: 'source', length: 50, nullable: true, comment: '商机来源' })
+  @Column({ name: 'source', type: 'varchar', length: 50, nullable: true, comment: '商机来源' })
   source!: string | null
 
   @Column({ name: 'lead_id', type: 'int', nullable: true, comment: '线索ID' })
@@ -62,7 +69,7 @@ export class Opportunity extends BaseEntity {
   @Column({
     name: 'weighted_amount',
     type: 'decimal',
-    precision: 14,
+    precision: 15,
     scale: 2,
     default: 0,
     comment: '加权金额',
@@ -75,7 +82,13 @@ export class Opportunity extends BaseEntity {
   @Column({ name: 'actual_close_date', type: 'date', nullable: true, comment: '实际成交日期' })
   actualCloseDate!: Date | null
 
-  @Column({ name: 'close_reason', length: 200, nullable: true, comment: '关闭原因' })
+  @Column({
+    name: 'close_reason',
+    type: 'varchar',
+    length: 200,
+    nullable: true,
+    comment: '关闭原因',
+  })
   closeReason!: string | null
 
   @Column({ name: 'close_remark', type: 'text', nullable: true, comment: '关闭备注' })

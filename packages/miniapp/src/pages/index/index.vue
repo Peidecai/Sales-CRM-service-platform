@@ -161,6 +161,21 @@ async function loadData() {
   }
 
   try {
+    // Load overdue follow-ups (due before today)
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+    const overdueRes = await followUpApi.getList({
+      nextFollowUpDate: yesterday,
+      page: 1,
+      pageSize: 1,
+    })
+    if (overdueRes.code === 0 && overdueRes.data) {
+      overdueCount.value = overdueRes.data.total
+    }
+  } catch {
+    // Silently fail
+  }
+
+  try {
     // Load performance overview
     const overviewRes = await salesTargetApi.getOverview(new Date().getFullYear())
     if (overviewRes.code === 0 && overviewRes.data) {

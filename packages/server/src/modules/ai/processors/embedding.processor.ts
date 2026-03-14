@@ -1,4 +1,4 @@
-import { Process, Processor } from '@nestjs/bull'
+import { Process, Processor, OnQueueFailed } from '@nestjs/bull'
 import { Logger } from '@nestjs/common'
 import { Job } from 'bull'
 import { InjectRepository } from '@nestjs/typeorm'
@@ -6,6 +6,8 @@ import { Repository } from 'typeorm'
 import { KnowledgeArticle } from '../../knowledge/entities/knowledge-article.entity'
 import { AiService } from '../ai.service'
 import { VectorService } from '../vector/vector.service'
+import { NotificationService } from '../../notification/notification.service'
+import { NotificationType } from '../../notification/notification.types'
 
 export interface EmbeddingJobData {
   articleId: number
@@ -25,6 +27,7 @@ export class EmbeddingProcessor {
     private readonly articleRepository: Repository<KnowledgeArticle>,
     private readonly aiService: AiService,
     private readonly vectorService: VectorService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   @Process()
@@ -34,7 +37,7 @@ export class EmbeddingProcessor {
 
     try {
       const article = await this.articleRepository.findOne({
-        where: { id: articleId, deleted: false },
+        where: { id: articleId },
       })
 
       if (!article) {
@@ -67,6 +70,27 @@ export class EmbeddingProcessor {
     } catch (error) {
       this.logger.error(`Failed to embed article #${articleId}`, String(error))
       throw error // Let Bull retry
+    }
+  }
+
+  @OnQueueFailed()
+  async handleFailed(job: Job<EmbeddingJobData>, error: Error): Promise<void> {
+    const maxAttempts = job.opts.attempts ?? 1
+    this.logger.error(
+      `向量嵌入任务失败 (${job.attemptsMade}/${maxAttempts}): ${error.message}`,
+      error.stack,
+    )
+
+    if (job.attemptsMade >= maxAttempts) {
+      this.notificationService.notify({
+        type: NotificationType.QUEUE_JOB_FAILED,
+        actorId: 0,
+        actorName: '系统',
+        resource: 'embedding',
+        resourceId: job.data.articleId,
+        message: `文章 #${job.data.articleId} 向量嵌入任务在 ${maxAttempts} 次重试后最终失败: ${error.message}`,
+        data: { queue: 'embedding', jobId: job.id, error: error.message },
+      })
     }
   }
 }

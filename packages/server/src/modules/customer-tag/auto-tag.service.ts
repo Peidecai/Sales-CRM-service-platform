@@ -60,7 +60,7 @@ export class AutoTagService {
   @Cron('0 3 * * *', { name: 'auto-tag-customers' })
   async handleAutoTag(): Promise<void> {
     this.logger.log('开始执行自动打标任务...')
-    const customers = await this.customerRepo.find({ where: { deleted: false } })
+    const customers = await this.customerRepo.find()
     let taggedCount = 0
 
     for (const customer of customers) {
@@ -84,7 +84,7 @@ export class AutoTagService {
 
   async evaluateCustomer(customerId: number): Promise<void> {
     const customer = await this.customerRepo.findOne({
-      where: { id: customerId, deleted: false },
+      where: { id: customerId },
     })
     if (!customer) return
 

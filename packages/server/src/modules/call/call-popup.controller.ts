@@ -11,21 +11,23 @@ import {
 } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
+import { RolesGuard } from '../../common/guards/roles.guard'
 import { CurrentUser, type AuthUser } from '../../common/decorators/current-user.decorator'
 import { CustomerMatcherService } from './customer-matcher.service'
 import { PopupAggregateService } from './popup-aggregate.service'
+import { UpdatePopupConfigDto } from './dto/update-popup-config.dto'
 
 @ApiTags('来电弹屏')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
-@Controller('call')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Controller('call-popup')
 export class CallPopupController {
   constructor(
     private readonly customerMatcher: CustomerMatcherService,
     private readonly popupAggregate: PopupAggregateService,
   ) {}
 
-  @Get('popup/by-phone')
+  @Get('by-phone')
   @ApiOperation({ summary: '按号码获取弹屏数据' })
   @ApiQuery({ name: 'phone', required: true })
   async getPopupByPhone(@Query('phone') phone: string) {
@@ -41,7 +43,7 @@ export class CallPopupController {
     }
   }
 
-  @Get('popup/by-customer/:customerId')
+  @Get('by-customer/:customerId')
   @ApiOperation({ summary: '按客户ID获取弹屏数据（刷新）' })
   async getPopupByCustomer(
     @Param('customerId', ParseIntPipe) customerId: number,
@@ -55,7 +57,7 @@ export class CallPopupController {
     return { customerId, popupData }
   }
 
-  @Get('popup/config')
+  @Get('config')
   @ApiOperation({ summary: '获取弹屏配置' })
   getPopupConfig(@CurrentUser() user: AuthUser) {
     return {
@@ -66,15 +68,12 @@ export class CallPopupController {
     }
   }
 
-  @Put('popup/config')
+  @Put('config')
   @ApiOperation({ summary: '更新当前用户弹屏配置' })
-  updatePopupConfig(
-    @CurrentUser() user: AuthUser,
-    @Body() body: { autoPop?: boolean; showRecentFollowUps?: boolean; showLastSummary?: boolean },
-  ) {
+  updatePopupConfig(@CurrentUser() user: AuthUser, @Body() dto: UpdatePopupConfigDto) {
     return {
       userId: user.id,
-      ...body,
+      ...dto,
     }
   }
 }

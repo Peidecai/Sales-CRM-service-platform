@@ -29,6 +29,7 @@ describe('EmbeddingProcessor', () => {
       articleRepository as never,
       aiService as never,
       vectorService as never,
+      { sendToUser: jest.fn() } as never,
     )
   })
 

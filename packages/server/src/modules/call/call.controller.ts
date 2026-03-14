@@ -1,14 +1,28 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards, ParseIntPipe } from '@nestjs/common'
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  UseInterceptors,
+  ParseIntPipe,
+} from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiParam } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
+import { RolesGuard } from '../../common/guards/roles.guard'
 import { CurrentUser, type AuthUser } from '../../common/decorators/current-user.decorator'
+import { AuditLogInterceptor } from '../../common/interceptors/audit-log.interceptor'
 import { CallService } from './call.service'
 import { DialDto } from './dto/dial.dto'
 import { CallRecordsQueryDto } from './dto/call-records-query.dto'
+import { HangupCallDto, TransferCallDto } from './dto/hangup-call.dto'
 
 @ApiTags('呼叫控制')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@UseInterceptors(AuditLogInterceptor)
 @Controller('call')
 export class CallController {
   constructor(private readonly callService: CallService) {}
@@ -40,10 +54,10 @@ export class CallController {
   @ApiParam({ name: 'callId' })
   async hangup(
     @Param('callId') callId: string,
-    @Body() body: { reason?: string },
+    @Body() dto: HangupCallDto,
     @CurrentUser() user: AuthUser,
   ) {
-    await this.callService.hangup(callId, body?.reason, user)
+    await this.callService.hangup(callId, dto?.reason, user)
     return { ok: true }
   }
 
@@ -84,10 +98,10 @@ export class CallController {
   @ApiParam({ name: 'callId' })
   async transfer(
     @Param('callId') callId: string,
-    @Body() body: { targetNumber: string },
+    @Body() dto: TransferCallDto,
     @CurrentUser() user: AuthUser,
   ) {
-    await this.callService.transfer(callId, body.targetNumber, user)
+    await this.callService.transfer(callId, dto.targetNumber, user)
     return { ok: true }
   }
 

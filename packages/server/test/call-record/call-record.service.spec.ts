@@ -196,7 +196,7 @@ describe('CallRecordService', () => {
       const result = await service.findOne(1, adminUser)
 
       expect(repo.findOne).toHaveBeenCalledWith({
-        where: { id: 1, deleted: false },
+        where: { id: 1 },
         relations: ['customer', 'opportunity'],
       })
       expect(result.notes).toBe('Test call notes')
@@ -259,11 +259,11 @@ describe('CallRecordService', () => {
     it('should soft-delete call record', async () => {
       const record = fixtures.callRecord()
       repo.findOne.mockResolvedValue({ ...record })
-      repo.save.mockImplementation(async (r) => r)
+      repo.softRemove.mockResolvedValue(record)
 
       await service.remove(1)
 
-      expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ deleted: true }))
+      expect(repo.softRemove).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }))
     })
 
     it('should throw NotFoundException if not found', async () => {

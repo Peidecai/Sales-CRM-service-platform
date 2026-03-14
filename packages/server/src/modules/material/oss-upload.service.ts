@@ -1,6 +1,29 @@
-import { Injectable, Logger } from '@nestjs/common'
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import StsClient, { AssumeRoleRequest } from '@alicloud/sts20150401'
+import { Config as OpenApiConfig } from '@alicloud/openapi-client'
 import { MaterialService } from './material.service'
+import type { OssCallbackDto } from './dto/oss-callback.dto'
+
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'video/mp4',
+  'audio/mpeg',
+  'audio/wav',
+])
+
+const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
 
 export interface StsTokenResult {
   accessKeyId: string
@@ -12,51 +35,113 @@ export interface StsTokenResult {
 @Injectable()
 export class OssUploadService {
   private readonly logger = new Logger(OssUploadService.name)
+  private stsClient: StsClient | null = null
 
   constructor(
     private readonly configService: ConfigService,
     private readonly materialService: MaterialService,
-  ) {}
+  ) {
+    this.initStsClient()
+  }
+
+  private initStsClient(): void {
+    const accessKeyId = this.configService.get<string>('OSS_ACCESS_KEY_ID')
+    const accessKeySecret = this.configService.get<string>('OSS_ACCESS_KEY_SECRET')
+    if (!accessKeyId || !accessKeySecret) {
+      this.logger.warn('OSS credentials not configured — STS client disabled')
+      return
+    }
+
+    const config = new OpenApiConfig({
+      accessKeyId,
+      accessKeySecret,
+      endpoint: 'sts.aliyuncs.com',
+    })
+    this.stsClient = new StsClient(config)
+  }
 
   async getStsToken(): Promise<StsTokenResult> {
-    const key = this.configService.get<string>('OSS_ACCESS_KEY_ID')
-    const secret = this.configService.get<string>('OSS_ACCESS_KEY_SECRET')
-    if (!key || !secret) {
-      this.logger.warn('OSS credentials not configured, returning stub STS')
-      const exp = new Date(Date.now() + 3600 * 1000).toISOString()
+    if (!this.stsClient) {
+      this.logger.warn('STS client not initialised, returning stub token')
       return {
         accessKeyId: 'stub',
         accessKeySecret: 'stub',
         securityToken: 'stub',
-        expiration: exp,
+        expiration: new Date(Date.now() + 900 * 1000).toISOString(),
       }
     }
-    const exp = new Date(Date.now() + 3600 * 1000).toISOString()
-    return {
-      accessKeyId: key,
-      accessKeySecret: secret,
-      securityToken: '',
-      expiration: exp,
+
+    const roleArn = this.configService.get<string>('STS_ROLE_ARN', '')
+    const sessionName = this.configService.get<string>('STS_SESSION_NAME', 'crm-upload-session')
+    const durationSeconds = this.configService.get<number>('STS_DURATION_SECONDS', 900)
+    const bucket = this.configService.get<string>('OSS_BUCKET', 'crm-materials')
+
+    if (!roleArn) {
+      throw new InternalServerErrorException('STS_ROLE_ARN is not configured')
+    }
+
+    // Scoped policy: only allow PutObject to the specific bucket prefix
+    const policy = JSON.stringify({
+      Version: '1',
+      Statement: [
+        {
+          Effect: 'Allow',
+          Action: ['oss:PutObject'],
+          Resource: [`acs:oss:*:*:${bucket}/uploads/*`],
+        },
+      ],
+    })
+
+    const request = new AssumeRoleRequest({
+      roleArn,
+      roleSessionName: sessionName,
+      durationSeconds,
+      policy,
+    })
+
+    try {
+      const response = await this.stsClient.assumeRole(request)
+      const credentials = response.body?.credentials
+
+      if (
+        !credentials?.accessKeyId ||
+        !credentials?.accessKeySecret ||
+        !credentials?.securityToken
+      ) {
+        throw new InternalServerErrorException('STS AssumeRole returned incomplete credentials')
+      }
+
+      return {
+        accessKeyId: credentials.accessKeyId,
+        accessKeySecret: credentials.accessKeySecret,
+        securityToken: credentials.securityToken,
+        expiration:
+          credentials.expiration ?? new Date(Date.now() + durationSeconds * 1000).toISOString(),
+      }
+    } catch (err) {
+      if (err instanceof InternalServerErrorException) throw err
+      this.logger.error('STS AssumeRole failed', (err as Error).message)
+      throw new InternalServerErrorException('获取上传凭证失败')
     }
   }
 
-  async handleCallback(body: {
-    filename?: string
-    oss_key?: string
-    oss_bucket?: string
-    file_size?: number
-    mime_type?: string
-    md5?: string
-    thumbnail_key?: string
-    width?: number
-    height?: number
-    duration_seconds?: number
-    created_by?: number
-  }): Promise<{ id: number }> {
+  async handleCallback(body: OssCallbackDto): Promise<{ id: number }> {
+    // Validate MIME type
+    if (!ALLOWED_MIME_TYPES.has(body.mime_type)) {
+      throw new BadRequestException(`不支持的文件类型: ${body.mime_type}`)
+    }
+
+    // Validate file size
+    const fileSize = Number(body.file_size) || 0
+    if (fileSize > MAX_FILE_SIZE) {
+      throw new BadRequestException(
+        `文件大小超出限制: ${Math.round(fileSize / 1024 / 1024)}MB, 最大允许 50MB`,
+      )
+    }
+
     const name = body.filename ?? body.oss_key ?? 'unknown'
     const ossKey = body.oss_key ?? ''
     const ossBucket = body.oss_bucket ?? this.configService.get<string>('OSS_BUCKET', 'default')
-    const fileSize = Number(body.file_size) || 0
     const file = await this.materialService.createFromCallback({
       name,
       ossKey,

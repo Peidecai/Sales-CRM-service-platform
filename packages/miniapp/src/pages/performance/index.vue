@@ -1,6 +1,6 @@
 <template>
   <view class="performance-page">
-    <TabBar :selected="2" />
+    <TabBar :selected="3" />
 
     <!-- Period Selector -->
     <view class="period-selector">

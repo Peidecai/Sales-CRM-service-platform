@@ -11,6 +11,6 @@ import { OpportunityFollowLogService } from './opportunity-follow-log.service'
   imports: [TypeOrmModule.forFeature([Opportunity, OpportunityStageLog, OpportunityFollowLog])],
   controllers: [OpportunityController],
   providers: [OpportunityService, OpportunityFollowLogService],
-  exports: [OpportunityService],
+  exports: [OpportunityService, TypeOrmModule],
 })
 export class OpportunityModule {}

@@ -5,7 +5,9 @@
         <div class="card-header">
           <span>销售漏斗分析</span>
           <el-button type="primary" :icon="Refresh" :loading="loading" @click="loadFunnel"
-            >刷新</el-button
+          >
+            刷新
+          </el-button
           >
         </div>
       </template>

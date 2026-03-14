@@ -5,7 +5,7 @@ import { ResponseInterceptor } from '../../../src/common/interceptors/response.i
 describe('ResponseInterceptor', () => {
   const context = {} as ExecutionContext
 
-  it('should wrap plain data with standard response shape', async () => {
+  it('should wrap plain data with standard response shape including timestamp', async () => {
     const interceptor = new ResponseInterceptor<string>()
     const next = {
       handle: jest.fn(() => of('ok')),
@@ -17,7 +17,10 @@ describe('ResponseInterceptor', () => {
       code: 0,
       message: 'success',
       data: 'ok',
+      timestamp: expect.any(String),
     })
+    // Verify timestamp is valid ISO 8601
+    expect(new Date(result.timestamp).toISOString()).toBe(result.timestamp)
   })
 
   it('should not double wrap preformatted response data', async () => {
@@ -36,7 +39,7 @@ describe('ResponseInterceptor', () => {
     expect(result).toBe(data)
   })
 
-  it('should still wrap null payloads', async () => {
+  it('should still wrap null payloads with timestamp', async () => {
     const interceptor = new ResponseInterceptor<null>()
     const next = {
       handle: jest.fn(() => of(null)),
@@ -48,6 +51,8 @@ describe('ResponseInterceptor', () => {
       code: 0,
       message: 'success',
       data: null,
+      timestamp: expect.any(String),
     })
+    expect(new Date(result.timestamp).toISOString()).toBe(result.timestamp)
   })
 })
