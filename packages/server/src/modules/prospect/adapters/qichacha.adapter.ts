@@ -96,7 +96,9 @@ export class QichachaAdapter implements IProspectAdapter {
       return { results, total, cost: results.length }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err)
-      const status = axios.isAxiosError(err) ? err.response?.status : undefined
+      const status = axios.isAxiosError(err)
+        ? (err as import('axios').AxiosError).response?.status
+        : undefined
       this.logger.error(`企查查搜索失败 [HTTP ${status ?? 'N/A'}]: ${errMsg}`)
       if (status === 401 || status === 403) {
         throw new Error(`企查查认证失败 (HTTP ${status})，请检查 API Key/Secret`)
