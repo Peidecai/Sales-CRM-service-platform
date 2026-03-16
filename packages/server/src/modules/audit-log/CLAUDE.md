@@ -117,3 +117,9 @@ await this.auditLogService.log({
 2. 审计日志只有 `created_at`，没有 `updated_at`（日志不可修改）
 3. `AuditLogInterceptor` 依赖 DI 注入 `AuditLogService`，不能用 `new` 实例化
 4. fire-and-forget 模式下，审计失败不会影响业务接口的正常响应
+
+## Skill 规范
+
+- **backend-patterns** — 全局模块、拦截器模式
+- **coding-standards** — TypeScript 严格模式
+- **tdd-workflow** — 8 tests (AuditLogService)

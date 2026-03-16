@@ -66,6 +66,12 @@
       "style": {
         "navigationBarTitleText": "消息中心"
       }
+    },
+    {
+      "path": "pages/call/after-call",
+      "style": {
+        "navigationBarTitleText": "通话记录"
+      }
     }
   ],
   "globalStyle": {

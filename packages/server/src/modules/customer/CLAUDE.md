@@ -107,3 +107,10 @@ export class Customer extends BaseEntity {
 
 - 删除按钮、导入/导出按钮使用 `v-if="isAdminOrManager"` 隐藏
 - 使用 `usePermission()` composable 获取角色状态
+
+## Skill 规范
+
+- **backend-patterns** — Service 分层、Repository 模式
+- **coding-standards** — TypeScript 严格模式
+- **security-review** — 数据所有权校验、导入验证
+- **tdd-workflow** — 18 tests (CustomerService)

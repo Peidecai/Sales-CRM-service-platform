@@ -86,7 +86,7 @@ packages/miniapp/
 
 所有 API 请求通过 `src/api/request.ts` 统一处理：
 
-- `baseURL`: `http://localhost:3000/api/v1`
+- `baseURL`: `import.meta.env.VITE_API_BASE_URL`（见 `.env.development` / `.env.production`）
 - JWT 从 `uni.getStorageSync('crm_token')` 读取
 - 401 → 清除 token → 跳转登录页
 - 错误 → `uni.showToast` 提示
@@ -125,7 +125,45 @@ packages/miniapp/
 ### Stub APIs (后端 TODO)
 
 - `POST /api/v1/attendance/check-in` — 外勤打卡
-- `POST /api/v1/recordings/upload` — 录音上传 + ASR
+- `POST /api/v1/recordings/upload` — 录音上传 + ASR（方案B中升级为正式实现，支持 `sourceType=voice_memo`）
+
+## 方案B：通话管理扩展
+
+### 新增页面
+
+| 页面         | 路径                        | 说明                                          |
+| ------------ | --------------------------- | --------------------------------------------- |
+| 通话结束浮层 | `pages/call/after-call.vue` | 通话结束后自动弹出，填写通话结果+语音速记入口 |
+
+### 新增Store
+
+| Store     | 路径                   | 说明                                  |
+| --------- | ---------------------- | ------------------------------------- |
+| callState | `stores/call-state.ts` | 拨号状态跟踪（pendingCall上下文管理） |
+
+### 调整页面
+
+| 页面                  | 调整内容                                                                     |
+| --------------------- | ---------------------------------------------------------------------------- |
+| `customer/detail.vue` | 增加智能拨号按钮（记录上下文→调起原生拨号）、新增"通话记录"Tab（时间线展示） |
+| `customer/list.vue`   | 增加"我的客户"默认筛选Tab，默认传 `assignedUserId` 参数                      |
+| `voice/record.vue`    | 改造为通话上下文关联的定向速记（显示客户信息、引导提示、AI结果展示）         |
+
+### 新增API
+
+| API        | 路径                 | 说明                          |
+| ---------- | -------------------- | ----------------------------- |
+| callRecord | `api/call-record.ts` | 通话记录CRUD + AI分析结果获取 |
+
+### 通话状态管理流程
+
+```
+拨号 → callState.setPendingCall(customer)
+  → uni.makePhoneCall()
+  → App.onShow检测pending
+  → 弹出after-call浮层
+  → 提交/跳过 → callState.clearPendingCall()
+```
 
 ## 开发命令
 
@@ -158,3 +196,8 @@ dist/dev/mp-weixin/  → 用微信开发者工具打开此目录
 3. 录音功能需要声明 `scope.record` 权限
 4. tabBar 图标为占位文件，实际使用时需替换为设计稿图标 (PNG 81×81)
 5. `WX_MINIAPP_APPID` 和 `WX_MINIAPP_SECRET` 需在 `.env` 中配置
+
+## Skill 规范
+
+- **coding-standards** — TypeScript 严格模式
+- **frontend-patterns** — Vue 3 组合式 API、Pinia 状态管理

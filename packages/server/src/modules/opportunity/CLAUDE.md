@@ -109,3 +109,9 @@ export class Opportunity extends BaseEntity {
 ### 前端权限
 
 - 删除按钮、导出按钮使用 `v-if="isAdminOrManager"` 隐藏
+
+## Skill 规范
+
+- **backend-patterns** — Service 分层、Repository 模式
+- **coding-standards** — TypeScript 严格模式
+- **tdd-workflow** — 20 tests (OpportunityService)

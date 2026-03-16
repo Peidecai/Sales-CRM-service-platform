@@ -1,0 +1,29 @@
+﻿# T09 | 2026-03-14 20:56:08 | 115.3s
+
+## Prompt
+请为以下 5 个模块各编写一个 service 单元测试（每个至少 6 个 case），全部保存到对应目录：
+A) packages/server/test/announcement/announcement.service.spec.ts
+   先读 packages/server/src/modules/announcement/announcement.service.ts 了解接口。
+   至少覆盖：创建公告、查询列表（分页）、获取详情、发布公告、删除公告、权限验证（非 Admin 不能删除）。
+B) packages/server/test/material/material.service.spec.ts
+   先读 packages/server/src/modules/material/material.service.ts 了解接口。
+   至少覆盖：创建素材记录、查询列表（按分类）、获取详情、更新收藏状态、删除素材。
+C) packages/server/test/custom-field/custom-field.service.spec.ts
+   先读 packages/server/src/modules/custom-field/custom-field.service.ts 了解接口。
+   至少覆盖：创建字段定义、查询字段列表（按 entityType）、更新字段、删除字段、字段名冲突检测。
+D) packages/server/test/customer-tag/customer-tag.service.spec.ts
+   先读 packages/server/src/modules/customer-tag/customer-tag.service.ts 了解接口。
+   至少覆盖：创建标签、查询标签列表、为客户打标签、移除标签、AutoTagService.applyRules()。
+E) packages/server/test/route/route.service.spec.ts
+   先读 packages/server/src/modules/route/route.service.ts 了解接口。
+   至少覆盖：获取路由权限列表、按角色查询路由、更新路由权限配置。
+
+## Output
+5 涓祴璇曟枃浠跺凡缁忓叏閮ㄥ瓨鍦ㄤ笖閫氳繃锛?*62 涓祴璇曞叏閮?PASS**銆傚悇 service 娴嬭瘯瑕嗙洊鎯呭喌锛?
+| 娴嬭瘯鏂囦欢 | 娴嬭瘯鏁?| 瑕嗙洊鍦烘櫙 |
+|---|---|---|
+| `announcement.service.spec.ts` | 12 | create锛圵S 骞挎挱/闈?WEB 棰戦亾/榛樿 createdBy锛夈€乫indAll锛堝垎椤?杩囨护/榛樿鍊硷級銆乫indOne/update/remove锛堝惈 404锛夈€乵arkRead锛堝幓閲嶏級銆乬etUnreadCount |
+| `material.service.spec.ts` | 10 | findAll锛堣繃婊?榛樿鍒嗛〉锛夈€乫indOne锛堝惈 404锛夈€乽pdate锛堥儴鍒嗘洿鏂帮級銆乺emove锛堝惈 404锛夈€乧reateFromCallback銆乬etStats锛堢被鍨嬭仛鍚?绌哄垪琛級 |
+| `custom-field.service.spec.ts` | 13 | findAll銆乫indOne锛堝惈 404锛夈€乧reate锛堝敮涓€ key 鍐茬獊锛夈€乽pdate锛坒ieldKey 鍐茬獊/淇濇寔涓嶅彉锛夈€乺emove銆乿alidateCustomFields锛? 涓獙璇佸満鏅細閫氳繃/蹇呭～缂哄け/绫诲瀷閿欒/閫夐」瓒婄晫/鏃ユ湡鏃犳晥/澶氶€夐潪鏁扮粍/null 杈撳叆锛?|
+| `customer-tag.service.spec.ts` | 11 | findAll锛堝叏閲?鎸?group锛夈€乧reate锛堝惈鍐茬獊锛夈€乽pdate锛堝惈 404/鍚嶇О鍐茬獊锛夈€乺emove锛堣蒋鍒?娓呯悊鍏宠仈/404锛夈€乤ddTagToCustomer锛堝幓閲嶏級銆乺emoveTagFromCustomer銆乥atchAddTags銆乬etTagsByCustomer锛堟湁鏍囩/鏃犳爣绛撅級 |
+| `route.service.spec.ts` | 7 | optimizeRoute锛?2 瀹㈡埛杩斿洖绌恒€佸瀹㈡埛鎺掑簭銆佽嚜瀹氫箟璧风偣鍧愭爣銆佸瓧娈靛畬鏁存€с€佸湴鍧€闄嶇骇銆佹暣鏁拌窛绂汇€佹渶杩戦偦瑕嗙洊 |

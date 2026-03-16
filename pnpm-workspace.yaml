@@ -1,5 +1,8 @@
 packages:
-  - packages/*
+  - packages/server
+  - packages/web
+  - packages/shared
+  - packages/miniapp
 
 ignoredBuiltDependencies:
   - "@nestjs/core"

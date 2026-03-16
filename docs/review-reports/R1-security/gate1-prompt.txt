@@ -1,8 +1,0 @@
-请阅读 review-reports/R1-security/ 目录下的 T1-security-design.md、T2-api-security.md、T3-rbac-permissions.md 三份审查报告，合并为一份安全基线审查汇总报告。
-
-格式要求：
-1. 执行摘要（CRITICAL/HIGH/MEDIUM/LOW 各多少）
-2. CRITICAL 问题清单（必须阻断开发）
-3. HIGH 问题清单（本迭代必须修复）
-4. MEDIUM/LOW 问题清单（排入 backlog）
-5. 是否可以进入 R2 架构合规审查的结论（YES/NO + 理由）

@@ -1,0 +1,26 @@
+﻿# T02 | 2026-03-14 19:28:48 | 41.7s
+
+## Prompt
+请修复 packages/server/src/modules/customer-tag/customer-tag.module.ts 中的模块实体边界违规：
+当前 TypeOrmModule.forFeature([CustomerTag, CustomerTagRelation, Customer]) 直接注册了属于 CustomerModule 的 Customer 实体。
+修复方案：
+1. 将 forFeature 数组改为 [CustomerTag, CustomerTagRelation]，去掉 Customer。
+2. 在 imports 中加入 CustomerModule（来自 ../customer/customer.module）。
+3. 保留 exports: [CustomerTagService, AutoTagService] 不变。
+4. 如果 customer-tag.module.ts 顶部引入了 Customer import 语句，在不影响 service 内部类型使用的前提下，删除 module 文件中该 import（service 文件保持不变）。
+修改后输出最终文件内容确认。
+
+## Output
+淇敼瀹屾垚銆傛€荤粨涓€涓嬫敼鍔細
+
+**`customer-tag.module.ts` 淇敼鍐呭锛?*
+
+1. `TypeOrmModule.forFeature` 浠?`[CustomerTag, CustomerTagRelation, Customer]` 鈫?`[CustomerTag, CustomerTagRelation]` 鈥?绉婚櫎浜嗚法妯″潡鐨?`Customer` 瀹炰綋鐩存帴娉ㄥ唽
+2. `imports` 鏂板 `CustomerModule` 鈥?鍥犱负 `CustomerModule` 宸茬粡 `exports: [TypeOrmModule]`锛屾墍浠?`AutoTagService` 涓殑 `@InjectRepository(Customer)` 浠嶇劧鍙互姝ｅ父娉ㄥ叆
+3. 绉婚櫎浜?`import { Customer } from '../customer/customer.entity'`锛屾敼涓?`import { CustomerModule } from '../customer/customer.module'`
+4. `exports` 淇濇寔涓嶅彉锛歚[CustomerTagService, AutoTagService]`
+
+**涓轰粈涔堣繖鏍锋敼锛?*
+- `CustomerTagService` 鍙娇鐢?`CustomerTag` 鍜?`CustomerTagRelation` 涓や釜 Repository锛屼笉渚濊禆 `Customer`
+- `AutoTagService` 閫氳繃 `@InjectRepository(Customer)` 浣跨敤 `Customer` Repository 鈥?杩欎釜渚濊禆搴旇閫氳繃瀵煎叆 `CustomerModule` 鏉ヨ幏鍙栵紝鑰屼笉鏄湪鑷繁鐨勬ā鍧楅噷閲嶅娉ㄥ唽 `Customer` 瀹炰綋
+- 娌℃湁寰幆渚濊禆锛坄CustomerModule` 涓?import `CustomerTagModule`锛夛紝鎵€浠ュ彲浠ュ畨鍏ㄥ鍏?

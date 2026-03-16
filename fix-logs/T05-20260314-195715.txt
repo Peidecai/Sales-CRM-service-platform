@@ -1,0 +1,43 @@
+﻿# T05 | 2026-03-14 19:57:15 | 164.1s
+
+## Prompt
+请为 packages/server/src/modules/sales-target/sales-target.service.ts 编写单元测试，保存到 packages/server/test/sales-target/sales-target.service.spec.ts。
+参考现有测试模式（packages/server/test/test-utils.ts、packages/server/test/opportunity/opportunity.service.spec.ts）使用 createMockRepository + createMockQueryBuilder。
+SalesTargetService 构造函数注入了 SalesTarget/PerformanceRanking/Opportunity/Customer/CallRecord/User 这 6 个仓库和 RedisService。
+必须覆盖以下测试用例（至少 15 个）：
+1. create() — 成功创建目标；2. create() — scope=team 时 userId 非必须；3. create() — 期间冲突时抛出 BadRequestException；
+4. findAll() — 返回分页结果；5. findAll() — 按 userId 过滤；6. findOne() — 返回目标详情；7. findOne() — 找不到时抛 NotFoundException；
+8. update() — 成功更新；9. update() — 状态不允许编辑时抛异常；10. remove() — 成功软删除；
+11. getAchievement() — 计算达成率；12. getForecast() — 计算预测；
+13. decomposeTarget() — 拆解目标；14. getRanking() — 返回绩效排名；15. calculateRanking() — 调度器触发计算。
+使用 jest.useFakeTimers() 处理日期相关逻辑。每个 describe 块使用 beforeEach 重置 mock。
+
+## Output
+All **16 tests pass** (3.2s). Here's a summary of the test file:
+
+**File**: `packages/server/test/sales-target/sales-target.service.spec.ts`
+
+**Setup**: 6 mock repositories (SalesTarget, PerformanceRanking, Opportunity, Customer, CallRecord, User) + MockRedisService, all via `createMockRepository` / `createMockRedisService` from `test-utils.ts`.
+
+**16 test cases across 8 `describe` blocks**:
+
+| # | Test | Key assertion |
+|---|------|---------------|
+| 1 | `create()` 鈥?normal creation | `achievedValue: 0`, cache invalidated |
+| 2 | `create()` 鈥?team scope, no userId | `assignedUserId: null` allowed |
+| 3 | `decompose()` 鈥?exceeds parent value | `BadRequestException` |
+| 4 | `decompose()` 鈥?normal split | Children have `TargetScope.TEAM`, `parentTargetId` set |
+| 5 | `findAll()` 鈥?default pagination | `skip(0)`, `take(20)`, correct `PageResult` |
+| 6 | `findAll()` 鈥?SALES user restriction | `scope != INDIVIDUAL OR assignedUserId = uid` |
+| 7 | `findOne()` 鈥?normal return | `relations: ['children']` loaded |
+| 8 | `findOne()` 鈥?not found | `NotFoundException` |
+| 9 | `findOne()` 鈥?SALES forbidden | `ForbiddenException` for other user's individual target |
+| 10 | `update()` 鈥?normal update | Fields merged, cache invalidated |
+| 11 | `update()` 鈥?not found | `NotFoundException` |
+| 12 | `remove()` 鈥?soft delete | `softRemove()` called, cache invalidated |
+| 13 | `getAchievement()` 鈥?calculation | Rate=40%, remaining=600K, daysLeft=44 |
+| 14 | `getForecast()` 鈥?linear prediction | forecastValue > target 鈫?`onTrack: true` |
+| 15 | `getSalesRanking()` 鈥?query rankings | Correct QB filters: period, metricType, year, quarter, month |
+| 16 | `snapshotRankings()` 鈥?create snapshots | 4 metricTypes 脳 2 users = 8 rankings created |
+
+Tests 11, 13, 14, 16 use `jest.useFakeTimers()` with `jest.setSystemTime()` for deterministic date calculations, with `jest.useRealTimers()` cleanup in each test.

@@ -1,0 +1,13 @@
+﻿# Task 3 / 13
+# Time: 2026-03-13 21:49:06
+# Elapsed: 18.4s
+
+## Prompt
+请阅读 docs/chapters/chapter03.md《后端设计规范》，对 packages/server/src 的 NestJS 后端进行全面架构审查。
+重点检查：模块划分(common/config/modules)、Controller/Service/Repository 职责分离、DTO 与校验、异常与错误码、拦截器与中间件、日志与审计、缓存与队列(Bull)、配置管理(ConfigService) 等。
+要求：输出一份后端架构审查报告，按照 chapter03 中的大纲逐条对照：
+- 标记每一条规范是「严格遵守 / 部分遵守 / 未遵守」；
+- 对于「部分遵守/未遵守」的项，列出具体文件和代码片段位置，并给出重构建议优先级（P0/P1/P2）。
+
+## Output
+ 

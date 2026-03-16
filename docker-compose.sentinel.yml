@@ -1,0 +1,323 @@
+# docker-compose.sentinel.yml
+# ─────────────────────────────────────────────────────────────────────────────
+# Redis Sentinel HA topology for production deployments.
+#
+# Topology: 1 Master + 2 Replicas + 3 Sentinels
+#   - redis-master  :6379   — primary read/write node
+#   - redis-replica-1 :6380 — async replica
+#   - redis-replica-2 :6381 — async replica
+#   - redis-sentinel-1 :26379
+#   - redis-sentinel-2 :26380
+#   - redis-sentinel-3 :26381
+#
+# Sentinel quorum = 2 (majority of 3 sentinels must agree before failover).
+# Failover time: ~15-30 seconds from master failure to new master elected.
+#
+# Usage:
+#   # Start Sentinel stack (replaces the single 'redis' service in docker-compose.yml)
+#   docker compose -f docker-compose.yml -f docker-compose.sentinel.yml up -d
+#
+#   # Required .env additions:
+#   REDIS_SENTINELS=redis-sentinel-1:26379,redis-sentinel-2:26380,redis-sentinel-3:26381
+#   REDIS_SENTINEL_NAME=mymaster
+#   REDIS_PASSWORD=<strong-password>           # shared by master, replicas, and sentinels
+#   # Comment out REDIS_HOST and REDIS_PORT — they are ignored in Sentinel mode.
+#
+# Notes:
+#   - This file OVERRIDES the 'redis' service and 'server' environment from
+#     docker-compose.yml via Docker Compose merge semantics.
+#   - The single redis_data volume from docker-compose.yml is replaced by
+#     three per-node volumes: redis_master_data, redis_replica1_data, redis_replica2_data.
+#   - All Redis nodes use the same REDIS_PASSWORD for both data auth and
+#     replication auth (requirepass + masterauth).
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ── Remove the single-node redis service ───────────────────────────────────
+  # Docker Compose merge: setting 'profiles' to a non-activated profile
+  # effectively disables the inherited service without breaking the merge.
+  redis:
+    profiles:
+      - disabled
+
+  # ── Redis Master ────────────────────────────────────────────────────────────
+  redis-master:
+    image: redis:7-alpine
+    container_name: crm-redis-master
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD:-please-change-redis-password}
+      --masterauth ${REDIS_PASSWORD:-please-change-redis-password}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_master_data:/data
+    healthcheck:
+      test:
+        - "CMD"
+        - "redis-cli"
+        - "-a"
+        - "${REDIS_PASSWORD:-please-change-redis-password}"
+        - "ping"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - crm-network
+
+  # ── Redis Replica 1 ─────────────────────────────────────────────────────────
+  redis-replica-1:
+    image: redis:7-alpine
+    container_name: crm-redis-replica-1
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD:-please-change-redis-password}
+      --masterauth ${REDIS_PASSWORD:-please-change-redis-password}
+      --replicaof redis-master 6379
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_replica1_data:/data
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - "CMD"
+        - "redis-cli"
+        - "-a"
+        - "${REDIS_PASSWORD:-please-change-redis-password}"
+        - "ping"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - crm-network
+
+  # ── Redis Replica 2 ─────────────────────────────────────────────────────────
+  redis-replica-2:
+    image: redis:7-alpine
+    container_name: crm-redis-replica-2
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD:-please-change-redis-password}
+      --masterauth ${REDIS_PASSWORD:-please-change-redis-password}
+      --replicaof redis-master 6379
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis_replica2_data:/data
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - "CMD"
+        - "redis-cli"
+        - "-a"
+        - "${REDIS_PASSWORD:-please-change-redis-password}"
+        - "ping"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - crm-network
+
+  # ── Redis Sentinel 1 ────────────────────────────────────────────────────────
+  redis-sentinel-1:
+    image: redis:7-alpine
+    container_name: crm-redis-sentinel-1
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+        reservations:
+          memory: 16M
+    # Sentinel is configured entirely via command-line arguments.
+    # quorum=2: at least 2 sentinels must agree to trigger a failover.
+    # down-after-milliseconds=5000: declare master subjectively down after 5s of no response.
+    # failover-timeout=10000: maximum time (ms) allowed for a failover.
+    # parallel-syncs=1: only 1 replica resyncs at a time after failover.
+    #
+    # Note: redis-sentinel requires a writable config file path (it writes back failover state).
+    # /tmp/sentinel.conf is created at startup so the process can rewrite it.
+    command: >
+      sh -c "touch /tmp/sentinel.conf &&
+      redis-sentinel /tmp/sentinel.conf
+      --sentinel monitor mymaster redis-master 6379 2
+      --sentinel auth-pass mymaster ${REDIS_PASSWORD:-please-change-redis-password}
+      --sentinel down-after-milliseconds mymaster 5000
+      --sentinel failover-timeout mymaster 10000
+      --sentinel parallel-syncs mymaster 1
+      --requirepass ${REDIS_PASSWORD:-please-change-redis-password}"
+    ports:
+      - "26379:26379"
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-replica-1:
+        condition: service_healthy
+      redis-replica-2:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - "CMD"
+        - "redis-cli"
+        - "-p"
+        - "26379"
+        - "-a"
+        - "${REDIS_PASSWORD:-please-change-redis-password}"
+        - "ping"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - crm-network
+
+  # ── Redis Sentinel 2 ────────────────────────────────────────────────────────
+  redis-sentinel-2:
+    image: redis:7-alpine
+    container_name: crm-redis-sentinel-2
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+        reservations:
+          memory: 16M
+    command: >
+      sh -c "touch /tmp/sentinel.conf &&
+      redis-sentinel /tmp/sentinel.conf
+      --sentinel monitor mymaster redis-master 6379 2
+      --sentinel auth-pass mymaster ${REDIS_PASSWORD:-please-change-redis-password}
+      --sentinel down-after-milliseconds mymaster 5000
+      --sentinel failover-timeout mymaster 10000
+      --sentinel parallel-syncs mymaster 1
+      --requirepass ${REDIS_PASSWORD:-please-change-redis-password}"
+    ports:
+      - "26380:26379"
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-replica-1:
+        condition: service_healthy
+      redis-replica-2:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - "CMD"
+        - "redis-cli"
+        - "-p"
+        - "26379"
+        - "-a"
+        - "${REDIS_PASSWORD:-please-change-redis-password}"
+        - "ping"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - crm-network
+
+  # ── Redis Sentinel 3 ────────────────────────────────────────────────────────
+  redis-sentinel-3:
+    image: redis:7-alpine
+    container_name: crm-redis-sentinel-3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+        reservations:
+          memory: 16M
+    command: >
+      sh -c "touch /tmp/sentinel.conf &&
+      redis-sentinel /tmp/sentinel.conf
+      --sentinel monitor mymaster redis-master 6379 2
+      --sentinel auth-pass mymaster ${REDIS_PASSWORD:-please-change-redis-password}
+      --sentinel down-after-milliseconds mymaster 5000
+      --sentinel failover-timeout mymaster 10000
+      --sentinel parallel-syncs mymaster 1
+      --requirepass ${REDIS_PASSWORD:-please-change-redis-password}"
+    ports:
+      - "26381:26379"
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-replica-1:
+        condition: service_healthy
+      redis-replica-2:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - "CMD"
+        - "redis-cli"
+        - "-p"
+        - "26379"
+        - "-a"
+        - "${REDIS_PASSWORD:-please-change-redis-password}"
+        - "ping"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - crm-network
+
+  # ── Server — override Redis connection to use Sentinel ─────────────────────
+  server:
+    environment:
+      # Disable single-node variables — Sentinel mode is driven by REDIS_SENTINELS
+      REDIS_HOST: ""
+      REDIS_PORT: ""
+      # Sentinel configuration
+      REDIS_SENTINELS: "redis-sentinel-1:26379,redis-sentinel-2:26380,redis-sentinel-3:26381"
+      REDIS_SENTINEL_NAME: "mymaster"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-please-change-redis-password}
+      REDIS_DB: "0"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis-sentinel-1:
+        condition: service_healthy
+      redis-sentinel-2:
+        condition: service_healthy
+      redis-sentinel-3:
+        condition: service_healthy
+
+volumes:
+  redis_master_data:
+    driver: local
+  redis_replica1_data:
+    driver: local
+  redis_replica2_data:
+    driver: local

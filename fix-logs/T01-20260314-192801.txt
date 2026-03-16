@@ -1,0 +1,23 @@
+﻿# T01 | 2026-03-14 19:28:01 | 81.2s
+
+## Prompt
+请修复 packages/server/src/modules/customer-pool/customer-pool.module.ts 中的模块实体边界违规：
+当前代码在 TypeOrmModule.forFeature([Customer, CustomerPoolLog, FollowUp]) 中直接注册了属于其他模块的实体 Customer（属于 CustomerModule）和 FollowUp（属于 FollowUpModule）。
+修复方案：
+1. 将 TypeOrmModule.forFeature([Customer, CustomerPoolLog, FollowUp]) 改为 TypeOrmModule.forFeature([CustomerPoolLog])，只注册本模块自有实体。
+2. 在 imports 数组中加入 CustomerModule（来自 ../customer/customer.module）和 FollowUpModule（来自 ../follow-up/follow-up.module）。
+3. 确认 CustomerModule 和 FollowUpModule 的 exports 中包含 TypeOrmModule（已经在上次修复中完成，直接验证即可）。
+4. 删除模块文件顶部对 Customer 和 FollowUp 实体的 import 语句（如果 service 仍需要实体类型，则保留 import；仅删除 forFeature 注册）。
+5. 不修改 CustomerPoolService/CustomerPoolController 的业务逻辑，仅修改模块定义文件。
+修改后检查 packages/server/src/modules/customer-pool/customer-pool.module.ts 文件内容是否正确。
+
+## Output
+No circular dependency 鈥?`CustomerPoolModule` is only imported in `app.module.ts`. The fix is clean.
+
+**Summary of changes to `customer-pool.module.ts`**:
+
+1. Removed direct `TypeOrmModule.forFeature([Customer, ..., FollowUp])` registration of cross-module entities
+2. Kept only `TypeOrmModule.forFeature([CustomerPoolLog])` 鈥?the module's own entity
+3. Added `CustomerModule` and `FollowUpModule` to `imports` 鈥?both already export `TypeOrmModule`, so `@InjectRepository(Customer)` and `@InjectRepository(FollowUp)` in `CustomerPoolService` and `CustomerPoolScheduler` continue to work
+4. Removed unused entity imports (`Customer`, `FollowUp`) from the module file
+5. No changes needed to `customer-pool.service.ts` or `customer-pool.scheduler.ts` 鈥?they import entities directly for TypeScript types and `@InjectRepository`, which are resolved via the module imports

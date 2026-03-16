@@ -16,6 +16,19 @@
       </view>
     </view>
 
+    <!-- Scope Tabs -->
+    <view class="scope-tabs">
+      <view
+        v-for="tab in scopeTabs"
+        :key="tab.value"
+        class="scope-tab"
+        :class="{ active: scopeFilter === tab.value }"
+        @click="selectScope(tab.value)"
+      >
+        <text>{{ tab.label }}</text>
+      </view>
+    </view>
+
     <!-- Filter Panel -->
     <view v-if="showFilter" class="filter-panel">
       <view class="filter-row">
@@ -86,10 +99,13 @@ import { ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import TabBar from '@/components/TabBar.vue'
 import { customerApi, type CustomerVO, type CustomerQueryParams, CustomerStatus } from '@/api/customer'
+import { useUserStore } from '@/stores/user'
 import { cacheStore, CACHE_PREFIX, CACHE_TTL } from '@/utils/cache-store'
 
+const userStore = useUserStore()
 const keyword = ref('')
 const selectedStatus = ref<string>('')
+const scopeFilter = ref<string>('mine')
 const showFilter = ref(false)
 const customerList = ref<CustomerVO[]>([])
 const loading = ref(false)
@@ -107,6 +123,17 @@ const statusOptions = [
   { value: CustomerStatus.DEAL, label: '成交' },
   { value: CustomerStatus.MAINTAIN, label: '维护' },
 ]
+
+const scopeTabs = [
+  { value: 'mine', label: '我的客户' },
+  { value: 'all', label: '全部' },
+  { value: 'recent', label: '近期跟进' },
+]
+
+function selectScope(val: string) {
+  scopeFilter.value = val
+  resetAndLoad()
+}
 
 function statusLabel(status: string): string {
   const item = statusOptions.find((s) => s.value === status)
@@ -135,7 +162,7 @@ async function loadCustomers() {
 
   try {
     // Try cache for first page
-    const cacheKey = `${CACHE_PREFIX.CUSTOMERS}list:${keyword.value}:${selectedStatus.value}:${page.value}`
+    const cacheKey = `${CACHE_PREFIX.CUSTOMERS}list:${keyword.value}:${selectedStatus.value}:${scopeFilter.value}:${page.value}`
     if (page.value === 1) {
       const cached = cacheStore.get<CustomerVO[]>(cacheKey)
       if (cached) {
@@ -150,6 +177,9 @@ async function loadCustomers() {
       pageSize,
       keyword: keyword.value || undefined,
       status: selectedStatus.value as CustomerStatus || undefined,
+      assignedUserId: scopeFilter.value === 'mine' ? userStore.userId : undefined,
+      sortBy: scopeFilter.value === 'recent' ? 'lastFollowUpAt' : undefined,
+      sortOrder: scopeFilter.value === 'recent' ? 'DESC' : undefined,
     }
 
     const res = await customerApi.getList(params)
@@ -233,6 +263,27 @@ onShow(() => {
 .filter-text {
   font-size: 26rpx;
   color: #409eff;
+}
+
+.scope-tabs {
+  display: flex;
+  background: #ffffff;
+  padding: 0 24rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.scope-tab {
+  padding: 16rpx 24rpx;
+  font-size: 26rpx;
+  color: #666;
+  border-bottom: 4rpx solid transparent;
+  margin-right: 8rpx;
+}
+
+.scope-tab.active {
+  color: #409eff;
+  border-bottom-color: #409eff;
+  font-weight: 500;
 }
 
 .filter-panel {

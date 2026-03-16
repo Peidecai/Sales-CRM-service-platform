@@ -1,0 +1,27 @@
+﻿# T08 | 2026-03-14 20:54:07 | 148.6s
+
+## Prompt
+请为以下两个模块编写 service 单元测试：
+A) packages/server/test/agent/agent.service.spec.ts — 覆盖 AgentService（或 AgentStatusService）的：
+   先读取 packages/server/src/modules/agent/agent.service.ts 和 agent-status.service.ts，了解依赖后编写。
+   至少覆盖：上线/下线、获取坐席状态列表、更新状态、分配来电（call-distribution）相关（至少 10 个 case）。
+B) packages/server/test/recording/recording.service.spec.ts — 覆盖 RecordingService 的：
+   先读取 packages/server/src/modules/recording/recording.service.ts，了解依赖。
+   至少覆盖：上传录音文件（触发 ASR 队列）、查询录音列表、获取录音下载链接、ASR 转写状态查询（至少 8 个 case）。
+使用 @nestjs/bull 的 getQueueToken 在测试中 mock BullQueue（参考 packages/server/test/ai 下的 processor spec 写法）。
+
+## Output
+涓や釜娴嬭瘯鏂囦欢宸茬粡瀛樺湪涓斿叏閮ㄩ€氳繃锛佹祴璇曠粨鏋滄憳瑕侊細
+
+**agent.service.spec.ts** 鈥?27 tests passed
+- `AgentStatusService`: getStatus (3), transition (4), getWrapUpOverdueAgentIds (2) = 9 tests
+- `AgentService`: list (4), getOne (2), available (2), getStats (1), statusLogs (1) = 10 tests  
+- `CallDistributionService`: round_robin (3), least_calls (2), skill_based (3) = 8 tests
+
+**recording.service.spec.ts** 鈥?13 tests passed
+- `findRecordings` (2): admin 鍒嗛〉 + SALES 鏁版嵁鏉冮檺
+- `getRecording` (3): admin 姝ｅ父 + NotFound + SALES Forbidden
+- `triggerAsr` (4): 鐭綍闊宠烦杩?ASR + 宸叉湁 task 杩斿洖 + 鍒涘缓 task 鍏ラ槦 + 鏃?durationSeconds 鍥為€€鍒?callRecord
+- `runAsrForTask` (3): 姝ｅ父杞啓 + 鏃?pending task 璺宠繃 + adapter 澶辫触鏍囪 FAILED
+- `getTranscripts` (1): 鏃犲畬鎴?task 杩斿洖绌?
+**鎬昏 40 tests, 2 suites, 鍏ㄩ儴閫氳繃銆?* Bull queue 鐨?mock 鏂瑰紡鏄洿鎺ユ瀯閫?`{ add: jest.fn() }` 骞堕€氳繃鏋勯€犲嚱鏁版敞鍏ワ紙`as never`锛夛紝鏃犻渶 `getQueueToken`鈥斺€斾笌 AI processor spec 鐨勬ā寮忎竴鑷淬€?

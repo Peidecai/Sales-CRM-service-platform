@@ -1,0 +1,9 @@
+﻿# Task 6 / 15
+# Time: 2026-03-14 01:17:47
+# Elapsed: 186.9s  ExitCode: 1
+
+## Prompt
+请为呼叫中心前端补充缺失的 API 封装文件 packages/web/src/api/call-center.ts，包含：发起外呼 POST /calls/dial、接听/挂断/转接控制 API、获取坐席状态 GET /agents/status、获取通话统计 GET /calls/stats、外呼任务列表 GET /campaigns。同时在 packages/web/src/views/call-center/ 下补充通话记录列表页 call-log.vue（表格展示通话记录，支持筛选时间范围/状态/坐席，可点击播放录音），确保路由注册到 router 中。
+
+## Output
+API Error: 503 {"error":{"code":"model_not_found","message":"No available channel for model claude-opus-4-5 under group MAX (distributor) (request id: 20260313171746620381269A8RUZMP2)","type":"new_api_error"}}

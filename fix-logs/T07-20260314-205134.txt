@@ -1,0 +1,31 @@
+﻿# T07 | 2026-03-14 20:51:34 | 64s
+
+## Prompt
+请为以下三个金融模块各编写一个 service 单元测试文件：
+A) packages/server/test/payment/payment.service.spec.ts — 覆盖 PaymentService 的：
+   创建回款记录、按合同查询、确认到账（状态流转）、逾期记录查询（至少 8 个 case）。
+B) packages/server/test/contract/contract.service.spec.ts — 覆盖 ContractService 的：
+   创建合同、查询列表（分页）、查询详情（含关联商机）、更新合同状态、到期预警查询（至少 8 个 case）。
+C) packages/server/test/quotation/quotation.service.spec.ts — 覆盖 QuotationService 的：
+   创建报价单、查询列表、查询详情（含明细项）、提交审批、审批通过/驳回（至少 8 个 case）。
+对每个 service，先读取对应 service 文件了解依赖和接口，再编写 spec。
+每个 spec 文件使用统一的 createMockRepository + jest.fn() mock 模式，import 路径基于 packages/server/test/test-utils.ts。
+
+## Output
+涓変釜 spec 鏂囦欢宸茬粡瀛樺湪涓斿叏閮ㄩ€氳繃:
+
+| 鏂囦欢 | 娴嬭瘯鏁?| 鐘舵€?|
+|------|--------|------|
+| `test/payment/payment.service.spec.ts` | 9 tests | PASS |
+| `test/contract/contract.service.spec.ts` | 10 tests | PASS |
+| `test/quotation/quotation.service.spec.ts` | 9 tests | PASS |
+
+**鎬昏: 28 tests, 3 suites, 鍏ㄩ儴閫氳繃** (4.065s)
+
+瑕嗙洊鐨勫満鏅?
+
+- **PaymentService**: create (鐢熸垚 paymentNo), findAll (鍒嗛〉+杩囨护), findOne (姝ｅ父/404), update, remove (杞垹闄?, confirmPayment (纭鍒拌处), getOverduePayments, refreshOverdueStatus
+- **ContractService**: create (鐢熸垚 contractNo), findAll (鍒嗛〉+keyword+鐘舵€佽繃婊?, findOne (姝ｅ父/404), update, remove, confirmSign (甯?涓嶅甫绛剧珷鏂囦欢), getExpiringContracts
+- **QuotationService**: create (閲戦璁＄畻+琛岄」鐩?, findAll (鍒嗛〉+keyword), findOne (鍚?items 鍏宠仈/404), update (鏃?items / 鏈?items 閲嶇畻閲戦), remove (姝ｅ父/404)
+
+鎵€鏈?spec 缁熶竴浣跨敤 `test-utils.ts` 鐨?`createMockRepository` + `createMockQueryBuilder` + `fixtures` 宸ュ巶妯″紡锛屾棤闇€棰濆淇敼銆?

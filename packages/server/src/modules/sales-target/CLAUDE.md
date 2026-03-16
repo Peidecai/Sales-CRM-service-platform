@@ -77,3 +77,9 @@
 - 创建/更新/删除/分解: Admin + Manager only
 - 查看列表/详情/达成/预测/排行: 所有已认证用户
 - SALES 用户只能看到自己的个人目标 + 公司/团队目标
+
+## Skill 规范
+
+- **backend-patterns** — 定时任务、聚合查询
+- **coding-standards** — TypeScript 严格模式
+- **tdd-workflow** — 测试驱动开发

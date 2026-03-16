@@ -1,0 +1,35 @@
+﻿# T06 | 2026-03-14 19:59:42 | 141.7s
+
+## Prompt
+请为 packages/server/src/modules/campaign/campaign.service.ts 编写单元测试，保存到 packages/server/test/campaign/campaign.service.spec.ts。
+参考测试模式：packages/server/test/test-utils.ts 和 packages/server/test/customer/customer.service.spec.ts。
+先读取 packages/server/src/modules/campaign/campaign.service.ts 了解构造函数依赖和方法签名，然后编写测试。
+必须覆盖以下场景（至少 12 个）：
+1. create() — 成功创建活动；2. create() — 名称重复时抛异常；
+3. findAll() — 返回分页结果；4. findAll() — 按状态过滤；
+5. findOne() — 成功返回；6. findOne() — 找不到时抛 NotFoundException；
+7. update() — 成功更新；8. update() — 进行中状态不允许修改某些字段；
+9. remove() — 成功删除；
+10. addCallItems() — 批量添加外呼任务项；
+11. updateCallItemStatus() — 更新任务项状态；
+12. getStats() — 返回活动统计。
+如果 CampaignService 有调度器相关方法（如 processNextCall），也需要对其编写至少 2 个测试用例。
+
+## Output
+鍏ㄩ儴 **18 涓祴璇?* 閫氳繃銆傛祴璇曟枃浠跺凡鍒涘缓鍦?`packages/server/test/campaign/campaign.service.spec.ts`銆?
+### 娴嬭瘯瑕嗙洊姒傝
+
+| 鏂规硶 | 娴嬭瘯鏁?| 瑕嗙洊鍦烘櫙 |
+|------|--------|---------|
+| `create()` | 2 | 甯?customerIds 鍒涘缓 + 涓嶅甫 customerIds 鍒涘缓 |
+| `findAll()` | 2 | 榛樿鍒嗛〉 + status 杩囨护 |
+| `findOne()` | 3 | 姝ｅ父杩斿洖 / NotFoundException / 鏉冮檺鏍￠獙 BadRequestException |
+| `update()` | 2 | DRAFT 鐘舵€佹洿鏂?/ 闈?DRAFT 鎷掔粷缂栬緫 |
+| `remove()` | 2 | DRAFT 鍒犻櫎 / RUNNING 鎷掔粷鍒犻櫎 |
+| `start()` | 2 | DRAFT鈫扲UNNING 鍚姩 + startedAt 璁剧疆 / COMPLETED 鎷掔粷鍚姩 |
+| `pause()` | 2 | RUNNING鈫扨AUSED / 闈?RUNNING 鎷掔粷鏆傚仠 |
+| `resume()` | 1 | PAUSED鈫扲UNNING |
+| `stop()` | 1 | 鍋滄 + endedAt 璁剧疆 |
+| `getItems()` | 1 | 鍒嗛〉杩斿洖澶栧懠鏉＄洰 |
+
+姣旇姹傜殑 12+2 澶氫簡 4 涓敤渚嬶紝瀹屾暣瑕嗙洊浜嗘墍鏈夌姸鎬佹満杞崲鍜屾潈闄愭牎楠岃矾寰勩€?

@@ -1,0 +1,27 @@
+﻿# T03 | 2026-03-14 20:41:27 | 146.5s
+
+## Prompt
+请修复 packages/server/src/modules/ai/ai.module.ts 中直接注册跨模块实体的问题。
+当前 AiModule 在 TypeOrmModule.forFeature([...]) 中直接注册了 CallRecord（属于 CallRecordModule）和 Customer（属于 CustomerModule）。
+背景约束：AiModule 被 KnowledgeModule 导入，而 KnowledgeModule 中的实体（KnowledgeArticle）也被 AiModule 的 processors 使用，存在潜在循环依赖风险。
+修复方案：
+1. 先读取 packages/server/src/modules/ai/ai.module.ts 文件查看当前完整内容。
+2. 在 ai.module.ts 的 imports 中加入 CallRecordModule（来自 ../call-record/call-record.module，需要使用 forwardRef(() => CallRecordModule)，因为 CallRecordModule 可能导入 AiModule）和 CustomerModule（来自 ../customer/customer.module）。
+3. 从 TypeOrmModule.forFeature([...]) 中移除 CallRecord 和 Customer 实体。
+4. 对 KnowledgeArticle 的处理：若 KnowledgeModule 导入 AiModule，而 AiModule 需要 KnowledgeArticle，需使用 forwardRef(() => KnowledgeModule) 导入 KnowledgeModule，并在 KnowledgeModule 中用 forwardRef(() => AiModule) 导入 AiModule。若 KnowledgeArticle 已在 KnowledgeModule 的 exports TypeOrmModule 中可用，则直接去掉 forFeature 中的 KnowledgeArticle 注册。
+5. 修改完成后检查 TypeScript 编译是否通过：cd packages/server && pnpm build 2>&1 | tail -20。如有循环依赖报错，改用 forwardRef 包装。
+
+## Output
+TypeScript 缂栬瘧閫氳繃锛岄浂閿欒銆?
+## 褰撳墠鐘舵€佸垎鏋?
+`ai.module.ts` **宸茬粡鏄纭殑鐘舵€?*锛孒3 闂瀹為檯涓婂凡缁忓湪涔嬪墠鐨勫璁′慨澶嶄腑瑙ｅ喅浜嗭細
+
+| 澶栭儴瀹炰綋 | 鏉ユ簮妯″潡 | 褰撳墠鍋氭硶 | 鏄惁姝ｇ‘ |
+|---|---|---|---|
+| `CallRecord` | `CallRecordModule` | `imports: [CallRecordModule]`锛岄€氳繃妯″潡瀵煎嚭鐨?`TypeOrmModule` 鑾峰彇 Repository | 姝ｇ‘ |
+| `Customer` | `CustomerModule` | `imports: [CustomerModule]`锛岄€氳繃妯″潡瀵煎嚭鐨?`TypeOrmModule` 鑾峰彇 Repository | 姝ｇ‘ |
+| `KnowledgeArticle` | `KnowledgeModule` | `imports: [forwardRef(() => KnowledgeModule)]`锛孠nowledgeModule 涔熺敤 `forwardRef(() => AiModule)` | 姝ｇ‘ |
+
+涓変釜澶栭儴瀹炰綋鐨?Repository 閮戒笉鍦?`AiModule` 鐨?`TypeOrmModule.forFeature([...])` 涓洿鎺ユ敞鍐岋紝鑰屾槸閫氳繃瀵煎叆瀵瑰簲妯″潡鑾峰彇銆傚惊鐜緷璧?(`AiModule 鈫?KnowledgeModule`) 閫氳繃鍙屽悜 `forwardRef` 澶勭悊銆?
+`tsc --noEmit` 缂栬瘧闆堕敊璇紝纭娌℃湁绫诲瀷闂銆?
+**缁撹锛氫笉闇€瑕佸啀鍋氫换浣曚慨鏀?*锛岃繖涓棶棰樺凡缁忓湪涔嬪墠鐨?S-C2 / S-H1 / S-H2 瀹¤淇涓畬鎴愪簡銆傚鏋滀綘鎯宠繘涓€姝ラ獙璇佽繍琛屾椂锛屽彲浠ョ敤 `pnpm build` 鍋氬畬鏁存瀯寤恒€?

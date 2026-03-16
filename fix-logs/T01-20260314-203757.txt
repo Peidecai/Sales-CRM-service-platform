@@ -1,0 +1,27 @@
+﻿# T01 | 2026-03-14 20:37:57 | 49.2s
+
+## Prompt
+请修复 packages/server/src/modules/customer-pool/customer-pool.module.ts 中的模块实体边界违规：
+当前代码在 TypeOrmModule.forFeature([Customer, CustomerPoolLog, FollowUp]) 中直接注册了属于其他模块的实体 Customer（属于 CustomerModule）和 FollowUp（属于 FollowUpModule）。
+修复方案：
+1. 将 TypeOrmModule.forFeature([Customer, CustomerPoolLog, FollowUp]) 改为 TypeOrmModule.forFeature([CustomerPoolLog])，只注册本模块自有实体。
+2. 在 imports 数组中加入 CustomerModule（来自 ../customer/customer.module）和 FollowUpModule（来自 ../follow-up/follow-up.module）。
+3. 确认 CustomerModule 和 FollowUpModule 的 exports 中包含 TypeOrmModule（已经在上次修复中完成，直接验证即可）。
+4. 删除模块文件顶部对 Customer 和 FollowUp 实体的 import 语句（如果 service 仍需要实体类型，则保留 import；仅删除 forFeature 注册）。
+5. 不修改 CustomerPoolService/CustomerPoolController 的业务逻辑，仅修改模块定义文件。
+修改后检查 packages/server/src/modules/customer-pool/customer-pool.module.ts 文件内容是否正确。
+
+## Output
+**This module is already correctly structured 鈥?no changes needed.**
+
+Here's the verification:
+
+| Concern | Status |
+|---|---|
+| `TypeOrmModule.forFeature([CustomerPoolLog])` 鈥?only own entity | Already correct |
+| `CustomerModule` imported 鈥?exports `TypeOrmModule` with `Customer` | Already done (line 46 of `customer.module.ts`) |
+| `FollowUpModule` imported 鈥?exports `TypeOrmModule` with `FollowUp` | Already done (line 13 of `follow-up.module.ts`) |
+| `CustomerPoolService` uses `@InjectRepository(Customer)` | Works via `CustomerModule` import |
+| `CustomerPoolScheduler` uses `@InjectRepository(Customer)` + `@InjectRepository(FollowUp)` | Works via both module imports |
+
+The module follows the same pattern that was established during the previous audit fixes (S-H2, S-C2, etc.) 鈥?it delegates entity repository access to the owning modules (`CustomerModule`, `FollowUpModule`) rather than re-registering `Customer` or `FollowUp` entities directly in its own `TypeOrmModule.forFeature()`.

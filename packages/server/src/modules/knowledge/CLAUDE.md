@@ -93,3 +93,9 @@ export class KnowledgeArticle extends BaseEntity {
 ### 审计日志
 
 - Controller 使用 `@UseInterceptors(AuditLogInterceptor)` 自动记录所有写操作
+
+## Skill 规范
+
+- **backend-patterns** — RAG 管线、向量检索
+- **coding-standards** — TypeScript 严格模式
+- **tdd-workflow** — 21 tests (KnowledgeService)

@@ -1,0 +1,59 @@
+# ============================================================
+# AI 智能 CRM 销售管理系统 — 自动化任务清单
+# ============================================================
+# 基于设计文档 chapters 01-13 与代码现状分析生成
+# 当前分支: develop | 已完成: Phase 1-3 骨架 + 安全增强 + 小程序
+#
+# 用法: claude-auto.bat -AutoContinue
+#       claude-auto.bat -TaskFile .\claude-tasks.txt -AutoContinue -MaxTurns 30
+#
+# 按章节顺序排列，每个任务对应一个可独立交付的功能单元
+# ============================================================
+
+# ============ Ch.6 销售流程管理 — 缺失模块 ============
+
+请按照设计文档 chapters/chapter06.md 的报价管理部分，在 packages/server/src/modules/ 下创建 quotation 模块。包含：QuotationEntity（quotations 表）、QuotationItemEntity（quotation_items 表）、QuotationController（CRUD + 审批提交）、QuotationService、CreateQuotationDto/UpdateQuotationDto，以及对应的 TypeORM Migration。实体字段参考 chapter06.md 中报价管理的数据模型。控制器需要 JwtAuthGuard + RolesGuard，DELETE 限制 Admin/Manager。同时在 packages/web/src/api/ 下创建 quotation.ts API 封装文件。
+
+请按照设计文档 chapters/chapter06.md 的合同管理部分，在 packages/server/src/modules/ 下创建 contract 模块。包含：ContractEntity（contracts 表，字段包含 opportunity_id/customer_id/contract_no/title/amount/start_date/end_date/status/signed_date/file_url 等）、ContractController（CRUD + 签署确认 + 到期预警列表）、ContractService、CreateContractDto/UpdateContractDto，以及 TypeORM Migration。控制器遵循项目 CLAUDE.md 中的守卫和审计日志规范。同时在 packages/web/src/api/ 下创建 contract.ts API 封装。
+
+请按照设计文档 chapters/chapter06.md 的回款管理部分，在 packages/server/src/modules/ 下创建 payment 模块。包含：PaymentPlanEntity（payment_plans 表）、PaymentRecordEntity（payment_records 表，字段含 contract_id/plan_id/amount/payment_date/payment_method/status/confirmed_by 等）、PaymentController（创建回款计划、确认到账、逾期列表查询）、PaymentService，以及 TypeORM Migration。同时在 packages/web/src/api/ 下创建 payment.ts API 封装。
+
+请按照设计文档 chapters/chapter06.md 的审批流程部分，在 packages/server/src/modules/ 下创建 approval 模块。包含：ApprovalFlowEntity（approval_flows 表，定义审批流模板）、ApprovalRecordEntity（approval_records 表，含 flow_id/applicant_id/status/current_step/data_snapshot）、ApprovalStepEntity（approval_steps 表）、ApprovalController（发起审批、审批/驳回/撤回）、ApprovalService。TypeORM Migration + packages/web/src/api/approval.ts API 封装。审批完成后通过 NotificationService 发送通知。
+
+# ============ Ch.6 销售漏斗 — 统计 API + 前端页面 ============
+
+请为 opportunity 模块补充销售漏斗统计 API。在 OpportunityService 中添加 getSalesFunnel() 方法，按商机阶段（初步接触/需求确认/方案提报/商务谈判/赢单/丢单）统计数量和金额，计算阶段转化率。在 OpportunityController 中添加 GET /api/v1/opportunities/funnel 端点（需 JwtAuthGuard）。响应格式为 { stages: [{ stage, count, amount, conversionRate }], totalAmount, winRate }。在前端 packages/web/src/views/opportunity/ 下创建 funnel.vue 页面，使用 ECharts 或 Element Plus 组件展示漏斗图。
+
+# ============ Ch.7 呼叫中心 — 补全前端 ============
+
+请为呼叫中心前端补充缺失的 API 封装文件 packages/web/src/api/call-center.ts，包含：发起外呼 POST /calls/dial、接听/挂断/转接控制 API、获取坐席状态 GET /agents/status、获取通话统计 GET /calls/stats、外呼任务列表 GET /campaigns。同时在 packages/web/src/views/call-center/ 下补充通话记录列表页 call-log.vue（表格展示通话记录，支持筛选时间范围/状态/坐席，可点击播放录音），确保路由注册到 router 中。
+
+# ============ Ch.8 AI 智能分析 — 完善前端页面 ============
+
+请补充 packages/web/src/views/ai/ 下的 AI 分析页面功能。当前只有 2 个 Vue 文件，需要补充：1) customer-portrait.vue 客户画像页面（展示 AI 生成的客户画像，含标签云、意向评分雷达图、交互时间线）；2) intent-prediction.vue 购买意向预测页面（列表展示客户预测评分排行，支持触发重新预测）。API 调用使用已有的 packages/web/src/api/ai.ts。确保新页面注册路由。
+
+# ============ Ch.9 知识库 + 销售素材 — 完善前端 ============
+
+请补充 packages/web/src/views/material/ 下的素材库管理页面。当前只有 1 个 Vue 文件，需要完善为完整的素材管理页面：支持文件上传（调用 material API）、分类筛选（产品知识/竞品资料/销售素材/培训资料）、列表+卡片视图切换、文件预览/下载、收藏功能。使用 Element Plus Upload 组件 + el-tabs 分类。
+
+# ============ Ch.6 前端页面 — 合同 + 回款 + 报价 ============
+
+请在 packages/web/src/views/ 下创建 contract 文件夹，实现合同管理前端页面：1) index.vue 合同列表页（表格含合同编号/客户名/金额/状态/起止日期，支持分页和状态筛选）；2) detail.vue 合同详情页（展示合同信息 + 关联商机 + 回款记录）。API 调用 packages/web/src/api/contract.ts。路由注册到 router。
+
+请在 packages/web/src/views/ 下创建 payment 文件夹，实现回款管理前端页面：index.vue 包含回款计划列表（含合同关联、计划金额、实际到账、状态）、确认到账对话框、逾期高亮显示。API 调用 packages/web/src/api/payment.ts。路由注册。
+
+# ============ Ch.11 API 接口规范对齐 ============
+
+请检查现有所有后端 Controller 的 API 响应格式是否统一，对齐 chapters/chapter11.md 中定义的标准：成功 { code: 200, message: "操作成功", data: T, timestamp }、分页含 pagination { page, pageSize, total, totalPages }、错误含 errors 数组。如果 ResponseInterceptor 尚未统一包装 timestamp 字段，请在 packages/server/src/common/interceptors/response.interceptor.ts 中补充。检查至少 customer/opportunity/call-record/knowledge 这四个核心模块的返回格式一致性。
+
+# ============ Ch.13 部署与运维 — Docker 生产配置 ============
+
+请检查并完善 packages/server 的 Dockerfile（如果不存在则按 chapter13.md 创建）。要求：多阶段构建（builder + runner），使用 node:18-alpine，COPY pnpm-lock.yaml 并安装依赖，构建产物 COPY 到 runner 阶段，暴露 3000 端口，使用非 root 用户运行。同时检查 docker-compose.yml 中 server 服务是否正确引用该 Dockerfile，确保 depends_on mysql/redis，环境变量通过 .env 注入。
+
+请为前端创建或完善 packages/web 的生产 Dockerfile：多阶段构建，第一阶段 node:18-alpine 执行 pnpm build，第二阶段 nginx:alpine 复制 dist/ 到 /usr/share/nginx/html，COPY nginx 配置文件处理 Vue Router history 模式的 try_files。检查 docker/web/ 下 nginx.conf 是否已有对应配置。
+
+# ============ 集成验证 ============
+
+请运行 pnpm install 安装依赖，然后运行 pnpm lint 检查代码规范。如果有 lint 错误请修复。之后运行 pnpm build（或在 packages/server 下 pnpm build）确认 TypeScript 编译通过。列出所有编译错误并逐一修复。
+
+请运行后端测试 cd packages/server && pnpm test，查看测试结果。修复所有失败的测试用例。如果新模块（quotation/contract/payment/approval）缺少基础测试，请为每个模块的 Service 添加至少 3 个核心单元测试（创建、查询列表、按ID查询）。

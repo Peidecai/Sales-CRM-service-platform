@@ -287,3 +287,10 @@ pnpm dev:web      # :5173
 # 浏览器开发工具 → Network → WS → /ws/notifications
 # 期望：看到 "notification" 帧，payload 含 type/actorId/message 等字段
 ```
+
+## Skill 规范
+
+- **backend-patterns** — WebSocket 网关、全局模块
+- **frontend-patterns** — 模块级单例 composable
+- **coding-standards** — TypeScript 严格模式
+- **security-review** — JWT WebSocket 鉴权

@@ -32,6 +32,8 @@ export interface CustomerQueryParams {
   keyword?: string
   status?: CustomerStatus
   assignedUserId?: number
+  sortBy?: string
+  sortOrder?: 'ASC' | 'DESC'
 }
 
 export interface CreateCustomerParams {

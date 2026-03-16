@@ -2,6 +2,9 @@
 import { onLaunch, onShow } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
+import { useCallStateStore } from '@/stores/call-state'
+
+let navigatingToAfterCall = false
 
 onLaunch(() => {
   const userStore = useUserStore()
@@ -33,6 +36,28 @@ onShow(() => {
       appStore.setOnlineStatus(res.networkType !== 'none')
     },
   })
+
+  // Detect pending call and navigate to after-call page
+  const callState = useCallStateStore()
+  const userStore = useUserStore()
+  if (callState.pending && userStore.token && !navigatingToAfterCall) {
+    callState.markReturned()
+    navigatingToAfterCall = true
+    // Delay slightly to let the app fully resume
+    setTimeout(() => {
+      const pages = getCurrentPages()
+      const currentPath = pages.length > 0 ? pages[pages.length - 1].route : ''
+      // Avoid navigating if already on after-call page
+      if (currentPath !== 'pages/call/after-call') {
+        uni.navigateTo({
+          url: '/pages/call/after-call',
+          complete: () => { navigatingToAfterCall = false },
+        })
+      } else {
+        navigatingToAfterCall = false
+      }
+    }, 500)
+  }
 })
 </script>
 

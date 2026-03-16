@@ -1,0 +1,135 @@
+# ============================================================
+# AI 智能 CRM 销售管理系统 — Claude 自动化审查任务清单
+# ============================================================
+# 基于 docs/chapters 01-13 设计文档，为 Claude Code CLI 生成审查任务。
+# 用法示例（计划/只读模式）：
+#   cd crm-sales-platform
+#   claude-auto.ps1 所在目录下：
+#   .\claude-auto.ps1 -TaskFile .\claude-review-tasks.txt -PermissionMode plan -MaxTurns 40
+#
+# 约定：
+# - 每一行是一个独立审查任务提示词（中文），Claude 将在当前仓库中执行代码审查。
+# - Claude 应读取对应的 docs/chapters/chapterXX.md 文档，并对照实际代码实现给出结论。
+# - 输出为 Markdown 报告，直接打印在终端即可（不强制写文件）。
+# - 重点关注：是否符合设计、是否有缺失功能、是否有实现偏差与风险。
+# ============================================================
+
+# ============ Ch.1 系统总体设计 — 全局一致性审查 ============
+
+请阅读 docs/chapters/chapter01.md《系统总体设计》，结合 README.md 与实际代码结构，
+从「功能目标、性能目标、扩展性、安全性、可运维性」这五个维度，全面审查当前代码仓库是否符合总体设计。
+要求：输出一份 Markdown 审查报告，按模块（认证、客户管理、销售流程、呼叫中心、AI 分析、销售信息管理、运维）列出：
+1) 已完全符合的点（PASS）；2) 部分符合但有差距的点（WARN，说明差距与影响）；3) 明显不符合或缺失的点（FAIL，给出文件路径和建议）。
+
+# ============ Ch.2 前端设计规范 — Vue3 实现审查 ============
+
+请阅读 docs/chapters/chapter02.md《前端设计规范》，审查 packages/web/src 前端实现是否与规范一致。
+重点检查：目录结构(api/router/stores/views)、状态管理(Pinia)、路由守卫、请求封装(Axios)、权限指令(v-permission)、UI 组件(Element Plus)、表单与校验、国际化/主题等。
+要求：输出一份前端代码审查报告，按章节 2.x 的结构列出：
+- 规范已落实的点（附关键文件路径）；
+- 与规范不一致或缺失的实现（说明影响和整改建议）；
+- 建议补充的 eslint/prettier/vitest 配置改进点。
+
+# ============ Ch.3 后端设计规范 — NestJS 架构审查 ============
+
+请阅读 docs/chapters/chapter03.md《后端设计规范》，对 packages/server/src 的 NestJS 后端进行全面架构审查。
+重点检查：模块划分(common/config/modules)、Controller/Service/Repository 职责分离、DTO 与校验、异常与错误码、拦截器与中间件、日志与审计、缓存与队列(Bull)、配置管理(ConfigService) 等。
+要求：输出一份后端架构审查报告，按照 chapter03 中的大纲逐条对照：
+- 标记每一条规范是「严格遵守 / 部分遵守 / 未遵守」；
+- 对于「部分遵守/未遵守」的项，列出具体文件和代码片段位置，并给出重构建议优先级（P0/P1/P2）。
+
+# ============ Ch.4 数据库设计 — 实体与迁移审查 ============
+
+请阅读 docs/chapters/chapter04.md《数据库详细设计》，对照 packages/server/src/modules 下的实体(Entity) 与 database/migrations 下的迁移文件。
+重点检查：表名/字段命名规范(snake_case、_at 后缀)、主键/外键/索引/唯一约束、金额/时间/状态字段类型、软删除实现方式、字段默认值与非空约束等。
+要求：输出一份数据库设计落地情况报告：
+- 列出已经完全符合规范的关键表（如 customers/opportunities/call_records 等）；
+- 列出命名或字段类型与设计不一致的表和字段，并说明可能的业务/性能风险；
+- 给出一份建议的 Migration 改造清单（仅列出变更思路，不必写 SQL）。
+
+# ============ Ch.5 客户管理中心 — 模块与权限审查 ============
+
+请阅读 docs/chapters/chapter05.md《客户管理中心详细设计》，审查 packages/server/src/modules/customer、customer-pool、customer-tag、
+以及前端 packages/web/src/views/customer*、/src/api 下与客户相关的模块。
+重点：客户建档、自定义字段、公海池、查重与合并、权限控制(Admin/Manager/Sales)、数据权限过滤、审计日志。
+要求：输出一份客户管理中心审查报告：
+- 按「功能点」(建档/公海池/查重/合并/保护期/撞单检测等) 列表核对实现情况；
+- 标记每个功能点的成熟度：已实现可用 / 有实现但不完整 / 尚未实现；
+- 给出三条最优先的改进建议（含文件路径与大致改动方向）。
+
+# ============ Ch.6 销售流程管理 — 商机/报价/合同/回款审查 ============
+
+请阅读 docs/chapters/chapter06.md《销售流程管理详细设计》，重点审查以下模块：
+- 后端：packages/server/src/modules/opportunity, quotation?, contract?, payment?, sales-target 等；
+- 前端：packages/web/src/views/opportunity、contract、payment 等页面以及对应 api 封装。
+要求：输出一份销售流程管理审查报告：
+- 根据章节 6.1-6.4 的功能列表，逐项标记当前实现状态（已实现/部分实现/未实现）；
+- 检查商机阶段流转、赢单/丢单原因、weightedAmount 计算、销售漏斗统计 API 与前端漏斗图实现；
+- 对报价/合同/回款模块给出「是否达到上线可用」的结论，并列出缺口。
+
+# ============ Ch.7 呼叫中心 — 呼叫链路与回调安全审查 ============
+
+请阅读 docs/chapters/chapter07.md《呼叫中心详细设计》，审查 packages/server/src/modules/call、call-record、recording、agent、campaign、
+以及前端 packages/web/src/views/call-center、相关 api 封装。
+重点：呼叫链路(外呼/来电/转接/挂断)、来电弹屏、录音与 ASR、坐席状态机、呼叫分配策略、回调签名校验、防重放、限流与监控统计。
+要求：输出一份呼叫中心审查报告：
+- 从「功能完整性」「安全性(签名/回调/权限)」「可观测性(日志/监控)」三方面给出 PASS/WARN/FAIL 结论；
+- 标出所有与 chapter07 设计差异较大的实现（含文件路径和函数名），并给出整改优先级建议。
+
+# ============ Ch.8 AI 智能分析 — AI 模块与成本控制审查 ============
+
+请阅读 docs/chapters/chapter08.md《AI智能分析详细设计》，审查 packages/server/src/modules/ai、knowledge、notification 等模块，
+以及前端 packages/web/src/views/ai、相关 api。
+重点：AI 引擎集成、Prompt 管理、队列(Bull)配置、AI 成本跟踪、速率限制(ThrottlerGuard/@Throttle)、AI 报告/预测/画像等业务能力。
+要求：输出一份 AI 模块审查报告：
+- 按 chapter08 中的「功能架构」逐项核对实现；
+- 检查是否存在未加限流的高成本 AI 接口、是否有成本统计/告警机制；
+- 给出三条「立刻能降低 AI 成本或风险」的调整建议。
+
+# ============ Ch.9 销售信息管理 — 知识库/素材/公告审查 ============
+
+请阅读 docs/chapters/chapter09.md《销售信息管理详细设计》，审查 packages/server/src/modules/knowledge、material、announcement，
+以及前端 packages/web/src/views/knowledge、/views/material、/views/announcement 与对应 api。
+重点：知识库分类树结构、版本控制、全文搜索、素材上传与预览、OSS 回调安全、公告多渠道推送、权限与数据脱敏。
+要求：输出一份销售信息管理审查报告：
+- 对每个子模块(知识库/素材库/公告)分别给出实现对齐度评估(高/中/低)；
+- 列出至少 5 条潜在风险或技术债（例如：树结构安全、OSS 回调签名、v-html XSS 等），并按 P0/P1/P2 排序。
+
+# ============ Ch.10 微信小程序 — 离线队列与权限审查 ============
+
+请阅读 docs/chapters/chapter10.md《微信小程序详细设计》，审查 packages/miniapp 下的小程序实现。
+重点：页面结构(工作台/客户管理/外勤签到/业绩看板)、API 复用、离线队列(OfflineQueue)、网络状态监听、权限与登录态管理、数据一致性。
+要求：输出一份小程序模块审查报告：
+- 列出当前小程序实现中已经覆盖的核心页面和能力；
+- 检查离线队列与数据重试机制是否按设计文档落地，并说明可能带来的数据丢失/重复写入风险；
+- 给出迁移到生产可用状态还需要完成的三大任务。
+
+# ============ Ch.11 API 接口设计 — 规范与一致性审查 ============
+
+请阅读 docs/chapters/chapter11.md《API接口详细设计》，对照 packages/server/src 下所有 Controller 和公共拦截器/过滤器：
+common/interceptors/response.interceptor.ts、common/filters/http-exception.filter.ts 等。
+重点：URL 命名、HTTP 方法语义、统一响应格式(code/message/data/timestamp)、分页 pagination 结构、错误码与 errors 数组、鉴权与权限控制。
+要求：输出一份 API 规范对齐报告：
+- 抽样检查至少 customer/opportunity/call-record/knowledge/ai/call 等模块的接口定义；
+- 列出所有不符合规范的接口（路径 + 方法 + 问题），并建议如何批量重构；
+- 评估当前 API 是否适合对外开放(如三方集成)，如不适合请说明原因。
+
+# ============ Ch.12 安全设计 — 认证/授权/数据安全审查 ============
+
+请阅读 docs/chapters/chapter12.md《安全设计》，对照 auth、user、roles、encryption、guard/interceptor 等相关模块，
+全面审查系统的安全实现。
+重点：JWT 双 Token、黑白名单、密码加密(bcrypt)、敏感字段加密(EncryptionService transformer)、防重放/签名校验、防暴力破解(限流)、XSS/CSRF、防 SQL 注入、权限与数据行级过滤。
+要求：输出一份安全设计落地审查报告：
+- 按「认证」「授权」「数据安全」「接口安全」「运维安全」五类列出实现情况与缺陷；
+- 给出一份按风险高低排序的整改清单（P0 高危、P1 中危、P2 低危）。
+
+# ============ Ch.13 部署与运维 — Docker/CI/CD/监控审查 ============
+
+请阅读 docs/chapters/chapter13.md《部署与运维设计》，审查项目根目录下的 docker-compose.yml、docker/*、scripts/*.sh / *.ps1、
+以及任何与部署、监控、备份相关的脚本。
+重点：多环境(dev/test/staging/prod) 配置、Docker 镜像构建(非 root、多阶段构建)、健康检查、日志与监控、备份与恢复、灰度/蓝绿发布等。
+要求：输出一份部署与运维能力审查报告：
+- 对照 chapter13 中的目标架构，评估当前仓库中的部署脚本是否足以支撑生产环境上线；
+- 列出需要补齐的关键脚本或配置(例如：回滚脚本、备份恢复脚本、监控告警集成等)；
+- 给出一条「最小可行生产上线步骤」建议清单（从零到可用的最小脚本/配置组合）。
+

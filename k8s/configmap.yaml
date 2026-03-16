@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crm-server-config
+  namespace: crm-sales
+  labels:
+    app.kubernetes.io/name: crm-server
+    app.kubernetes.io/part-of: crm-sales-platform
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  DB_HOST: "mysql"
+  DB_PORT: "3306"
+  DB_DATABASE: "crm_sales"
+  DB_USERNAME: "root"
+  DB_CONNECTION_LIMIT: "20"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  JWT_ACCESS_EXPIRES_IN: "2h"
+  JWT_REFRESH_EXPIRES_IN: "7d"
+  CORS_ORIGINS: "https://crm.example.com"

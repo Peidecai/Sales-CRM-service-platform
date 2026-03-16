@@ -1,0 +1,33 @@
+﻿# T06 | 2026-03-14 20:50:25 | 378.4s
+
+## Prompt
+请为 packages/server/src/modules/campaign/campaign.service.ts 编写单元测试，保存到 packages/server/test/campaign/campaign.service.spec.ts。
+参考测试模式：packages/server/test/test-utils.ts 和 packages/server/test/customer/customer.service.spec.ts。
+先读取 packages/server/src/modules/campaign/campaign.service.ts 了解构造函数依赖和方法签名，然后编写测试。
+必须覆盖以下场景（至少 12 个）：
+1. create() — 成功创建活动；2. create() — 名称重复时抛异常；
+3. findAll() — 返回分页结果；4. findAll() — 按状态过滤；
+5. findOne() — 成功返回；6. findOne() — 找不到时抛 NotFoundException；
+7. update() — 成功更新；8. update() — 进行中状态不允许修改某些字段；
+9. remove() — 成功删除；
+10. addCallItems() — 批量添加外呼任务项；
+11. updateCallItemStatus() — 更新任务项状态；
+12. getStats() — 返回活动统计。
+如果 CampaignService 有调度器相关方法（如 processNextCall），也需要对其编写至少 2 个测试用例。
+
+## Output
+瀹屾垚锛佷互涓嬫槸淇敼鎬荤粨锛?
+## 淇敼鍐呭
+
+### 1. `packages/server/test/test-utils.ts`
+- **MockRepository** 鏂板 `findAndCount` 鍜?`remove` 鏂规硶锛堜箣鍓嶇己澶憋紝campaign 娴嬭瘯闇€瑕佺敤 cast 缁曡繃锛?- **fixtures** 鏂板 `campaignTask()` 鍜?`campaignCallItem()` 涓や釜鍏变韩 fixture 宸ュ巶鍑芥暟
+- 瀵煎叆 `CampaignTaskStatus` 鍜?`CampaignCallStatus` 鏋氫妇
+
+### 2. `packages/server/test/campaign/campaign.service.spec.ts`
+- 閲嶆瀯涓轰娇鐢ㄥ叡浜?`fixtures.campaignTask()` / `fixtures.campaignCallItem()`锛堢Щ闄ゅ唴鑱?`campaignFixture` 鍑芥暟锛?- 绉婚櫎 `(taskRepo as Record<string, jest.Mock>).remove` 绛夌被鍨嬪己杞紝鏀圭敤 MockRepository 鍘熺敓 `remove`/`findAndCount`
+- 鏂板 3 涓祴璇曠敤渚嬶紙18 鈫?21锛夛細
+  - **remove**: `should delete cancelled campaign` 鈥?楠岃瘉 CANCELLED 鐘舵€佷篃鍙垹闄?  - **start**: `should start a PAUSED campaign without overwriting startedAt` 鈥?楠岃瘉 `??` 閫昏緫淇濈暀鍘熸湁 startedAt
+  - **resume**: `should throw when resuming a non-paused campaign` 鈥?楠岃瘉闈?PAUSED 鐘舵€佹姏寮傚父
+
+### 娴嬭瘯缁撴灉
+**21 tests, 21 passed** 鈥?鍏ㄩ儴閫氳繃锛屽叾浠栨祴璇曞浠舵棤鍥炲綊銆?
