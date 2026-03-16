@@ -1,6 +1,7 @@
-import { IsOptional, IsInt, IsDateString, Min, Max } from 'class-validator'
+import { IsOptional, IsInt, IsDateString, Min, Max, IsEnum } from 'class-validator'
 import { Type } from 'class-transformer'
 import { ApiPropertyOptional } from '@nestjs/swagger'
+import { CallType, CallResult } from '@crm/shared'
 
 export class QueryCallRecordDto {
   @ApiPropertyOptional({ description: 'Page number', default: 1, minimum: 1 })
@@ -45,4 +46,14 @@ export class QueryCallRecordDto {
   @IsOptional()
   @IsDateString()
   endDate?: string
+
+  @ApiPropertyOptional({ description: 'Filter by call type', enum: CallType })
+  @IsOptional()
+  @IsEnum(CallType)
+  callType?: CallType
+
+  @ApiPropertyOptional({ description: 'Filter by call result', enum: CallResult })
+  @IsOptional()
+  @IsEnum(CallResult)
+  callResult?: CallResult
 }

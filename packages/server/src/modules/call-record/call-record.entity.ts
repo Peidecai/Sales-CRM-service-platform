@@ -1,6 +1,6 @@
 import { Entity, Column, Index, ManyToOne, JoinColumn } from 'typeorm'
 import { BaseEntity } from '../../common/entities/base.entity'
-import { CallDirection, CallType, CallStatus } from '@crm/shared'
+import { CallDirection, CallType, CallStatus, CallResult } from '@crm/shared'
 import { Customer } from '../customer/customer.entity'
 import { Opportunity } from '../opportunity/opportunity.entity'
 
@@ -100,4 +100,21 @@ export class CallRecord extends BaseEntity {
 
   @Column({ type: 'varchar', name: 'recording_url', length: 500, nullable: true })
   recordingUrl!: string | null
+
+  @Column({
+    name: 'estimated_duration',
+    type: 'int',
+    nullable: true,
+    comment: '估算通话时长（秒），方案B手机原生外呼专用',
+  })
+  estimatedDuration!: number | null
+
+  @Column({
+    name: 'call_result',
+    type: 'enum',
+    enum: CallResult,
+    nullable: true,
+    comment: '通话结果',
+  })
+  callResult!: CallResult | null
 }

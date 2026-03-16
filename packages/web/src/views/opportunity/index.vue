@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="opportunity-page">
     <!-- Search bar -->
     <el-card class="search-card" shadow="never">
@@ -6,16 +6,16 @@
         <el-form-item label="关键词">
           <el-input
             v-model="searchForm.keyword"
-            placeholder="鎼滅储鍟嗘満鏍囬"
+            placeholder="搜索商机标题"
             clearable
             style="width: 220px"
             @keyup.enter="handleSearch"
           />
         </el-form-item>
-        <el-form-item label="闃舵">
+        <el-form-item label="阶段">
           <el-select
             v-model="searchForm.stage"
-            placeholder="鍏ㄩ儴闃舵"
+            placeholder="全部阶段"
             clearable
             style="width: 150px"
           >
@@ -28,8 +28,8 @@
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch"> 鎼滅储 </el-button>
-          <el-button @click="handleReset"> 閲嶇疆 </el-button>
+          <el-button type="primary" @click="handleSearch"> 搜索 </el-button>
+          <el-button @click="handleReset"> 重置 </el-button>
         </el-form-item>
       </el-form>
       <div class="toolbar-right">
@@ -37,20 +37,20 @@
         <el-radio-group v-model="viewMode" size="small">
           <el-radio-button value="table">
             <el-icon><Grid /></el-icon>
-            鍒楄〃
+            列表
           </el-radio-button>
           <el-radio-button value="kanban">
             <el-icon><Operation /></el-icon>
-            鐪嬫澘
+            看板
           </el-radio-button>
         </el-radio-group>
         <el-button v-if="isAdminOrManager" :loading="exportLoading" @click="handleExport">
           <el-icon><Download /></el-icon>
-          瀵煎嚭
+          导出
         </el-button>
         <el-button type="primary" @click="handleCreate">
           <el-icon><Plus /></el-icon>
-          鏂板缓鍟嗘満
+          新建商机
         </el-button>
       </div>
     </el-card>
@@ -58,7 +58,7 @@
     <!-- ==================== TABLE VIEW ==================== -->
     <el-card v-if="viewMode === 'table'" shadow="never" class="table-card">
       <el-table v-loading="loading" :data="tableData" row-key="id" stripe style="width: 100%">
-        <el-table-column prop="title" label="鏍囬" min-width="180" show-overflow-tooltip sortable>
+        <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip sortable>
           <template #default="{ row }">
             <el-button
               type="primary"
@@ -70,7 +70,7 @@
             </el-button>
           </template>
         </el-table-column>
-        <el-table-column prop="customerId" label="鍏宠仈瀹㈡埛" min-width="120">
+        <el-table-column prop="customerId" label="关联客户" min-width="120">
           <template #default="{ row }">
             <el-button
               v-if="customerMap[row.customerId]"
@@ -84,27 +84,22 @@
             <span v-else>ID: {{ row.customerId }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="stage" label="闃舵" min-width="120" sortable>
+        <el-table-column prop="stage" label="阶段" min-width="120" sortable>
           <template #default="{ row }">
             <el-tag :type="getStageTagType(row.stage)" size="small">
               {{ getStageLabel(row.stage) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="amount" label="閲戦" min-width="130" sortable>
-          <template #default="{ row }"> 楼{{ formatAmount(row.amount) }} </template>
+        <el-table-column prop="amount" label="金额" min-width="130" sortable>
+          <template #default="{ row }"> ¥{{ formatAmount(row.amount) }} </template>
         </el-table-column>
-        <el-table-column
-          prop="expectedCloseDate"
-          label="棰勮鎴愪氦鏃ユ湡"
-          min-width="140"
-          sortable
-        >
+        <el-table-column prop="expectedCloseDate" label="预计成交日期" min-width="140" sortable>
           <template #default="{ row }">
             {{ row.expectedCloseDate ?? '-' }}
           </template>
         </el-table-column>
-        <el-table-column prop="probability" label="鎴愪氦姒傜巼" min-width="140" sortable>
+        <el-table-column prop="probability" label="成交概率" min-width="140" sortable>
           <template #default="{ row }">
             <el-progress
               :percentage="row.probability"
@@ -113,7 +108,7 @@
             />
           </template>
         </el-table-column>
-        <el-table-column label="鎿嶄綔" width="220" fixed="right">
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
             <el-button
               type="primary"
@@ -121,28 +116,28 @@
               size="small"
               @click="$router.push(`/opportunity/${row.id}`)"
             >
-              璇︽儏
+              详情
             </el-button>
-            <el-button type="info" link size="small" @click="handleEdit(row)"> 缂栬緫 </el-button>
+            <el-button type="info" link size="small" @click="handleEdit(row)"> 编辑 </el-button>
             <el-button type="warning" link size="small" @click="handleAdvanceStage(row)">
-              鎺ㄨ繘
+              推进
             </el-button>
             <el-popconfirm
               v-if="isAdminOrManager"
-              title="纭畾瑕佸垹闄よ鍟嗘満鍚楋紵"
-              confirm-button-text="纭畾"
-              cancel-button-text="鍙栨秷"
+              title="确定要删除该商机吗？"
+              confirm-button-text="确定"
+              cancel-button-text="取消"
               @confirm="handleDelete(row.id)"
             >
               <template #reference>
-                <el-button type="danger" link size="small"> 鍒犻櫎 </el-button>
+                <el-button type="danger" link size="small"> 删除 </el-button>
               </template>
             </el-popconfirm>
           </template>
         </el-table-column>
         <template #empty>
-          <el-empty description="鏆傛棤鍟嗘満鏁版嵁" :image-size="100">
-            <el-button type="primary" @click="handleCreate"> 鏂板缓鍟嗘満 </el-button>
+          <el-empty description="暂无商机数据" :image-size="100">
+            <el-button type="primary" @click="handleCreate"> 新建商机 </el-button>
           </el-empty>
         </template>
       </el-table>
@@ -173,7 +168,7 @@
             </el-tag>
             <span class="column-count">{{ col.items.length }}</span>
           </div>
-          <div class="column-amount">楼{{ formatAmount(col.totalAmount) }}</div>
+          <div class="column-amount">¥{{ formatAmount(col.totalAmount) }}</div>
         </div>
 
         <!-- Column Body (Cards) -->
@@ -199,10 +194,10 @@
             </div>
             <div class="card-customer">
               <el-icon><User /></el-icon>
-              <span>{{ customerMap[item.customerId] ?? `瀹㈡埛#${item.customerId}` }}</span>
+              <span>{{ customerMap[item.customerId] ?? `客户#${item.customerId}` }}</span>
             </div>
             <div class="card-meta">
-              <span class="card-amount">楼{{ formatAmount(item.amount) }}</span>
+              <span class="card-amount">¥{{ formatAmount(item.amount) }}</span>
               <el-progress
                 :percentage="item.probability"
                 :status="getProbabilityStatus(item.probability)"
@@ -219,7 +214,7 @@
           </div>
 
           <!-- Empty State -->
-          <div v-if="col.items.length === 0" class="kanban-empty">鏆傛棤鍟嗘満</div>
+          <div v-if="col.items.length === 0" class="kanban-empty">暂无商机</div>
         </div>
       </div>
     </div>
@@ -241,7 +236,7 @@
       >
         <el-row :gutter="16">
           <el-col :span="24">
-            <el-form-item label="鏍囬" prop="title">
+            <el-form-item label="标题" prop="title">
               <el-input
                 v-model="formData.title"
                 placeholder="请输入商机标题"
@@ -251,13 +246,13 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="鍏宠仈瀹㈡埛" prop="customerId">
+            <el-form-item label="关联客户" prop="customerId">
               <el-select
                 v-model="formData.customerId"
                 filterable
                 remote
                 :remote-method="searchCustomers"
-                placeholder="鎼滅储骞堕€夋嫨瀹㈡埛"
+                placeholder="搜索并选择客户"
                 style="width: 100%"
                 :loading="customerSearchLoading"
               >
@@ -271,8 +266,8 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="闃舵" prop="stage">
-              <el-select v-model="formData.stage" placeholder="璇烽€夋嫨闃舵" style="width: 100%">
+            <el-form-item label="阶段" prop="stage">
+              <el-select v-model="formData.stage" placeholder="请选择阶段" style="width: 100%">
                 <el-option
                   v-for="opt in stageOptions"
                   :key="opt.value"
@@ -283,7 +278,7 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="閲戦" prop="amount">
+            <el-form-item label="金额" prop="amount">
               <el-input-number
                 v-model="formData.amount"
                 :min="0"
@@ -295,18 +290,18 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="棰勮鎴愪氦鏃ユ湡" prop="expectedCloseDate">
+            <el-form-item label="预计成交日期" prop="expectedCloseDate">
               <el-date-picker
                 v-model="formData.expectedCloseDate"
                 type="date"
-                placeholder="璇烽€夋嫨鏃ユ湡"
+                placeholder="请选择日期"
                 value-format="YYYY-MM-DD"
                 style="width: 100%"
               />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="鎴愪氦姒傜巼" prop="probability">
+            <el-form-item label="成交概率" prop="probability">
               <el-input-number
                 v-model="formData.probability"
                 :min="0"
@@ -318,7 +313,7 @@
             </el-form-item>
           </el-col>
           <el-col :span="24">
-            <el-form-item label="鎻忚堪" prop="description">
+            <el-form-item label="描述" prop="description">
               <el-input
                 v-model="formData.description"
                 type="textarea"
@@ -330,9 +325,9 @@
         </el-row>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false"> 鍙栨秷 </el-button>
+        <el-button @click="dialogVisible = false"> 取消 </el-button>
         <el-button type="primary" :loading="submitLoading" @click="handleSubmit">
-          {{ isEdit ? '淇濆瓨' : '鍒涘缓' }}
+          {{ isEdit ? '保存' : '创建' }}
         </el-button>
       </template>
     </el-dialog>
@@ -340,18 +335,18 @@
     <!-- Advance Stage Dialog -->
     <el-dialog
       v-model="stageDialogVisible"
-      title="鎺ㄨ繘闃舵"
+      title="推进阶段"
       width="380px"
       :close-on-click-modal="false"
     >
       <el-form label-width="80px">
-        <el-form-item label="褰撳墠闃舵">
+        <el-form-item label="当前阶段">
           <el-tag v-if="stageCurrentLabel" :type="getStageTagType(stageCurrentStage)" size="small">
             {{ stageCurrentLabel }}
           </el-tag>
         </el-form-item>
-        <el-form-item label="鐩爣闃舵">
-          <el-select v-model="targetStage" placeholder="璇烽€夋嫨闃舵" style="width: 100%">
+        <el-form-item label="目标阶段">
+          <el-select v-model="targetStage" placeholder="请选择阶段" style="width: 100%">
             <el-option
               v-for="opt in stageOptions"
               :key="opt.value"
@@ -362,9 +357,9 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="stageDialogVisible = false"> 鍙栨秷 </el-button>
+        <el-button @click="stageDialogVisible = false"> 取消 </el-button>
         <el-button type="primary" :loading="stageSubmitLoading" @click="handleStageSubmit">
-          纭畾
+          确定
         </el-button>
       </template>
     </el-dialog>
@@ -403,12 +398,12 @@ interface StageOption {
 }
 
 const stageOptions: StageOption[] = [
-  { value: OpportunityStage.LEAD, label: '绾跨储' },
-  { value: OpportunityStage.QUALIFIED, label: '鎰忓悜瀹㈡埛' },
-  { value: OpportunityStage.PROPOSAL, label: '鏂规鎶ヤ环' },
-  { value: OpportunityStage.NEGOTIATION, label: '鍟嗗姟璋堝垽' },
-  { value: OpportunityStage.CLOSED_WON, label: '鎴愪氦' },
-  { value: OpportunityStage.CLOSED_LOST, label: '涓㈠崟' },
+  { value: OpportunityStage.LEAD, label: '线索' },
+  { value: OpportunityStage.QUALIFIED, label: '意向客户' },
+  { value: OpportunityStage.PROPOSAL, label: '方案报价' },
+  { value: OpportunityStage.NEGOTIATION, label: '商务谈判' },
+  { value: OpportunityStage.CLOSED_WON, label: '成交' },
+  { value: OpportunityStage.CLOSED_LOST, label: '丢单' },
 ]
 
 const stageColors: Record<string, string> = {
@@ -693,7 +688,7 @@ const isEdit = ref(false)
 const editId = ref<number | null>(null)
 const submitLoading = ref(false)
 const formRef = ref<FormInstance>()
-const dialogTitle = ref('鏂板缓鍟嗘満')
+const dialogTitle = ref('新建商机')
 
 interface OpportunityForm {
   title: string
@@ -719,13 +714,13 @@ const formData = reactive<OpportunityForm>(defaultForm())
 
 const formRules: FormRules = {
   title: [{ required: true, message: '请输入商机标题', trigger: 'blur' }],
-  customerId: [{ required: true, message: '璇烽€夋嫨鍏宠仈瀹㈡埛', trigger: 'change' }],
+  customerId: [{ required: true, message: '请选择关联客户', trigger: 'change' }],
 }
 
 function handleCreate() {
   isEdit.value = false
   editId.value = null
-  dialogTitle.value = '鏂板缓鍟嗘満'
+  dialogTitle.value = '新建商机'
   const form = defaultForm()
   const createForCustomer = route.query.createForCustomer
   if (createForCustomer) {
@@ -739,7 +734,7 @@ function handleCreate() {
 function handleEdit(row: OpportunityVO) {
   isEdit.value = true
   editId.value = row.id
-  dialogTitle.value = '缂栬緫鍟嗘満'
+  dialogTitle.value = '编辑商机'
   Object.assign(formData, {
     title: row.title ?? '',
     customerId: row.customerId,
@@ -782,7 +777,7 @@ async function handleSubmit() {
         description: formData.description || undefined,
       }
       await opportunityApi.update(editId.value, params)
-      ElMessage.success('鍟嗘満鏇存柊鎴愬姛')
+      ElMessage.success('商机更新成功')
     } else {
       const params: CreateOpportunityParams = {
         title: formData.title,
@@ -795,7 +790,7 @@ async function handleSubmit() {
         description: formData.description || undefined,
       }
       await opportunityApi.create(params)
-      ElMessage.success('鍟嗘満鍒涘缓鎴愬姛')
+      ElMessage.success('商机创建成功')
     }
     dialogVisible.value = false
     fetchList()
@@ -824,7 +819,7 @@ async function handleExport() {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-    ElMessage.success('瀵煎嚭鎴愬姛')
+    ElMessage.success('导出成功')
   } catch {
     // Error handled by request interceptor
   } finally {
@@ -853,7 +848,7 @@ async function handleStageSubmit() {
   stageSubmitLoading.value = true
   try {
     await opportunityApi.updateStage(stageTargetId.value, { stage: targetStage.value })
-    ElMessage.success('闃舵鏇存柊鎴愬姛')
+    ElMessage.success('阶段更新成功')
     stageDialogVisible.value = false
     fetchList()
     if (viewMode.value === 'kanban') {
@@ -870,7 +865,7 @@ async function handleStageSubmit() {
 async function handleDelete(id: number) {
   try {
     await opportunityApi.remove(id)
-    ElMessage.success('鍒犻櫎鎴愬姛')
+    ElMessage.success('删除成功')
     if (tableData.value.length === 1 && pagination.page > 1) {
       pagination.page -= 1
     }

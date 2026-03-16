@@ -38,6 +38,7 @@ import { QuotationModule } from './modules/quotation/quotation.module'
 import { PaymentModule } from './modules/payment/payment.module'
 import { ContractModule } from './modules/contract/contract.module'
 import { ApprovalModule } from './modules/approval/approval.module'
+import { ProspectModule } from './modules/prospect/prospect.module'
 
 @Module({
   imports: [
@@ -109,6 +110,7 @@ import { ApprovalModule } from './modules/approval/approval.module'
     PaymentModule,
     ContractModule,
     ApprovalModule,
+    ProspectModule,
   ],
   providers: [
     {

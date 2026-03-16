@@ -23,6 +23,20 @@ export const CACHE_KEYS = {
   SALES_TARGET_STATS: 'cache:sales-targets:stats',
   /** Knowledge search history — suffix is :userId */
   KNOWLEDGE_SEARCH_HISTORY: (userId: number) => `knowledge:search:history:${userId}`,
+  /** Prospect list — keyed by serialized query params */
+  PROSPECT_LIST: 'cache:prospects:list',
+  /** Prospect detail — suffix is :id */
+  PROSPECT_DETAIL: 'cache:prospects:detail',
+  /** Prospect stats — suffix is :role:uid */
+  PROSPECT_STATS: 'cache:prospects:stats',
+  /** Prospect data sources list */
+  PROSPECT_DATA_SOURCES: 'cache:prospects:data-sources',
+  /** Prospect filter configuration */
+  PROSPECT_FILTER_CONFIG: 'cache:prospects:filter-config',
+  /** Prospect search templates */
+  PROSPECT_SEARCH_TEMPLATES: 'cache:prospects:templates',
+  /** AI analysis global config (single-row, id=1) */
+  AI_ANALYSIS_CONFIG: 'cache:ai:analysis-config',
 } as const
 
 /** TTL values in seconds */
@@ -43,4 +57,18 @@ export const CACHE_TTL = {
   FOLLOW_UP_LIST: 60,
   /** Sales target stats cache: 300 s */
   SALES_TARGET_STATS: 300,
+  /** Prospect list cache: 60 s */
+  PROSPECT_LIST: 60,
+  /** Prospect detail cache: 120 s */
+  PROSPECT_DETAIL: 120,
+  /** Prospect stats cache: 300 s */
+  PROSPECT_STATS: 300,
+  /** Prospect data sources cache: 300 s */
+  PROSPECT_DATA_SOURCES: 300,
+  /** Prospect filter config cache: 300 s */
+  PROSPECT_FILTER_CONFIG: 300,
+  /** Prospect search templates cache: 120 s */
+  PROSPECT_SEARCH_TEMPLATES: 120,
+  /** AI analysis config cache: 300 s */
+  AI_ANALYSIS_CONFIG: 300,
 } as const

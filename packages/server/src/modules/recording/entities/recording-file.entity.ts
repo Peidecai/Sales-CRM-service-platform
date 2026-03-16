@@ -8,6 +8,7 @@ import {
   CreateDateColumn,
 } from 'typeorm'
 import { CallRecord } from '../../call-record/call-record.entity'
+import { RecordingSourceType } from '@crm/shared'
 
 @Entity('recording_files')
 export class RecordingFile {
@@ -15,8 +16,8 @@ export class RecordingFile {
   id!: number
 
   @Index()
-  @Column({ name: 'call_record_id', comment: '通话记录ID' })
-  callRecordId!: number
+  @Column({ name: 'call_record_id', comment: '通话记录ID', nullable: true })
+  callRecordId!: number | null
 
   @Column({ type: 'varchar', name: 'file_name', length: 255, nullable: true })
   fileName!: string | null
@@ -35,6 +36,15 @@ export class RecordingFile {
 
   @Column({ type: 'varchar', name: 'mime_type', length: 50, nullable: true })
   mimeType!: string | null
+
+  @Column({
+    name: 'source_type',
+    type: 'enum',
+    enum: RecordingSourceType,
+    default: RecordingSourceType.PLATFORM,
+    comment: '录音来源: platform=平台录音, voice_memo=语音速记',
+  })
+  sourceType!: RecordingSourceType
 
   @CreateDateColumn({ name: 'created_at', type: 'datetime', precision: 6 })
   createdAt!: Date

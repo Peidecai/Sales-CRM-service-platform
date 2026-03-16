@@ -47,7 +47,17 @@ export class CallRecordService {
   }
 
   async findAll(query: QueryCallRecordDto, user: AuthUser): Promise<CallRecordListResult> {
-    const { page = 1, pageSize = 20, customerId, opportunityId, userId, startDate, endDate } = query
+    const {
+      page = 1,
+      pageSize = 20,
+      customerId,
+      opportunityId,
+      userId,
+      startDate,
+      endDate,
+      callType,
+      callResult,
+    } = query
 
     const qb = this.callRecordRepository
       .createQueryBuilder('cr')
@@ -77,6 +87,14 @@ export class CallRecordService {
       const end = new Date(endDate)
       end.setHours(23, 59, 59, 999)
       qb.andWhere('cr.callAt <= :endDate', { endDate: end })
+    }
+
+    if (callType) {
+      qb.andWhere('cr.callType = :callType', { callType })
+    }
+
+    if (callResult) {
+      qb.andWhere('cr.callResult = :callResult', { callResult })
     }
 
     qb.orderBy('cr.callAt', 'DESC')
@@ -164,7 +182,7 @@ export class CallRecordService {
 
     const records = await qb.getMany()
 
-    const header = '客户,商机,通话时间,时长(秒),备注,AI摘要'
+    const header = '客户,商机,通话时间,时长(秒),呼叫类型,通话结果,估算时长(秒),备注,AI摘要'
     const rows = records.map((r) => {
       const customerName = r.customer ? r.customer.name : ''
       const opportunityTitle = r.opportunity ? r.opportunity.title : ''
@@ -174,6 +192,9 @@ export class CallRecordService {
         this.escapeCsvField(opportunityTitle),
         this.escapeCsvField(callAt),
         String(r.duration ?? 0),
+        this.escapeCsvField(r.callType ?? ''),
+        this.escapeCsvField(r.callResult ?? ''),
+        String(r.estimatedDuration ?? ''),
         this.escapeCsvField(r.notes ?? ''),
         this.escapeCsvField(r.aiSummary ?? ''),
       ].join(',')

@@ -163,7 +163,11 @@ const routes: RouteRecordRaw[] = [
         path: 'customer-tag',
         name: 'CustomerTag',
         component: () => import('@/views/customer-tag/index.vue'),
-        meta: { title: '标签管理', breadcrumb: ['标签管理'], roles: [UserRole.ADMIN, UserRole.MANAGER] },
+        meta: {
+          title: '标签管理',
+          breadcrumb: ['标签管理'],
+          roles: [UserRole.ADMIN, UserRole.MANAGER],
+        },
       },
       {
         path: 'audit-log',
@@ -212,6 +216,39 @@ const routes: RouteRecordRaw[] = [
         name: 'AiIntentPrediction',
         component: () => import('@/views/ai/intent-prediction.vue'),
         meta: { title: '意向预测', breadcrumb: ['AI 智能', '意向预测'] },
+      },
+      {
+        path: 'prospect',
+        name: 'Prospect',
+        component: () => import('@/views/prospect/index.vue'),
+        meta: { title: '线索池', icon: 'Magnet', breadcrumb: ['获客管理', '线索池'] },
+      },
+      {
+        path: 'prospect/search',
+        name: 'ProspectSearch',
+        component: () => import('@/views/prospect/search.vue'),
+        meta: {
+          title: '搜索获客',
+          breadcrumb: ['获客管理', '搜索获客'],
+          roles: [UserRole.ADMIN, UserRole.MANAGER],
+        },
+      },
+      {
+        path: 'prospect/:id',
+        name: 'ProspectDetail',
+        component: () => import('@/views/prospect/detail.vue'),
+        meta: { title: '线索详情', breadcrumb: ['获客管理', '线索详情'] },
+      },
+      {
+        path: 'settings',
+        name: 'Settings',
+        component: () => import('@/views/settings/index.vue'),
+        meta: {
+          title: '系统设置',
+          icon: 'Setting',
+          breadcrumb: ['系统设置'],
+          roles: [UserRole.ADMIN],
+        },
       },
     ],
   },

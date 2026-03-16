@@ -350,7 +350,7 @@ describe('CallRecordService', () => {
       const csv = await service.exportCsv(adminUser)
 
       expect(csv.charCodeAt(0)).toBe(0xFEFF) // BOM
-      expect(csv).toContain('客户,商机,通话时间,时长(秒),备注,AI摘要')
+      expect(csv).toContain('客户,商机,通话时间,时长(秒),呼叫类型,通话结果,估算时长(秒),备注,AI摘要')
       expect(csv).toContain('客户A')
     })
 
@@ -405,7 +405,7 @@ describe('CallRecordService', () => {
       const csv = await service.exportCsv(adminUser)
       const row = csv.split('\n')[1]
 
-      expect(row).toMatch(/^,,,10,,$/)
+      expect(row).toMatch(/^,,,10,,,,,$/)
     })
   })
 

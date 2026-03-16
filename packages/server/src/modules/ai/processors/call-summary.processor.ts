@@ -5,8 +5,10 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { CallRecord } from '../../call-record/call-record.entity'
 import { AiService } from '../ai.service'
+import { CallAnalysisService } from '../call-analysis.service'
 import { NotificationService } from '../../notification/notification.service'
 import { NotificationType } from '../../notification/notification.types'
+import { UserRole } from '@crm/shared'
 
 export interface CallSummaryJobData {
   callRecordId: number
@@ -30,6 +32,11 @@ const SYSTEM_PROMPT = `你是一个专业的销售通话分析助手。请分析
 ## 下一步行动
 - 列出建议的下一步行动`
 
+/** Build an AuthUser stub from the call record's owner for system-triggered analysis. */
+function buildSystemUser(record: CallRecord): { id: number; username: string; role: UserRole } {
+  return { id: record.userId, username: `user_${record.userId}`, role: UserRole.SALES }
+}
+
 @Processor('call-summary')
 export class CallSummaryProcessor {
   private readonly logger = new Logger(CallSummaryProcessor.name)
@@ -38,6 +45,7 @@ export class CallSummaryProcessor {
     @InjectRepository(CallRecord)
     private readonly callRecordRepository: Repository<CallRecord>,
     private readonly aiService: AiService,
+    private readonly callAnalysisService: CallAnalysisService,
     private readonly notificationService: NotificationService,
   ) {}
 
@@ -56,8 +64,20 @@ export class CallSummaryProcessor {
         return
       }
 
+      // Attempt full AI analysis first (richer result, updates ai_summary as a side-effect)
+      try {
+        await this.callAnalysisService.analyzeCall(callRecordId, buildSystemUser(record))
+        this.logger.log(`Full call analysis completed for record #${callRecordId}`)
+        return
+      } catch (analysisError) {
+        this.logger.warn(
+          `Full analysis failed for record #${callRecordId}, falling back to legacy summary: ${String(analysisError)}`,
+        )
+      }
+
+      // Legacy fallback: simple notes → plain-text summary
       if (!record.notes) {
-        this.logger.warn(`Call record #${callRecordId} has no notes, skipping`)
+        this.logger.warn(`Call record #${callRecordId} has no notes, skipping legacy fallback`)
         return
       }
 
@@ -69,7 +89,7 @@ export class CallSummaryProcessor {
       record.aiSummary = summary
       await this.callRecordRepository.save(record)
 
-      this.logger.log(`Call summary generated for record #${callRecordId}`)
+      this.logger.log(`Legacy call summary generated for record #${callRecordId}`)
     } catch (error) {
       this.logger.error(`Failed to generate summary for record #${callRecordId}`, String(error))
       throw error // Let Bull retry

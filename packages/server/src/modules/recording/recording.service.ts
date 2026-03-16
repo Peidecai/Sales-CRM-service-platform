@@ -1,4 +1,11 @@
-import { Injectable, NotFoundException, ForbiddenException, Inject, Logger } from '@nestjs/common'
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  Inject,
+  Logger,
+} from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, In } from 'typeorm'
 import { InjectQueue } from '@nestjs/bull'
@@ -9,7 +16,7 @@ import { CallTranscript, TranscriptSpeaker } from './entities/call-transcript.en
 import { CallRecord } from '../call-record/call-record.entity'
 import type { AsrProviderAdapter } from './adapters/asr-provider.adapter'
 import type { AuthUser } from '../../common/decorators/current-user.decorator'
-import { UserRole } from '@crm/shared'
+import { UserRole, RecordingSourceType } from '@crm/shared'
 import { OssRecordingService } from './oss-recording.service'
 
 export interface AsrJobData {
@@ -90,9 +97,11 @@ export class RecordingService {
     const duration =
       fileDuration != null
         ? fileDuration
-        : await this.callRecordRepository
-            .findOne({ where: { id: file.callRecordId } })
-            .then((cr) => cr?.duration ?? 0)
+        : file.callRecordId
+          ? await this.callRecordRepository
+              .findOne({ where: { id: file.callRecordId } })
+              .then((cr) => cr?.duration ?? 0)
+          : 0
 
     if (duration < this.ASR_MIN_DURATION_SECONDS) {
       this.logger.debug(
@@ -133,6 +142,82 @@ export class RecordingService {
       where: { asrTaskId: In(taskIds) },
       order: { segmentIndex: 'ASC' },
     })
+  }
+
+  /**
+   * 上传录音文件（小程序语音速记等场景）。
+   * 存储到 OSS，创建 recording_files 记录，可选触发 ASR 转写。
+   */
+  async uploadRecording(
+    file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
+    callRecordId: number | undefined,
+    sourceType: RecordingSourceType,
+    user: AuthUser,
+  ): Promise<{ recordingFile: RecordingFile; asrTriggered: boolean }> {
+    // 1. 验证通话记录存在且有权限（仅当关联通话记录时）
+    if (callRecordId) {
+      const callRecord = await this.callRecordRepository.findOne({ where: { id: callRecordId } })
+      if (!callRecord) throw new NotFoundException(`通话记录 #${callRecordId} 不存在`)
+      if (
+        user.role === UserRole.SALES &&
+        callRecord.userId !== user.id &&
+        callRecord.agentId !== user.id
+      ) {
+        throw new ForbiddenException('您无权为此通话记录上传录音')
+      }
+    }
+
+    // 2. 校验文件
+    const maxSize = 200 * 1024 * 1024 // 200MB
+    if (file.size > maxSize) {
+      throw new BadRequestException('文件大小超过 200MB 限制')
+    }
+    const allowedMimes = [
+      'audio/mpeg',
+      'audio/mp3',
+      'audio/wav',
+      'audio/x-wav',
+      'audio/ogg',
+      'audio/aac',
+      'audio/mp4',
+    ]
+    if (!allowedMimes.includes(file.mimetype)) {
+      throw new BadRequestException(`不支持的音频格式: ${file.mimetype}`)
+    }
+
+    // 3. 生成 OSS key 并上传
+    const now = new Date()
+    const datePath = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`
+    const ext = file.originalname.split('.').pop() ?? 'mp3'
+    const idSegment = callRecordId ?? `unlinked_${user.id}`
+    const ossKey = `recordings/${datePath}/${idSegment}_${Date.now()}.${ext}`
+
+    await this.ossRecording.uploadBuffer(file.buffer, ossKey, file.mimetype)
+
+    // 4. 创建 recording_files 记录
+    const recordingFile = this.recordingFileRepository.create({
+      callRecordId: callRecordId ?? null,
+      fileName: file.originalname,
+      ossKey,
+      ossBucket: this.ossRecording.getBucket(),
+      fileSize: file.size,
+      mimeType: file.mimetype,
+      sourceType,
+    })
+    await this.recordingFileRepository.save(recordingFile)
+
+    // 5. 可选触发 ASR（语音速记录音通常较短，但仍需转写）
+    let asrTriggered = false
+    try {
+      const result = await this.triggerAsr(recordingFile.id, user)
+      asrTriggered = result.status !== 'skipped'
+    } catch (err) {
+      this.logger.warn(
+        `ASR trigger failed for uploaded recording #${recordingFile.id}: ${String(err)}`,
+      )
+    }
+
+    return { recordingFile, asrTriggered }
   }
 
   /** 供 ASR processor 调用：提交转写并写入 call_transcripts */

@@ -6,7 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository, SelectQueryBuilder } from 'typeorm'
+import { Repository, SelectQueryBuilder, EntityManager } from 'typeorm'
 import { Customer } from './customer.entity'
 import { User } from '../user/user.entity'
 import { DuplicateCheckService } from './services/duplicate-check.service'
@@ -36,7 +36,7 @@ export class CustomerService {
     private readonly bloomService: CustomerBloomService,
   ) {}
 
-  async create(dto: CreateCustomerDto, manager?:): Promise<Customer> {
+  async create(dto: CreateCustomerDto, manager?: EntityManager): Promise<Customer> {
     if (dto.customFields) {
       await this.customFieldService.validateCustomFields(dto.customFields)
     }
@@ -89,8 +89,7 @@ export class CustomerService {
       return JSON.parse(cached) as { list: Customer[]; total: number }
     }
 
-    const qb = this.customerRepository
-      .createQueryBuilder('customer')
+    const qb = this.customerRepository.createQueryBuilder('customer')
 
     this.applyDataPermission(qb, user)
 

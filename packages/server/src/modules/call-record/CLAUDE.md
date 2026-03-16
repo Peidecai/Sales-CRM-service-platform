@@ -63,12 +63,54 @@ export class CallRecord extends BaseEntity {
 | DELETE | /api/v1/call-records/:id           | 软删除   |
 | POST   | /api/v1/call-records/:id/summarize | AI 摘要  |
 
+### 方案B扩展（手机原生外呼 + 语音速记）
+
+**CallType 枚举新增：**
+
+- `MANUAL` — 手机原生外呼（方案B），通过 `uni.makePhoneCall()` 调起
+
+**实体新增字段：**
+
+```typescript
+@Column({ name: 'call_type', length: 20, default: 'normal' })
+callType: string  // 'normal' | 'manual' | 'callback'
+
+@Column({ name: 'estimated_duration', type: 'int', nullable: true })
+estimatedDuration: number  // 用户估算通话时长（秒），方案B专用
+
+@Column({ name: 'call_result', length: 20, nullable: true })
+callResult: string  // 'connected' | 'no_answer' | 'busy' | 'power_off'
+```
+
+**POST /recordings/upload 实现规范（从stub升级）：**
+
+- 接收 multipart/form-data（音频文件 + callRecordId + sourceType）
+- `sourceType`: `platform`=平台录音, `voice_memo`=语音速记
+- 存储到 OSS，记录到 `recording_files` 表
+- 上传成功后可选触发 AI 分析（`POST /call-records/:id/summarize`）
+
+**GET /call-records?customerId=X 使用说明：**
+
+- 按客户筛选通话记录，用于小程序客户详情页"通话记录"Tab
+- 遵循 DataScope 数据权限，SALES 角色只能查看自己的通话记录
+- 返回按 `callAt` 倒序排列，包含 `aiSummary` 字段用于列表预览
+
+**inputSource 处理分支：**
+
+- `voice_memo` → 使用 VOICE_MEMO_PROMPT（口述专用），分析结果标注低置信度
+- `asr` / `both` → 使用 CALL_ANALYSIS_PROMPT（现有通话分析）
+- `notes` → 使用简版 Prompt
+
 ## AI 集成说明
 
 - 使用 DashScope (Qwen) API 生成通话摘要
 - 提示词：分析通话记录，提取关键信息，输出结构化摘要（客户需求、跟进要点、下一步行动）
 - API Key 通过环境变量 `DASHSCOPE_API_KEY` 注入
 - 摘要异步生成，通过 Bull 队列处理
+- **双Prompt策略**：根据 `inputSource` 自动选择 Prompt
+  - `voice_memo` → VOICE_MEMO_PROMPT（口述专用，标注置信度）
+  - `asr` / `both` → CALL_ANALYSIS_PROMPT（双方对话分析）
+  - `notes` → NOTES_SUMMARY_PROMPT（简版摘要）
 
 ## 依赖关系
 
@@ -90,3 +132,9 @@ export class CallRecord extends BaseEntity {
 ### 前端权限
 
 - 删除按钮、导出按钮使用 `v-if="isAdminOrManager"` 隐藏
+
+## Skill 规范
+
+- **backend-patterns** — Service 分层、Bull 队列异步处理
+- **coding-standards** — TypeScript 严格模式
+- **tdd-workflow** — 22 tests (CallRecordService)

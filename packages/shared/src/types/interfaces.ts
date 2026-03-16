@@ -5,6 +5,7 @@ import type {
   TargetScope,
   TargetPeriod,
   TargetMetricType,
+  ProspectChannel,
 } from "../enums/index";
 
 /**
@@ -91,4 +92,41 @@ export interface PerformanceRankingInfo {
   rank: number;
   snapshotDate: string;
   scope: TargetScope;
+}
+
+/**
+ * 互联网获客搜索条件
+ */
+export interface ProspectSearchQuery {
+  keyword?: string;
+  industry?: string;
+  province?: string;
+  city?: string;
+  minRegisteredCapital?: number;
+  maxRegisteredCapital?: number;
+  minEmployeeCount?: number;
+  maxEmployeeCount?: number;
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * 互联网获客搜索结果
+ */
+export interface ProspectSearchResult {
+  companyName: string;
+  legalPerson?: string;
+  registeredCapital?: string;
+  establishDate?: string;
+  industry?: string;
+  province?: string;
+  city?: string;
+  address?: string;
+  unifiedCreditCode?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  employeeCount?: number;
+  businessScope?: string;
+  channel: ProspectChannel;
 }

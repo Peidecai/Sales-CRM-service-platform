@@ -22,6 +22,7 @@ export enum CustomerSource {
   EXHIBITION = "exhibition", // 展会
   AD = "ad", // 广告投放
   IMPORT = "import", // 批量导入
+  PROSPECT = "prospect", // 来自互联网获客
   OTHER = "other", // 其他
 }
 
@@ -162,6 +163,8 @@ export enum CallType {
   NORMAL = "normal",
   FOLLOW_UP = "follow_up",
   CAMPAIGN = "campaign",
+  MANUAL = "manual", // 手机原生外呼（方案B）
+  CALLBACK = "callback", // 回呼模式（方案D预留）
 }
 
 /**
@@ -300,9 +303,77 @@ export enum ContractStatus {
 /**
  * 合同类型
  */
+/**
+ * 线索来源渠道
+ */
+export enum ProspectChannel {
+  TIANYANCHA = "tianyancha", // 天眼查
+  QICHACHA = "qichacha", // 企查查
+  MANUAL = "manual", // 手动录入
+  MOCK = "mock", // 模拟数据（开发用）
+}
+
+/**
+ * 线索状态
+ */
+export enum ProspectStatus {
+  NEW = "new", // 新线索
+  CONTACTED = "contacted", // 已联系
+  QUALIFIED = "qualified", // 已确认有效
+  CONVERTED = "converted", // 已转化为客户
+  REJECTED = "rejected", // 已废弃
+}
+
 export enum ContractType {
   SALES = "sales",
   SERVICE = "service",
   FRAMEWORK = "framework",
   SUPPLEMENT = "supplement",
+}
+
+/**
+ * AI 分析结果状态
+ */
+export enum AnalysisStatus {
+  PENDING = "pending",
+  COMPLETED = "completed",
+  FAILED = "failed",
+  APPLIED = "applied",
+}
+
+/**
+ * AI 分析类型
+ */
+export enum AnalysisType {
+  FULL = "full",
+  CLASSIFY_ONLY = "classify_only",
+  SPEECH_ONLY = "speech_only",
+}
+
+/**
+ * AI 分析输入来源
+ */
+export enum AnalysisInputSource {
+  ASR = "asr",
+  NOTES = "notes",
+  BOTH = "both",
+  VOICE_MEMO = "voice_memo", // 语音速记（方案B）
+}
+
+/**
+ * 通话结果（方案B手机原生外呼）
+ */
+export enum CallResult {
+  CONNECTED = "connected", // 已接通
+  NO_ANSWER = "no_answer", // 未接听
+  BUSY = "busy", // 忙线
+  POWER_OFF = "power_off", // 关机
+}
+
+/**
+ * 录音来源类型
+ */
+export enum RecordingSourceType {
+  PLATFORM = "platform", // 平台录音（阿里云CCC）
+  VOICE_MEMO = "voice_memo", // 语音速记（方案B）
 }

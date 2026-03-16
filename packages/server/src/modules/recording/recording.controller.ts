@@ -4,20 +4,42 @@ import {
   Post,
   Param,
   Query,
+  Body,
   UseGuards,
   UseInterceptors,
   ParseIntPipe,
   ParseFloatPipe,
   DefaultValuePipe,
   ForbiddenException,
+  BadRequestException,
   NotFoundException,
+  UploadedFile,
 } from '@nestjs/common'
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiParam, ApiQuery } from '@nestjs/swagger'
+import { FileInterceptor } from '@nestjs/platform-express'
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { CurrentUser, type AuthUser } from '../../common/decorators/current-user.decorator'
 import { AuditLogInterceptor } from '../../common/interceptors/audit-log.interceptor'
 import { RecordingService } from './recording.service'
+import { UploadRecordingDto } from './dto/upload-recording.dto'
+import { RecordingSourceType } from '@crm/shared'
+
+/** Multer file shape — avoids depending on @types/multer */
+interface UploadedFileShape {
+  buffer: Buffer
+  originalname: string
+  mimetype: string
+  size: number
+}
 
 @ApiTags('录音')
 @ApiBearerAuth()
@@ -82,5 +104,40 @@ export class RecordingController {
   @ApiParam({ name: 'id' })
   async getTranscript(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
     return this.recordingService.getTranscripts(id, user)
+  }
+
+  @Post('upload')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 200 * 1024 * 1024 } }))
+  @ApiOperation({ summary: '上传录音文件（小程序语音速记）' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary', description: '音频文件' },
+        callRecordId: { type: 'integer', description: '关联通话记录 ID（可选）' },
+        sourceType: {
+          type: 'string',
+          enum: ['platform', 'voice_memo'],
+          description: '录音来源类型',
+        },
+      },
+      required: ['file'],
+    },
+  })
+  async upload(
+    @UploadedFile() file: UploadedFileShape,
+    @Body() dto: UploadRecordingDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    if (!file) {
+      throw new BadRequestException('未上传文件')
+    }
+    return this.recordingService.uploadRecording(
+      file,
+      dto.callRecordId,
+      dto.sourceType ?? RecordingSourceType.VOICE_MEMO,
+      user,
+    )
   }
 }

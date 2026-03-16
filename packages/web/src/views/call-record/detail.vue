@@ -144,6 +144,202 @@
         </div>
       </el-card>
 
+      <!-- AI Analysis Card -->
+      <el-card shadow="never" class="content-card">
+        <template #header>
+          <div class="card-header">
+            <span class="card-header-title">
+              <el-icon><DataAnalysis /></el-icon>
+              AI 智能分析
+            </span>
+            <div class="card-header-actions">
+              <el-tag
+                v-if="analysisResult"
+                :type="
+                  analysisResult.status === AnalysisStatus.COMPLETED
+                    ? 'success'
+                    : analysisResult.status === AnalysisStatus.FAILED
+                      ? 'danger'
+                      : analysisResult.status === AnalysisStatus.APPLIED
+                        ? 'info'
+                        : 'warning'
+                "
+                size="small"
+              >
+                {{
+                  analysisResult.status === AnalysisStatus.COMPLETED
+                    ? '已完成'
+                    : analysisResult.status === AnalysisStatus.FAILED
+                      ? '分析失败'
+                      : analysisResult.status === AnalysisStatus.APPLIED
+                        ? '已应用'
+                        : '分析中'
+                }}
+              </el-tag>
+              <el-button type="primary" size="small" :loading="analyzing" @click="triggerAnalysis">
+                <el-icon v-if="!analyzing"><Promotion /></el-icon>
+                触发分析
+              </el-button>
+            </div>
+          </div>
+        </template>
+
+        <!-- Analysis Results -->
+        <template v-if="analysisResult">
+          <el-descriptions :column="2" border size="small" class="analysis-descriptions">
+            <!-- Customer category -->
+            <el-descriptions-item v-if="analysisResult.customerClassify" label="客户分类">
+              <el-tag type="primary" size="small">{{ analysisResult.customerClassify }}</el-tag>
+              <span v-if="analysisResult.classifyConfidence != null" class="confidence-text">
+                {{ Math.round(analysisResult.classifyConfidence * 100) }}% 置信度
+              </span>
+            </el-descriptions-item>
+
+            <!-- Suggested status -->
+            <el-descriptions-item v-if="analysisResult.suggestedStatus" label="建议状态">
+              <span>{{ analysisResult.suggestedStatus }}</span>
+              <el-tag
+                v-if="analysisResult.appliedAt"
+                type="success"
+                size="small"
+                class="applied-tag"
+              >
+                <el-icon><Check /></el-icon>
+                已应用
+              </el-tag>
+            </el-descriptions-item>
+
+            <!-- Suggested tags -->
+            <el-descriptions-item
+              v-if="analysisResult.suggestedTags && analysisResult.suggestedTags.length"
+              label="建议标签"
+              :span="2"
+            >
+              <el-tag
+                v-for="tag in analysisResult.suggestedTags"
+                :key="tag"
+                size="small"
+                class="tag-item"
+              >
+                {{ tag }}
+              </el-tag>
+            </el-descriptions-item>
+
+            <!-- Auto opportunity -->
+            <el-descriptions-item v-if="analysisResult.opportunityCreated" label="自动商机">
+              <el-link type="primary" @click="$router.push('/opportunity')">
+                <el-icon><Connection /></el-icon>
+                已自动创建商机
+              </el-link>
+            </el-descriptions-item>
+          </el-descriptions>
+
+          <!-- Speech score -->
+          <template v-if="analysisResult.speechScore != null">
+            <el-divider content-position="left" class="section-divider">话术评分</el-divider>
+            <div class="score-section">
+              <div class="score-label">
+                <span>评分</span>
+                <strong>{{ analysisResult.speechScore }} / 100</strong>
+              </div>
+              <el-progress
+                :percentage="analysisResult.speechScore"
+                :color="
+                  analysisResult.speechScore >= 80
+                    ? '#67c23a'
+                    : analysisResult.speechScore >= 60
+                      ? '#e6a23c'
+                      : '#f56c6c'
+                "
+                :stroke-width="10"
+              />
+            </div>
+            <div v-if="analysisResult.speechFeedback" class="feedback-block">
+              {{ analysisResult.speechFeedback }}
+            </div>
+          </template>
+
+          <!-- Knowledge coverage -->
+          <template v-if="analysisResult.knowledgeMatchRate != null">
+            <el-divider content-position="left" class="section-divider">知识库匹配</el-divider>
+            <div class="score-section">
+              <div class="score-label">
+                <span>覆盖率</span>
+                <strong>{{ Math.round(analysisResult.knowledgeMatchRate * 100) }}%</strong>
+              </div>
+              <el-progress
+                :percentage="Math.round(analysisResult.knowledgeMatchRate * 100)"
+                :color="
+                  analysisResult.knowledgeMatchRate >= 0.8
+                    ? '#67c23a'
+                    : analysisResult.knowledgeMatchRate >= 0.5
+                      ? '#e6a23c'
+                      : '#f56c6c'
+                "
+                :stroke-width="10"
+              />
+            </div>
+            <div
+              v-if="analysisResult.knowledgeGaps && analysisResult.knowledgeGaps.length"
+              class="knowledge-gaps"
+            >
+              <span class="gaps-label">未覆盖知识点：</span>
+              <el-tag
+                v-for="gap in analysisResult.knowledgeGaps"
+                :key="gap"
+                type="warning"
+                size="small"
+                class="tag-item"
+              >
+                {{ gap }}
+              </el-tag>
+            </div>
+          </template>
+
+          <!-- AI summary -->
+          <template v-if="analysisResult.summary">
+            <el-divider content-position="left" class="section-divider">AI分析摘要</el-divider>
+            <div class="analysis-summary-block">{{ analysisResult.summary }}</div>
+          </template>
+
+          <el-divider />
+
+          <!-- Manual note & apply -->
+          <div class="manual-section">
+            <div class="manual-section-title">销售手动备注</div>
+            <el-input
+              v-model="manualNote"
+              type="textarea"
+              :rows="3"
+              placeholder="请输入手动备注..."
+              class="manual-note-input"
+            />
+            <div class="manual-section-actions">
+              <el-button size="small" @click="saveNote">保存备注</el-button>
+              <el-button
+                v-if="
+                  isAdminOrManager &&
+                  analysisResult.status === AnalysisStatus.COMPLETED &&
+                  !analysisResult.appliedAt
+                "
+                type="primary"
+                size="small"
+                @click="applyResult"
+              >
+                手动应用
+              </el-button>
+            </div>
+          </div>
+        </template>
+
+        <el-empty v-else-if="!analyzing" description="暂无AI分析结果" :image-size="60">
+          <el-button type="primary" size="small" @click="triggerAnalysis">触发分析</el-button>
+        </el-empty>
+        <div v-else class="summarizing-placeholder">
+          <el-skeleton :rows="4" animated />
+        </div>
+      </el-card>
+
       <!-- Edit Dialog -->
       <el-dialog
         v-model="editDialogVisible"
@@ -274,19 +470,34 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { ArrowLeft, Edit, Delete, MagicStick, Headset, Loading } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import {
+  ArrowLeft,
+  Edit,
+  Delete,
+  MagicStick,
+  Headset,
+  Loading,
+  DataAnalysis,
+  Promotion,
+  Check,
+  Connection,
+} from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { callRecordApi, type CallRecordVO, type UpdateCallRecordParams } from '@/api/call-record'
 import { customerApi, type CustomerVO } from '@/api/customer'
 import { opportunityApi, type OpportunityVO } from '@/api/opportunity'
 import { formatDate, formatDuration } from '@/utils/format'
+import { callAnalysisApi, type CallAnalysisResultVO } from '@/api/ai-analysis'
+import { AnalysisStatus } from '@crm/shared'
+import { usePermission } from '@/composables/usePermission'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const { isAdminOrManager } = usePermission()
 
 // ---- State ----
 const loading = ref(true)
@@ -295,13 +506,13 @@ const customerName = ref('')
 const opportunityTitle = ref('')
 const userName = ref('')
 
-const recordId = Number(route.params.id)
+const recordId = computed(() => Number(route.params.id))
 
 // ---- Data Fetching ----
 async function fetchRecord() {
   loading.value = true
   try {
-    const res = await callRecordApi.getDetail(recordId)
+    const res = await callRecordApi.getDetail(recordId.value)
     if (res?.data) {
       record.value = res.data
       // Resolve related names
@@ -359,6 +570,7 @@ async function resolveRelatedNames(data: CallRecordVO) {
 
 // ---- AI Summary ----
 const summarizing = ref(false)
+let summaryTimerId: ReturnType<typeof setTimeout> | null = null
 
 async function handleSummarize() {
   if (!record.value) return
@@ -382,7 +594,7 @@ async function pollForSummary(id: number, attempt = 0) {
     return
   }
 
-  setTimeout(async () => {
+  summaryTimerId = setTimeout(async () => {
     try {
       const res = await callRecordApi.getDetail(id)
       if (res?.data?.aiSummary) {
@@ -531,7 +743,7 @@ async function handleSubmit() {
       notes: formData.notes || undefined,
       recordingUrl: formData.recordingUrl || undefined,
     }
-    await callRecordApi.update(recordId, params)
+    await callRecordApi.update(recordId.value, params)
     ElMessage.success('通话记录更新成功')
     editDialogVisible.value = false
     fetchRecord()
@@ -542,10 +754,116 @@ async function handleSubmit() {
   }
 }
 
+// ---- AI Analysis ----
+const analysisResult = ref<CallAnalysisResultVO | null>(null)
+const analyzing = ref(false)
+const manualNote = ref('')
+let analysisTimerId: ReturnType<typeof setTimeout> | null = null
+
+async function loadAnalysisResult() {
+  try {
+    const res = await callAnalysisApi.getResult(recordId.value)
+    if (res?.data) {
+      analysisResult.value = res.data
+      manualNote.value = res.data.manualNote ?? ''
+    }
+  } catch (err: unknown) {
+    // 404 means no analysis yet — handle gracefully
+    const status = (err as { response?: { status?: number } })?.response?.status
+    if (status !== 404) {
+      // Re-throw unexpected errors so the request interceptor can log them
+      throw err
+    }
+  }
+}
+
+async function triggerAnalysis() {
+  if (!record.value) return
+  analyzing.value = true
+  try {
+    await callAnalysisApi.trigger(record.value.id)
+    ElMessage.success('AI 分析任务已提交，正在等待结果...')
+    pollForAnalysis(record.value.id)
+  } catch {
+    analyzing.value = false
+  }
+}
+
+async function pollForAnalysis(id: number, attempt = 0) {
+  const delays = [3000, 5000, 8000, 12000, 18000]
+  const maxAttempts = delays.length
+
+  if (attempt >= maxAttempts) {
+    analyzing.value = false
+    ElMessage.warning('AI 分析较慢，请稍后手动刷新查看结果')
+    return
+  }
+
+  analysisTimerId = setTimeout(async () => {
+    try {
+      const res = await callAnalysisApi.getResult(id)
+      if (res?.data) {
+        const result = res.data
+        if (
+          result.status === AnalysisStatus.COMPLETED ||
+          result.status === AnalysisStatus.APPLIED ||
+          result.status === AnalysisStatus.FAILED
+        ) {
+          analyzing.value = false
+          analysisResult.value = result
+          manualNote.value = result.manualNote ?? ''
+          if (result.status === AnalysisStatus.FAILED) {
+            ElMessage.error('AI 分析失败，请稍后重试')
+          } else {
+            ElMessage.success('AI 分析已完成')
+          }
+        } else {
+          pollForAnalysis(id, attempt + 1)
+        }
+      } else {
+        pollForAnalysis(id, attempt + 1)
+      }
+    } catch {
+      pollForAnalysis(id, attempt + 1)
+    }
+  }, delays[attempt])
+}
+
+async function saveNote() {
+  if (!analysisResult.value) return
+  try {
+    const res = await callAnalysisApi.addNote(analysisResult.value.id, manualNote.value)
+    if (res?.data) {
+      analysisResult.value = res.data
+    }
+    ElMessage.success('备注已保存')
+  } catch {
+    // Error handled by request interceptor
+  }
+}
+
+async function applyResult() {
+  if (!analysisResult.value) return
+  try {
+    await ElMessageBox.confirm('确定要将AI分析建议应用到该通话记录吗？', '确认应用', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    const res = await callAnalysisApi.apply(analysisResult.value.id)
+    if (res?.data) {
+      analysisResult.value = res.data
+    }
+    ElMessage.success('AI 分析建议已应用')
+  } catch {
+    // Cancelled or error handled by request interceptor
+  }
+}
+
 // ---- Delete ----
 async function handleDelete() {
   try {
-    await callRecordApi.remove(recordId)
+    await callRecordApi.remove(recordId.value)
     ElMessage.success('删除成功')
     router.push('/call-record')
   } catch {
@@ -555,11 +873,17 @@ async function handleDelete() {
 
 // ---- Init ----
 onMounted(() => {
-  if (isNaN(recordId)) {
+  if (isNaN(recordId.value)) {
     loading.value = false
     return
   }
   fetchRecord()
+  loadAnalysisResult()
+})
+
+onBeforeUnmount(() => {
+  if (summaryTimerId) clearTimeout(summaryTimerId)
+  if (analysisTimerId) clearTimeout(analysisTimerId)
 })
 </script>
 
@@ -625,5 +949,103 @@ onMounted(() => {
 
 .summarizing-placeholder {
   padding: 12px 0;
+}
+
+.analysis-descriptions {
+  margin-bottom: 8px;
+}
+
+.confidence-text {
+  margin-left: 8px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.applied-tag {
+  margin-left: 8px;
+}
+
+.tag-item {
+  margin-right: 6px;
+  margin-bottom: 4px;
+}
+
+.section-divider {
+  margin: 16px 0 12px;
+}
+
+.score-section {
+  margin-bottom: 12px;
+}
+
+.score-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: #606266;
+}
+
+.score-label strong {
+  color: #303133;
+}
+
+.feedback-block {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #606266;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #f5f7fa;
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid #e4e7ed;
+  margin-top: 8px;
+}
+
+.knowledge-gaps {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.gaps-label {
+  font-size: 13px;
+  color: #606266;
+}
+
+.analysis-summary-block {
+  font-size: 14px;
+  line-height: 1.8;
+  color: #606266;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #f0f9eb;
+  padding: 14px;
+  border-radius: 6px;
+  border-left: 3px solid #67c23a;
+}
+
+.manual-section {
+  margin-top: 4px;
+}
+
+.manual-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 10px;
+}
+
+.manual-note-input {
+  margin-bottom: 10px;
+}
+
+.manual-section-actions {
+  display: flex;
+  gap: 8px;
 }
 </style>

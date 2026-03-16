@@ -13,7 +13,10 @@ import { AiForecastService } from './ai-forecast.service'
 import { AiCompetitorService } from './ai-competitor.service'
 import { AiProfileService } from './ai-profile.service'
 import { AiPredictionService } from './ai-prediction.service'
+import { AiAnalysisConfigService } from './ai-analysis-config.service'
+import { CallAnalysisService } from './call-analysis.service'
 import { AiController } from './ai.controller'
+import { CallAnalysisController } from './call-analysis.controller'
 import { VectorModule } from './vector/vector.module'
 import { CallSummaryProcessor } from './processors/call-summary.processor'
 import { EmbeddingProcessor } from './processors/embedding.processor'
@@ -30,9 +33,14 @@ import { AiAlert } from './entities/ai-alert.entity'
 import { AiReport } from './entities/ai-report.entity'
 import { SalesForecast } from './entities/sales-forecast.entity'
 import { CompetitorReport } from './entities/competitor-report.entity'
+import { AiAnalysisConfig } from './entities/ai-analysis-config.entity'
+import { CallAnalysisResult } from './entities/call-analysis-result.entity'
+import { CallTranscript } from '../recording/entities/call-transcript.entity'
+import { RecordingFile } from '../recording/entities/recording-file.entity'
 import { CallRecordModule } from '../call-record/call-record.module'
 import { CustomerModule } from '../customer/customer.module'
 import { KnowledgeModule } from '../knowledge/knowledge.module'
+import { OpportunityModule } from '../opportunity/opportunity.module'
 
 @Module({
   imports: [
@@ -45,10 +53,17 @@ import { KnowledgeModule } from '../knowledge/knowledge.module'
       AiReport,
       SalesForecast,
       CompetitorReport,
+      AiAnalysisConfig,
+      CallAnalysisResult,
+      // Register CallTranscript and RecordingFile directly to avoid importing RecordingModule
+      // (which would create a cross-module dep chain: AiModule → RecordingModule → CallRecordModule → AiModule)
+      CallTranscript,
+      RecordingFile,
     ]),
     // Import modules instead of registering their entities directly
     CallRecordModule,
     CustomerModule,
+    OpportunityModule,
     forwardRef(() => KnowledgeModule),
     // Shared queues — general retry policy
     BullModule.registerQueue(
@@ -126,7 +141,7 @@ import { KnowledgeModule } from '../knowledge/knowledge.module'
     ),
     VectorModule,
   ],
-  controllers: [AiController],
+  controllers: [AiController, CallAnalysisController],
   providers: [
     AiService,
     ClaudeService,
@@ -140,6 +155,8 @@ import { KnowledgeModule } from '../knowledge/knowledge.module'
     AiCompetitorService,
     AiProfileService,
     AiPredictionService,
+    AiAnalysisConfigService,
+    CallAnalysisService,
     CallSummaryProcessor,
     EmbeddingProcessor,
     CustomerProfileProcessor,
@@ -148,6 +165,13 @@ import { KnowledgeModule } from '../knowledge/knowledge.module'
     ReportGenerateProcessor,
     SalesForecastProcessor,
   ],
-  exports: [AiService, ClaudeService, AiFallbackService, VectorModule],
+  exports: [
+    AiService,
+    ClaudeService,
+    AiFallbackService,
+    AiAnalysisConfigService,
+    CallAnalysisService,
+    VectorModule,
+  ],
 })
 export class AiModule {}

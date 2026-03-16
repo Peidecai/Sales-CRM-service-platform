@@ -37,6 +37,18 @@
           <el-icon><Collection /></el-icon>
           <template #title> 知识库 </template>
         </el-menu-item>
+        <el-sub-menu index="/prospect">
+          <template #title>
+            <el-icon><Magnet /></el-icon>
+            <span>获客管理</span>
+          </template>
+          <el-menu-item v-if="isAdminOrManager" index="/prospect/search">
+            <template #title> 搜索获客 </template>
+          </el-menu-item>
+          <el-menu-item index="/prospect">
+            <template #title> 线索池 </template>
+          </el-menu-item>
+        </el-sub-menu>
         <el-menu-item index="/sales-target">
           <el-icon><Aim /></el-icon>
           <template #title> 目标业绩 </template>
@@ -60,6 +72,10 @@
         <el-menu-item v-if="isAdmin" index="/user">
           <el-icon><Setting /></el-icon>
           <template #title> 用户管理 </template>
+        </el-menu-item>
+        <el-menu-item v-if="isAdmin" index="/settings">
+          <el-icon><Tools /></el-icon>
+          <template #title> 系统设置 </template>
         </el-menu-item>
       </el-menu>
     </el-aside>
@@ -193,8 +209,11 @@ import {
   Bell,
   Aim,
   MagicStick,
+  Magnet,
+  Tools,
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
+import { usePermission } from '@/composables/usePermission'
 import { useNotification, type NotificationPayload } from '@/composables/useNotification'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
 
@@ -203,6 +222,7 @@ const router = useRouter()
 const userStore = useUserStore()
 const isCollapsed = ref(false)
 const isAdmin = computed(() => userStore.userRole === UserRole.ADMIN)
+const { isAdminOrManager } = usePermission()
 
 // WebSocket notifications
 const { connected: wsConnected, notifications, clearNotifications } = useNotification()
@@ -246,10 +266,12 @@ const activeRoute = computed(() => {
   if (path.startsWith('/opportunity')) return '/opportunity'
   if (path.startsWith('/call-record')) return '/call-record'
   if (path.startsWith('/knowledge')) return '/knowledge'
+  if (path.startsWith('/prospect')) return '/prospect'
   if (path.startsWith('/sales-target')) return '/sales-target'
   if (path.startsWith('/ai/alerts')) return '/ai/alerts'
   if (path.startsWith('/ai/reports')) return '/ai/reports'
   if (path.startsWith('/audit-log')) return '/audit-log'
+  if (path.startsWith('/settings')) return '/settings'
   if (path.startsWith('/user')) return '/user'
   if (path.startsWith('/profile')) return '/profile'
   return path
@@ -271,11 +293,15 @@ const breadcrumbRouteMap: Record<string, string> = {
   商机管理: '/opportunity',
   通话记录: '/call-record',
   知识库: '/knowledge',
+  获客管理: '/prospect',
+  线索池: '/prospect',
+  搜索获客: '/prospect/search',
   目标业绩: '/sales-target',
   异常预警: '/ai/alerts',
   报告中心: '/ai/reports',
   审计日志: '/audit-log',
   用户管理: '/user',
+  系统设置: '/settings',
   个人中心: '/profile',
 }
 

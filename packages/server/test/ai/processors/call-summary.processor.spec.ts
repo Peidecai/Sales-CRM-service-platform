@@ -9,6 +9,9 @@ describe('CallSummaryProcessor', () => {
   let aiService: {
     chat: jest.Mock
   }
+  let callAnalysisService: {
+    analyzeCall: jest.Mock
+  }
 
   beforeEach(() => {
     callRecordRepository = {
@@ -18,10 +21,14 @@ describe('CallSummaryProcessor', () => {
     aiService = {
       chat: jest.fn(),
     }
+    callAnalysisService = {
+      analyzeCall: jest.fn().mockRejectedValue(new Error('analysis not available')),
+    }
 
     processor = new CallSummaryProcessor(
       callRecordRepository as never,
       aiService as never,
+      callAnalysisService as never,
       { sendToUser: jest.fn() } as never,
     )
   })

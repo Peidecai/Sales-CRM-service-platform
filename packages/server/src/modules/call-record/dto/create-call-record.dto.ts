@@ -7,8 +7,10 @@ import {
   IsUrl,
   Min,
   MaxLength,
+  IsEnum,
 } from 'class-validator'
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { CallType, CallResult } from '@crm/shared'
 
 export class CreateCallRecordDto {
   @ApiProperty({ description: 'Customer ID' })
@@ -46,4 +48,30 @@ export class CreateCallRecordDto {
   @IsUrl()
   @MaxLength(500)
   recordingUrl?: string
+
+  @ApiPropertyOptional({
+    description: '呼叫类型: normal=平台外呼, manual=手机原生外呼, callback=回呼',
+    enum: CallType,
+    default: CallType.NORMAL,
+  })
+  @IsOptional()
+  @IsEnum(CallType)
+  callType?: CallType
+
+  @ApiPropertyOptional({
+    description: '估算通话时长（秒），方案B手机原生外呼专用',
+    minimum: 0,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  estimatedDuration?: number
+
+  @ApiPropertyOptional({
+    description: '通话结果: connected/no_answer/busy/power_off',
+    enum: CallResult,
+  })
+  @IsOptional()
+  @IsEnum(CallResult)
+  callResult?: CallResult
 }
