@@ -1,9 +1,0 @@
-﻿# Task 11 / 15
-# Time: 2026-03-14 01:33:37
-# Elapsed: 190.9s  ExitCode: 1
-
-## Prompt
-请检查现有所有后端 Controller 的 API 响应格式是否统一，对齐 chapters/chapter11.md 中定义的标准：成功 { code: 200, message: "操作成功", data: T, timestamp }、分页含 pagination { page, pageSize, total, totalPages }、错误含 errors 数组。如果 ResponseInterceptor 尚未统一包装 timestamp 字段，请在 packages/server/src/common/interceptors/response.interceptor.ts 中补充。检查至少 customer/opportunity/call-record/knowledge 这四个核心模块的返回格式一致性。
-
-## Output
-API Error: 503 {"error":{"code":"model_not_found","message":"No available channel for model claude-opus-4-5 under group MAX (distributor) (request id: 2026031317333638822708gtpADrLK)","type":"new_api_error"}}

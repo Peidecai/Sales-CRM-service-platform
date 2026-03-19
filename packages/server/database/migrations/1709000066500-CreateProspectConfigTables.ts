@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner, Table, TableIndex } from 'typeorm'
 
-export class CreateProspectConfigTables1709000066000 implements MigrationInterface {
-  name = 'CreateProspectConfigTables1709000066000'
+export class CreateProspectConfigTables1709000066500 implements MigrationInterface {
+  name = 'CreateProspectConfigTables1709000066500'
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // ── prospect_data_sources 表 ──

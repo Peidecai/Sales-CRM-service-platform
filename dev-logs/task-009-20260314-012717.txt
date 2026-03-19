@@ -1,9 +1,0 @@
-﻿# Task 9 / 15
-# Time: 2026-03-14 01:27:17
-# Elapsed: 185.7s  ExitCode: 1
-
-## Prompt
-请在 packages/web/src/views/ 下创建 contract 文件夹，实现合同管理前端页面：1) index.vue 合同列表页（表格含合同编号/客户名/金额/状态/起止日期，支持分页和状态筛选）；2) detail.vue 合同详情页（展示合同信息 + 关联商机 + 回款记录）。API 调用 packages/web/src/api/contract.ts。路由注册到 router。
-
-## Output
-API Error: 503 {"error":{"code":"model_not_found","message":"No available channel for model claude-opus-4-5 under group MAX (distributor) (request id: 20260313172716103318295T9NkyzZt)","type":"new_api_error"}}

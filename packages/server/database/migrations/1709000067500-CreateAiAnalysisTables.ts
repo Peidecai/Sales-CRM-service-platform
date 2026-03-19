@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner, Table, TableIndex } from 'typeorm'
 
-export class CreateAiAnalysisTables1709000067000 implements MigrationInterface {
-  name = 'CreateAiAnalysisTables1709000067000'
+export class CreateAiAnalysisTables1709000067500 implements MigrationInterface {
+  name = 'CreateAiAnalysisTables1709000067500'
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // ── ai_analysis_configs 表 (singleton row, id=1) ──

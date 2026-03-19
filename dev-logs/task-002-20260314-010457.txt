@@ -1,9 +1,0 @@
-﻿# Task 2 / 15
-# Time: 2026-03-14 01:04:57
-# Elapsed: 188.8s  ExitCode: 1
-
-## Prompt
-请按照设计文档 chapters/chapter06.md 的合同管理部分，在 packages/server/src/modules/ 下创建 contract 模块。包含：ContractEntity（contracts 表，字段包含 opportunity_id/customer_id/contract_no/title/amount/start_date/end_date/status/signed_date/file_url 等）、ContractController（CRUD + 签署确认 + 到期预警列表）、ContractService、CreateContractDto/UpdateContractDto，以及 TypeORM Migration。控制器遵循项目 CLAUDE.md 中的守卫和审计日志规范。同时在 packages/web/src/api/ 下创建 contract.ts API 封装。
-
-## Output
-API Error: 503 {"error":{"code":"model_not_found","message":"No available channel for model claude-opus-4-5 under group MAX (distributor) (request id: 202603131704565515043767T7U5o17)","type":"new_api_error"}}

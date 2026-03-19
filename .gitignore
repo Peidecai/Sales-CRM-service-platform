@@ -68,3 +68,19 @@ playwright-report/
 
 # Temp files
 .tmp/
+
+# Dev/fix session logs
+dev-logs/
+fix-logs/
+
+# Test reports (generated)
+TEST_REPORT*.md
+
+# Automation scripts logs
+claude-*.ps1
+claude-*.txt
+fix-runner.ps1
+fix-tasks.txt
+
+# K8s secrets (use secret.example.yaml as template)
+k8s/secret.yaml

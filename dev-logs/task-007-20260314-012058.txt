@@ -1,9 +1,0 @@
-﻿# Task 7 / 15
-# Time: 2026-03-14 01:20:58
-# Elapsed: 188s  ExitCode: 1
-
-## Prompt
-请补充 packages/web/src/views/ai/ 下的 AI 分析页面功能。当前只有 2 个 Vue 文件，需要补充：1) customer-portrait.vue 客户画像页面（展示 AI 生成的客户画像，含标签云、意向评分雷达图、交互时间线）；2) intent-prediction.vue 购买意向预测页面（列表展示客户预测评分排行，支持触发重新预测）。API 调用使用已有的 packages/web/src/api/ai.ts。确保新页面注册路由。
-
-## Output
-API Error: 503 {"error":{"code":"model_not_found","message":"No available channel for model claude-opus-4-5 under group MAX (distributor) (request id: 20260313172057764774590ZeUXbCf2)","type":"new_api_error"}}

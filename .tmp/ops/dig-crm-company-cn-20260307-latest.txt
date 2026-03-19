@@ -1,4 +1,0 @@
-;; communications error to 192.168.65.7#53: timed out
-;; communications error to 192.168.65.7#53: timed out
-;; communications error to 192.168.65.7#53: timed out
-;; no servers could be reached
