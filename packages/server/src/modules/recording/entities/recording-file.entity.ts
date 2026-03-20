@@ -16,7 +16,7 @@ export class RecordingFile {
   id!: number
 
   @Index()
-  @Column({ name: 'call_record_id', comment: '通话记录ID', nullable: true })
+  @Column({ type: 'int', name: 'call_record_id', comment: '通话记录ID', nullable: true })
   callRecordId!: number | null
 
   @Column({ type: 'varchar', name: 'file_name', length: 255, nullable: true })
@@ -42,9 +42,27 @@ export class RecordingFile {
     type: 'enum',
     enum: RecordingSourceType,
     default: RecordingSourceType.PLATFORM,
-    comment: '录音来源: platform=平台录音, voice_memo=语音速记',
+    comment: '录音来源: platform=平台录音, voice_memo=语音速记, manual_upload=手动上传',
   })
   sourceType!: RecordingSourceType
+
+  @Column({
+    type: 'varchar',
+    name: 'counterpart_phone',
+    length: 20,
+    nullable: true,
+    comment: '对方电话号码',
+  })
+  counterpartPhone!: string | null
+
+  @Column({ type: 'datetime', name: 'actual_call_time', nullable: true, comment: '实际通话时间' })
+  actualCallTime!: Date | null
+
+  @Column({ type: 'int', name: 'uploaded_by_id', nullable: true, comment: '上传人ID' })
+  uploadedById!: number | null
+
+  @Column({ type: 'text', nullable: true, comment: '备注' })
+  notes!: string | null
 
   @CreateDateColumn({ name: 'created_at', type: 'datetime', precision: 6 })
   createdAt!: Date

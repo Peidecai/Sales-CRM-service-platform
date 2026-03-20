@@ -11,6 +11,7 @@ import { DataSource } from 'typeorm'
 import { InjectQueue } from '@nestjs/bull'
 import { Queue } from 'bull'
 import { KnowledgeArticle } from './entities/knowledge-article.entity'
+import { KnowledgeArticleVersion } from './entities/knowledge-article-version.entity'
 import { KnowledgeCategory } from './entities/knowledge-category.entity'
 import { KnowledgeCategoryType, ArticleStatus } from '@crm/shared'
 import { ArticleLike } from './entities/article-like.entity'
@@ -67,6 +68,8 @@ export class KnowledgeService {
     private readonly articleRepository: Repository<KnowledgeArticle>,
     @InjectRepository(KnowledgeCategory)
     private readonly categoryRepository: Repository<KnowledgeCategory>,
+    @InjectRepository(KnowledgeArticleVersion)
+    private readonly versionRepository: Repository<KnowledgeArticleVersion>,
     private readonly dataSource: DataSource,
     @InjectRepository(ArticleLike)
     private readonly likeRepository: Repository<ArticleLike>,
@@ -220,9 +223,23 @@ export class KnowledgeService {
     return article
   }
 
-  async updateArticle(id: number, dto: UpdateArticleDto): Promise<KnowledgeArticle> {
+  async updateArticle(
+    id: number,
+    dto: UpdateArticleDto,
+    editedById?: number,
+  ): Promise<KnowledgeArticle> {
     const article = await this.findOneArticle(id)
     const oldVersion = article.version ?? 0
+
+    // Create version snapshot before update
+    const versionSnapshot = this.versionRepository.create({
+      articleId: id,
+      version: oldVersion,
+      title: article.title,
+      content: article.content,
+      editedById: editedById ?? article.authorId,
+    })
+    await this.versionRepository.save(versionSnapshot)
 
     Object.assign(article, dto)
     article.version = oldVersion + 1
@@ -610,6 +627,31 @@ export class KnowledgeService {
     })
 
     return { answer, sources }
+  }
+
+  // ---- Version History Methods ----
+
+  async getVersionHistory(articleId: number): Promise<KnowledgeArticleVersion[]> {
+    return this.versionRepository.find({
+      where: { articleId },
+      order: { version: 'DESC' },
+    })
+  }
+
+  async getVersion(versionId: number): Promise<KnowledgeArticleVersion> {
+    const version = await this.versionRepository.findOne({ where: { id: versionId } })
+    if (!version) {
+      throw new NotFoundException(`Version with ID ${versionId} not found`)
+    }
+    return version
+  }
+
+  async diffVersions(
+    v1Id: number,
+    v2Id: number,
+  ): Promise<{ v1: KnowledgeArticleVersion; v2: KnowledgeArticleVersion }> {
+    const [v1, v2] = await Promise.all([this.getVersion(v1Id), this.getVersion(v2Id)])
+    return { v1, v2 }
   }
 
   // ---- Private Helpers ----

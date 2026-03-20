@@ -117,4 +117,27 @@ export class CallRecord extends BaseEntity {
     comment: '通话结果',
   })
   callResult!: CallResult | null
+
+  @Column({
+    type: 'boolean',
+    name: 'is_manual_upload',
+    default: false,
+    comment: '是否手动上传录音',
+  })
+  isManualUpload!: boolean
+
+  @Column({ name: 'sim_slot', type: 'int', nullable: true, comment: '使用的 SIM 卡槽位' })
+  simSlot!: number | null
+
+  @Column({
+    name: 'sim_number',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+    comment: '使用的 SIM 卡号码',
+  })
+  simNumber!: string | null
+
+  @Column({ name: 'sim_carrier', type: 'varchar', length: 20, nullable: true, comment: '运营商' })
+  simCarrier!: string | null
 }

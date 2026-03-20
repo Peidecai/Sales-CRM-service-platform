@@ -28,6 +28,7 @@ export class AnnouncementService {
     content?: string
     priority?: AnnouncementPriority
     isPinned?: boolean
+    forceRead?: boolean
     channels?: AnnouncementChannel[]
     targetRoles?: string[]
     publishAt?: Date
@@ -104,5 +105,44 @@ export class AnnouncementService {
       .andWhere('r.id IS NULL')
       .getCount()
     return count
+  }
+
+  async getReadStats(
+    announcementId: number,
+  ): Promise<{ totalUsers: number; readCount: number; readRate: number }> {
+    await this.findOne(announcementId) // ensure exists
+    const readCount = await this.readRepository.count({ where: { announcementId } })
+    // Simple approximation: count distinct users who have read any announcement
+    const totalUsers =
+      (await this.readRepository
+        .createQueryBuilder('r')
+        .select('COUNT(DISTINCT r.user_id)', 'count')
+        .getRawOne()
+        .then((r) => parseInt(String(r?.count ?? '0'), 10))) || 1
+    const readRate = totalUsers > 0 ? Math.round((readCount / totalUsers) * 100) : 0
+    return { totalUsers, readCount, readRate }
+  }
+
+  async getUnreadAnnouncements(userId: number): Promise<Announcement[]> {
+    return this.announcementRepository
+      .createQueryBuilder('a')
+      .leftJoin('announcement_reads', 'r', 'r.announcement_id = a.id AND r.user_id = :userId', {
+        userId,
+      })
+      .where('r.id IS NULL')
+      .orderBy('a.createdAt', 'DESC')
+      .getMany()
+  }
+
+  async getForceUnread(userId: number): Promise<Announcement[]> {
+    return this.announcementRepository
+      .createQueryBuilder('a')
+      .leftJoin('announcement_reads', 'r', 'r.announcement_id = a.id AND r.user_id = :userId', {
+        userId,
+      })
+      .where('r.id IS NULL')
+      .andWhere('a.forceRead = :forceRead', { forceRead: true })
+      .orderBy('a.createdAt', 'DESC')
+      .getMany()
   }
 }

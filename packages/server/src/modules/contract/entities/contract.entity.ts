@@ -76,6 +76,12 @@ export class Contract extends BaseEntity {
   @Column({ name: 'parent_contract_id', type: 'int', nullable: true })
   parentContractId!: number | null
 
+  @Column({ name: 'original_contract_id', type: 'int', nullable: true })
+  originalContractId!: number | null
+
+  @Column({ name: 'renewed_at', type: 'datetime', nullable: true })
+  renewedAt!: Date | null
+
   @Column({ type: 'json', nullable: true })
   attachments!: Record<string, unknown>[] | null
 

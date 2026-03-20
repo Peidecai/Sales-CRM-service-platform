@@ -20,6 +20,6 @@ import { UserModule } from '../user/user.module'
   ],
   controllers: [SalesTargetController],
   providers: [SalesTargetService, SalesTargetScheduler],
-  exports: [SalesTargetService],
+  exports: [SalesTargetService, TypeOrmModule],
 })
 export class SalesTargetModule {}

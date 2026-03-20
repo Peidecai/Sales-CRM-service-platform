@@ -21,13 +21,73 @@
           <el-icon><HomeFilled /></el-icon>
           <template #title> 工作台 </template>
         </el-menu-item>
-        <el-menu-item index="/customer">
-          <el-icon><User /></el-icon>
-          <template #title> 客户管理 </template>
-        </el-menu-item>
+        <el-sub-menu index="/customer">
+          <template #title>
+            <el-icon><User /></el-icon>
+            <span>客户管理</span>
+          </template>
+          <el-menu-item index="/customer">
+            <template #title> 客户列表 </template>
+          </el-menu-item>
+          <el-menu-item index="/customer/groups">
+            <template #title> 客户分组 </template>
+          </el-menu-item>
+        </el-sub-menu>
         <el-menu-item index="/opportunity">
           <el-icon><TrendCharts /></el-icon>
           <template #title> 商机管理 </template>
+        </el-menu-item>
+        <el-menu-item index="/product">
+          <el-icon><Box /></el-icon>
+          <template #title> 产品管理 </template>
+        </el-menu-item>
+        <el-menu-item index="/signing">
+          <el-icon><Stamp /></el-icon>
+          <template #title> 签约促成 </template>
+        </el-menu-item>
+        <el-sub-menu index="/contract">
+          <template #title>
+            <el-icon><Document /></el-icon>
+            <span>合同管理</span>
+          </template>
+          <el-menu-item index="/contract">
+            <template #title> 合同列表 </template>
+          </el-menu-item>
+          <el-menu-item v-if="isAdminOrManager" index="/contract/templates">
+            <template #title> 合同模板 </template>
+          </el-menu-item>
+        </el-sub-menu>
+        <el-sub-menu index="/payment">
+          <template #title>
+            <el-icon><Money /></el-icon>
+            <span>回款管理</span>
+          </template>
+          <el-menu-item index="/payment">
+            <template #title> 回款列表 </template>
+          </el-menu-item>
+          <el-menu-item index="/payment/overdue">
+            <template #title> 逾期回款 </template>
+          </el-menu-item>
+          <el-menu-item index="/payment/statistics">
+            <template #title> 回款统计 </template>
+          </el-menu-item>
+          <el-menu-item index="/payment-plans">
+            <template #title> 回款计划 </template>
+          </el-menu-item>
+          <el-menu-item index="/payment-dashboard">
+            <template #title> 回款仪表盘 </template>
+          </el-menu-item>
+          <el-menu-item v-if="isAdminOrManager" index="/bank-statements">
+            <template #title> 银行流水 </template>
+          </el-menu-item>
+        </el-sub-menu>
+        <el-menu-item index="/service">
+          <el-icon><Service /></el-icon>
+          <template #title> 服务管理 </template>
+        </el-menu-item>
+        <el-menu-item index="/post-loan">
+          <el-icon><Coin /></el-icon>
+          <template #title> 贷后管理 </template>
         </el-menu-item>
         <el-menu-item index="/call-record">
           <el-icon><Phone /></el-icon>
@@ -37,6 +97,36 @@
           <el-icon><Collection /></el-icon>
           <template #title> 知识库 </template>
         </el-menu-item>
+        <el-menu-item index="/forum">
+          <el-icon><ChatRound /></el-icon>
+          <template #title> 企业论坛 </template>
+        </el-menu-item>
+        <el-menu-item index="/speech">
+          <el-icon><ChatDotRound /></el-icon>
+          <template #title> 话术管理 </template>
+        </el-menu-item>
+        <el-menu-item index="/negotiation">
+          <el-icon><Histogram /></el-icon>
+          <template #title> 谈判分析 </template>
+        </el-menu-item>
+        <el-sub-menu index="/training">
+          <template #title>
+            <el-icon><VideoPlay /></el-icon>
+            <span>学习培训</span>
+          </template>
+          <el-menu-item index="/training/videos">
+            <template #title> 视频课程 </template>
+          </el-menu-item>
+          <el-menu-item index="/training/tasks">
+            <template #title> 学习任务 </template>
+          </el-menu-item>
+          <el-menu-item v-if="isAdminOrManager" index="/training/manage">
+            <template #title> 视频管理 </template>
+          </el-menu-item>
+          <el-menu-item v-if="isAdminOrManager" index="/training/statistics">
+            <template #title> 培训统计 </template>
+          </el-menu-item>
+        </el-sub-menu>
         <el-sub-menu index="/prospect">
           <template #title>
             <el-icon><Magnet /></el-icon>
@@ -53,6 +143,73 @@
           <el-icon><Aim /></el-icon>
           <template #title> 目标业绩 </template>
         </el-menu-item>
+        <el-menu-item index="/pk">
+          <el-icon><Trophy /></el-icon>
+          <template #title> 销售PK </template>
+        </el-menu-item>
+        <el-sub-menu index="/exam">
+          <template #title>
+            <el-icon><Reading /></el-icon>
+            <span>在线考试</span>
+          </template>
+          <el-menu-item v-if="isAdminOrManager" index="/exam/questions">
+            <template #title> 题库管理 </template>
+          </el-menu-item>
+          <el-menu-item v-if="isAdminOrManager" index="/exam/papers">
+            <template #title> 试卷管理 </template>
+          </el-menu-item>
+          <el-menu-item index="/exam/my">
+            <template #title> 我的考试 </template>
+          </el-menu-item>
+          <el-menu-item v-if="isAdminOrManager" index="/exam/statistics">
+            <template #title> 考试统计 </template>
+          </el-menu-item>
+        </el-sub-menu>
+        <el-sub-menu index="/report">
+          <template #title>
+            <el-icon><DataLine /></el-icon>
+            <span>智能报表</span>
+          </template>
+          <el-menu-item index="/report/call/statistics">
+            <template #title> 通话报表 </template>
+          </el-menu-item>
+          <el-menu-item index="/report/performance/overview">
+            <template #title> 业绩报表 </template>
+          </el-menu-item>
+          <el-menu-item index="/report/ai/speech-skill">
+            <template #title> AI 分析 </template>
+          </el-menu-item>
+          <el-menu-item index="/report/funnel/sales">
+            <template #title> 漏斗转化 </template>
+          </el-menu-item>
+        </el-sub-menu>
+        <el-sub-menu v-if="isAdminOrManager" index="/screen">
+          <template #title>
+            <el-icon><Monitor /></el-icon>
+            <span>数据大屏</span>
+          </template>
+          <el-menu-item index="/screen/performance">
+            <template #title> 业绩大屏 </template>
+          </el-menu-item>
+          <el-menu-item index="/screen/cockpit">
+            <template #title> 驾驶舱 </template>
+          </el-menu-item>
+        </el-sub-menu>
+        <el-sub-menu index="/assistant">
+          <template #title>
+            <el-icon><List /></el-icon>
+            <span>业务助手</span>
+          </template>
+          <el-menu-item index="/todo">
+            <template #title> 待办事项 </template>
+          </el-menu-item>
+          <el-menu-item index="/annotation">
+            <template #title> 批注管理 </template>
+          </el-menu-item>
+          <el-menu-item index="/annotation/my">
+            <template #title> 我的批注 </template>
+          </el-menu-item>
+        </el-sub-menu>
         <el-sub-menu index="/ai">
           <template #title>
             <el-icon><MagicStick /></el-icon>
@@ -60,6 +217,9 @@
           </template>
           <el-menu-item index="/ai/alerts">
             <template #title> 异常预警 </template>
+          </el-menu-item>
+          <el-menu-item index="/ai/reminders">
+            <template #title> AI 助手 </template>
           </el-menu-item>
           <el-menu-item index="/ai/reports">
             <template #title> 报告中心 </template>
@@ -73,10 +233,40 @@
           <el-icon><Setting /></el-icon>
           <template #title> 用户管理 </template>
         </el-menu-item>
+        <el-menu-item v-if="isAdmin" index="/cloud-call/settings">
+          <el-icon><Headset /></el-icon>
+          <template #title> 云呼设置 </template>
+        </el-menu-item>
         <el-menu-item v-if="isAdmin" index="/settings">
           <el-icon><Tools /></el-icon>
           <template #title> 系统设置 </template>
         </el-menu-item>
+        <el-menu-item v-if="isAdmin" index="/settings/roles">
+          <el-icon><UserFilled /></el-icon>
+          <template #title> 角色管理 </template>
+        </el-menu-item>
+        <el-menu-item v-if="isAdmin" index="/settings/data-masking">
+          <el-icon><Hide /></el-icon>
+          <template #title> 数据脱敏 </template>
+        </el-menu-item>
+        <el-sub-menu v-if="isAdmin" index="/settings/ai">
+          <template #title>
+            <el-icon><Cpu /></el-icon>
+            <span>AI 设置</span>
+          </template>
+          <el-menu-item index="/settings/ai">
+            <template #title> 模型配置 </template>
+          </el-menu-item>
+          <el-menu-item index="/settings/ai/prompts">
+            <template #title> 提示词管理 </template>
+          </el-menu-item>
+          <el-menu-item index="/settings/ai/playground">
+            <template #title> AI 测试 </template>
+          </el-menu-item>
+          <el-menu-item index="/settings/ai/usage">
+            <template #title> 用量统计 </template>
+          </el-menu-item>
+        </el-sub-menu>
       </el-menu>
     </el-aside>
 
@@ -184,7 +374,9 @@
             </Transition>
           </RouterView>
         </ErrorBoundary>
+        <ForceReadDialog />
       </el-main>
+      <AiCopilot />
     </el-container>
   </el-container>
 </template>
@@ -211,11 +403,31 @@ import {
   MagicStick,
   Magnet,
   Tools,
+  Headset,
+  UserFilled,
+  Box,
+  Hide,
+  DataLine,
+  Monitor,
+  Money,
+  Coin,
+  ChatDotRound,
+  ChatRound,
+  Histogram,
+  Service,
+  Cpu,
+  Reading,
+  Trophy,
+  VideoPlay,
+  Stamp,
+  List,
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { usePermission } from '@/composables/usePermission'
 import { useNotification, type NotificationPayload } from '@/composables/useNotification'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
+import ForceReadDialog from '@/components/ForceReadDialog.vue'
+import AiCopilot from '@/components/AiCopilot/AiCopilot.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -262,15 +474,50 @@ function handleNotificationClick(item: NotificationPayload) {
 const activeRoute = computed(() => {
   // For detail pages, highlight the parent menu item
   const path = route.path
+  if (path.startsWith('/customer/groups')) return '/customer/groups'
   if (path.startsWith('/customer')) return '/customer'
   if (path.startsWith('/opportunity')) return '/opportunity'
+  if (path.startsWith('/product')) return '/product'
+  if (path.startsWith('/signing')) return '/signing'
+  if (path.startsWith('/contract/templates')) return '/contract/templates'
+  if (path.startsWith('/contract')) return '/contract'
+  if (path.startsWith('/payment/overdue')) return '/payment/overdue'
+  if (path.startsWith('/payment/statistics')) return '/payment/statistics'
+  if (path.startsWith('/payment')) return '/payment'
+  if (path.startsWith('/post-loan')) return '/post-loan'
+  if (path.startsWith('/service')) return '/service'
   if (path.startsWith('/call-record')) return '/call-record'
   if (path.startsWith('/knowledge')) return '/knowledge'
+  if (path.startsWith('/forum')) return '/forum'
+  if (path.startsWith('/speech')) return '/speech'
+  if (path.startsWith('/negotiation')) return '/negotiation'
+  if (path.startsWith('/training')) return path.replace(/\/\d+$/, '')
+  if (path.startsWith('/prospect/search')) return '/prospect/search'
   if (path.startsWith('/prospect')) return '/prospect'
   if (path.startsWith('/sales-target')) return '/sales-target'
+  if (path.startsWith('/todo')) return '/todo'
+  if (path.startsWith('/annotation/my')) return '/annotation/my'
+  if (path.startsWith('/annotation')) return '/annotation'
+  if (path.startsWith('/notification/settings')) return '/notification/settings'
+  if (path.startsWith('/pk')) return '/pk'
+  if (path.startsWith('/exam/questions')) return '/exam/questions'
+  if (path.startsWith('/exam/papers')) return '/exam/papers'
+  if (path.startsWith('/exam/statistics')) return '/exam/statistics'
+  if (path.startsWith('/exam')) return '/exam/my'
+  if (path.startsWith('/report')) return path
+  if (path.startsWith('/screen')) return path
   if (path.startsWith('/ai/alerts')) return '/ai/alerts'
+  if (path.startsWith('/ai/reminders')) return '/ai/reminders'
+  if (path.startsWith('/ai/employee-profile')) return '/ai/reports'
   if (path.startsWith('/ai/reports')) return '/ai/reports'
   if (path.startsWith('/audit-log')) return '/audit-log'
+  if (path.startsWith('/cloud-call')) return '/cloud-call/settings'
+  if (path.startsWith('/settings/roles')) return '/settings/roles'
+  if (path.startsWith('/settings/data-masking')) return '/settings/data-masking'
+  if (path.startsWith('/settings/ai/prompts')) return '/settings/ai/prompts'
+  if (path.startsWith('/settings/ai/playground')) return '/settings/ai/playground'
+  if (path.startsWith('/settings/ai/usage')) return '/settings/ai/usage'
+  if (path.startsWith('/settings/ai')) return '/settings/ai'
   if (path.startsWith('/settings')) return '/settings'
   if (path.startsWith('/user')) return '/user'
   if (path.startsWith('/profile')) return '/profile'
@@ -290,19 +537,58 @@ const breadcrumbs = computed(() => {
 
 const breadcrumbRouteMap: Record<string, string> = {
   客户管理: '/customer',
+  客户分组: '/customer/groups',
   商机管理: '/opportunity',
+  产品管理: '/product',
+  合同管理: '/contract',
+  合同模板: '/contract/templates',
+  回款管理: '/payment',
+  逾期回款: '/payment/overdue',
+  回款统计: '/payment/statistics',
+  贷后管理: '/post-loan',
+  服务管理: '/service',
   通话记录: '/call-record',
   知识库: '/knowledge',
+  企业论坛: '/forum',
+  话术管理: '/speech',
+  谈判分析: '/negotiation',
+  学习培训: '/training/videos',
+  视频课程: '/training/videos',
+  视频管理: '/training/manage',
+  学习任务: '/training/tasks',
+  培训统计: '/training/statistics',
   获客管理: '/prospect',
   线索池: '/prospect',
   搜索获客: '/prospect/search',
   目标业绩: '/sales-target',
+  销售PK: '/pk',
+  在线考试: '/exam/my',
+  题库管理: '/exam/questions',
+  试卷管理: '/exam/papers',
+  我的考试: '/exam/my',
+  考试统计: '/exam/statistics',
   异常预警: '/ai/alerts',
+  'AI 助手': '/ai/reminders',
   报告中心: '/ai/reports',
+  员工画像: '/ai/employee-profile',
   审计日志: '/audit-log',
   用户管理: '/user',
+  云呼设置: '/cloud-call/settings',
   系统设置: '/settings',
+  角色管理: '/settings/roles',
+  数据脱敏: '/settings/data-masking',
+  'AI 模型配置': '/settings/ai',
+  'AI 提示词': '/settings/ai/prompts',
+  'AI 测试': '/settings/ai/playground',
+  'AI 用量统计': '/settings/ai/usage',
   个人中心: '/profile',
+  业务助手: '/todo',
+  待办事项: '/todo',
+  批注管理: '/annotation',
+  我的批注: '/annotation/my',
+  通知设置: '/notification/settings',
+  智能报表: '/report',
+  数据大屏: '/screen/performance',
 }
 
 function getBreadcrumbRoute(crumb: string): { path: string } | undefined {
@@ -314,13 +600,17 @@ async function handleCommand(command: string) {
   if (command === 'profile') {
     router.push({ name: 'Profile' })
   } else if (command === 'logout') {
-    await ElMessageBox.confirm('确定要退出登录吗？', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
-    userStore.logout()
-    router.push({ name: 'Login' })
+    try {
+      await ElMessageBox.confirm('确定要退出登录吗？', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      })
+      userStore.logout()
+      router.push({ name: 'Login' })
+    } catch {
+      // user cancelled
+    }
   }
 }
 </script>

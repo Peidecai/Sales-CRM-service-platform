@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { DirectiveBinding, ObjectDirective } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
+import { UserRole } from '@crm/shared'
 import { useUserStore } from '@/stores/user'
 import { setupPermissionDirective } from './permission'
 
@@ -21,7 +22,7 @@ describe('permission directive', () => {
   it('removes element in mounted hook when role does not match', () => {
     const directive = getRegisteredDirective()
     const userStore = useUserStore()
-    userStore.userInfo = { id: 1, username: 'sales', name: 'Sales User', role: 'sales' }
+    userStore.userInfo = { id: 1, username: 'sales', name: 'Sales User', role: UserRole.SALES }
 
     const removeChild = vi.fn()
     const el = { parentNode: { removeChild } } as unknown as HTMLElement
@@ -35,7 +36,7 @@ describe('permission directive', () => {
   it('keeps element in mounted hook when role matches', () => {
     const directive = getRegisteredDirective()
     const userStore = useUserStore()
-    userStore.userInfo = { id: 2, username: 'admin', name: 'Admin', role: 'admin' }
+    userStore.userInfo = { id: 2, username: 'admin', name: 'Admin', role: UserRole.ADMIN }
 
     const removeChild = vi.fn()
     const el = { parentNode: { removeChild } } as unknown as HTMLElement
@@ -49,7 +50,7 @@ describe('permission directive', () => {
   it('removes element in updated hook for array role mismatch', () => {
     const directive = getRegisteredDirective()
     const userStore = useUserStore()
-    userStore.userInfo = { id: 3, username: 'sales', name: 'Sales', role: 'sales' }
+    userStore.userInfo = { id: 3, username: 'sales', name: 'Sales', role: UserRole.SALES }
 
     const removeChild = vi.fn()
     const el = { parentNode: { removeChild } } as unknown as HTMLElement
@@ -63,7 +64,7 @@ describe('permission directive', () => {
   it('does not throw when parentNode is missing', () => {
     const directive = getRegisteredDirective()
     const userStore = useUserStore()
-    userStore.userInfo = { id: 4, username: 'sales', name: 'Sales', role: 'sales' }
+    userStore.userInfo = { id: 4, username: 'sales', name: 'Sales', role: UserRole.SALES }
 
     const el = { parentNode: null } as unknown as HTMLElement
     const binding = { value: 'admin' } as DirectiveBinding<string | string[]>

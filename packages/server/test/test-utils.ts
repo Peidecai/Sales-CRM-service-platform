@@ -10,6 +10,11 @@ import {
   ContractStatus,
   ContractType,
   QuotationStatus,
+  PostLoanStatus,
+  RepaymentStatus,
+  ServiceType,
+  ServiceStatus,
+  ServicePriority,
 } from '@crm/shared'
 import { CampaignTaskStatus } from '../src/modules/campaign/entities/campaign-task.entity'
 import { CampaignCallStatus } from '../src/modules/campaign/entities/campaign-call-item.entity'
@@ -140,6 +145,13 @@ export interface MockRedisService {
   zAdd: jest.Mock
   zRem: jest.Mock
   zRangeByScore: jest.Mock
+  hSet: jest.Mock
+  hGet: jest.Mock
+  hGetAll: jest.Mock
+  zRemRangeByRank: jest.Mock
+  zRevRange: jest.Mock
+  setBit: jest.Mock
+  getBit: jest.Mock
 }
 
 export function createMockRedisService(): MockRedisService {
@@ -158,6 +170,13 @@ export function createMockRedisService(): MockRedisService {
     zAdd: jest.fn().mockResolvedValue(1),
     zRem: jest.fn().mockResolvedValue(0),
     zRangeByScore: jest.fn().mockResolvedValue([]),
+    hSet: jest.fn().mockResolvedValue(undefined),
+    hGet: jest.fn().mockResolvedValue(null),
+    hGetAll: jest.fn().mockResolvedValue({}),
+    zRemRangeByRank: jest.fn().mockResolvedValue(0),
+    zRevRange: jest.fn().mockResolvedValue([]),
+    setBit: jest.fn().mockResolvedValue(0),
+    getBit: jest.fn().mockResolvedValue(0),
   }
 }
 
@@ -464,6 +483,61 @@ export const fixtures = {
     dialAt: null as Date | null,
     completedAt: null as Date | null,
     createdAt: new Date('2025-01-01'),
+    ...overrides,
+  }),
+
+  postLoan: (overrides: Record<string, unknown> = {}) => ({
+    id: 1,
+    contractId: 1,
+    customerId: 1,
+    loanAmount: 100000,
+    disbursedAt: new Date('2025-01-15'),
+    status: PostLoanStatus.NORMAL,
+    creditRating: null as string | null,
+    createdBy: 1,
+    createdAt: new Date('2025-01-01'),
+    updatedAt: new Date('2025-01-01'),
+    deletedAt: null,
+    ...overrides,
+  }),
+
+  repaymentPlan: (overrides: Record<string, unknown> = {}) => ({
+    id: 1,
+    postLoanId: 1,
+    period: 1,
+    dueDate: '2025-02-15',
+    amount: 10000,
+    paidAmount: 0,
+    paidAt: null as Date | null,
+    status: RepaymentStatus.PENDING,
+    createdAt: new Date('2025-01-01'),
+    updatedAt: new Date('2025-01-01'),
+    deletedAt: null,
+    ...overrides,
+  }),
+
+  serviceRecord: (overrides: Record<string, unknown> = {}) => ({
+    id: 1,
+    title: 'Test Service Record',
+    description: 'Test description',
+    type: ServiceType.COMPLAINT,
+    status: ServiceStatus.PENDING,
+    priority: ServicePriority.MEDIUM,
+    customerId: 1,
+    contractId: null,
+    assigneeId: 1,
+    createdBy: 1,
+    resolution: null,
+    satisfactionScore: null,
+    satisfactionComment: null,
+    slaResponseDeadline: new Date('2025-01-01T09:00:00Z'),
+    slaResolveDeadline: new Date('2025-01-04T01:00:00Z'),
+    respondedAt: null,
+    resolvedAt: null,
+    closedAt: null,
+    createdAt: new Date('2025-01-01'),
+    updatedAt: new Date('2025-01-01'),
+    deletedAt: null,
     ...overrides,
   }),
 }

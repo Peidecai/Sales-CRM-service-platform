@@ -298,6 +298,7 @@ export enum ContractStatus {
   COMPLETED = "completed",
   TERMINATED = "terminated",
   CANCELLED = "cancelled",
+  RENEWED = "renewed",
 }
 
 /**
@@ -376,4 +377,286 @@ export enum CallResult {
 export enum RecordingSourceType {
   PLATFORM = "platform", // 平台录音（阿里云CCC）
   VOICE_MEMO = "voice_memo", // 语音速记（方案B）
+  MANUAL_UPLOAD = "manual_upload", // 手动上传录音
+}
+
+/**
+ * 产品状态枚举
+ */
+/**
+ * 贷后状态
+ */
+export enum PostLoanStatus {
+  NORMAL = "normal",
+  OVERDUE = "overdue",
+  SETTLED = "settled",
+  BAD_DEBT = "bad_debt",
+}
+
+/**
+ * 还款计划状态
+ */
+export enum RepaymentStatus {
+  PENDING = "pending",
+  PAID = "paid",
+  OVERDUE = "overdue",
+  PARTIAL = "partial",
+}
+
+/**
+ * 话术模板状态
+ */
+export enum SpeechTemplateStatus {
+  DRAFT = "draft",
+  PUBLISHED = "published",
+  ARCHIVED = "archived",
+}
+
+/**
+ * 话术分类编码
+ */
+export enum SpeechCategoryCode {
+  OPENING = "opening",
+  OBJECTION = "objection",
+  CLOSING = "closing",
+  PRODUCT = "product",
+  RETENTION = "retention",
+  OTHER = "other",
+}
+
+export enum ProductStatus {
+  ACTIVE = "active",
+  INACTIVE = "inactive",
+  DISCONTINUED = "discontinued",
+}
+
+/**
+ * 谈判分析状态
+ */
+export enum NegotiationStatus {
+  PENDING = "pending",
+  PROCESSING = "processing",
+  COMPLETED = "completed",
+  FAILED = "failed",
+}
+
+/**
+ * 谈判结果
+ */
+export enum NegotiationOutcome {
+  WON = "won",
+  LOST = "lost",
+  PENDING = "pending",
+  UNKNOWN = "unknown",
+}
+
+/**
+ * 谈判策略
+ */
+/**
+ * AI 商机提醒类型
+ */
+export enum AiReminderType {
+  SCORE_CHANGE = "score_change",
+  RISK_ALERT = "risk_alert",
+  NEXT_ACTION = "next_action",
+  COMPETITOR_MENTION = "competitor_mention",
+  FOLLOW_UP_SCHEDULE = "follow_up_schedule",
+  STAGNANT = "stagnant",
+}
+
+/**
+ * AI 提醒优先级
+ */
+export enum AiReminderPriority {
+  LOW = "low",
+  MEDIUM = "medium",
+  HIGH = "high",
+  URGENT = "urgent",
+}
+
+/**
+ * AI 提醒反馈
+ */
+export enum AiReminderFeedback {
+  HELPFUL = "helpful",
+  NOT_HELPFUL = "not_helpful",
+  ACTED_ON = "acted_on",
+  DISMISSED = "dismissed",
+}
+
+export enum NegotiationStrategy {
+  COMPETITIVE = "competitive",
+  COLLABORATIVE = "collaborative",
+  COMPROMISE = "compromise",
+  AVOIDANT = "avoidant",
+}
+
+/**
+ * 服务记录类型
+ */
+export enum ServiceType {
+  COMPLAINT = "complaint",
+  CONSULTATION = "consultation",
+  MAINTENANCE = "maintenance",
+  RETURN = "return",
+}
+
+/**
+ * 服务记录状态
+ */
+export enum ServiceStatus {
+  PENDING = "pending",
+  PROCESSING = "processing",
+  RESOLVED = "resolved",
+  CLOSED = "closed",
+}
+
+/**
+ * 服务记录优先级
+ */
+export enum ServicePriority {
+  LOW = "low",
+  MEDIUM = "medium",
+  HIGH = "high",
+  URGENT = "urgent",
+}
+
+/**
+ * 题目类型
+ */
+export enum QuestionType {
+  SINGLE_CHOICE = "single_choice",
+  MULTI_CHOICE = "multi_choice",
+  TRUE_FALSE = "true_false",
+  FILL_BLANK = "fill_blank",
+}
+
+/**
+ * 考试会话状态
+ */
+export enum ExamSessionStatus {
+  NOT_STARTED = "not_started",
+  IN_PROGRESS = "in_progress",
+  SUBMITTED = "submitted",
+  GRADED = "graded",
+}
+
+/**
+ * PK 类型
+ */
+export enum PkType {
+  ONE_ON_ONE = "one_on_one",
+  TEAM_VS_TEAM = "team_vs_team",
+}
+
+/**
+ * PK 状态
+ */
+export enum PkStatus {
+  PENDING = "pending",
+  ACTIVE = "active",
+  FINISHED = "finished",
+  CANCELLED = "cancelled",
+}
+
+/**
+ * PK 指标
+ */
+export enum PkMetric {
+  REVENUE = "revenue",
+  DEAL_COUNT = "deal_count",
+  CALL_COUNT = "call_count",
+  NEW_CUSTOMER = "new_customer",
+  COLLECTION = "collection",
+}
+
+/**
+ * PK 结果
+ */
+export enum PkResult {
+  TEAM_A_WIN = "team_a_win",
+  TEAM_B_WIN = "team_b_win",
+  DRAW = "draw",
+}
+
+/**
+ * 签约流程状态
+ */
+export enum SigningStatus {
+  DRAFT = "draft",
+  INTERNAL_REVIEW = "internal_review",
+  SENT_TO_CUSTOMER = "sent_to_customer",
+  CUSTOMER_SIGNED = "customer_signed",
+  COMPLETED = "completed",
+  CANCELLED = "cancelled",
+}
+
+/**
+ * 回款计划行项状态
+ */
+export enum PaymentPlanItemStatus {
+  PENDING = "pending",
+  PAID = "paid",
+  PARTIAL = "partial",
+  OVERDUE = "overdue",
+  BAD_DEBT = "bad_debt",
+}
+
+/**
+ * 银行流水匹配状态
+ */
+export enum BankStatementMatchStatus {
+  UNMATCHED = "unmatched",
+  AUTO_MATCHED = "auto_matched",
+  MANUAL_MATCHED = "manual_matched",
+}
+
+/**
+ * SIM 运营商
+ */
+export enum SimCarrier {
+  CHINA_MOBILE = "china_mobile",
+  CHINA_UNICOM = "china_unicom",
+  CHINA_TELECOM = "china_telecom",
+  UNKNOWN = "unknown",
+}
+
+/**
+ * 待办优先级
+ */
+export enum TodoPriority {
+  HIGH = "high",
+  MEDIUM = "medium",
+  LOW = "low",
+}
+
+/**
+ * 待办分类
+ */
+export enum TodoCategory {
+  FOLLOW_UP = "follow_up",
+  CALL = "call",
+  MEETING = "meeting",
+  OTHER = "other",
+}
+
+/**
+ * 待办状态
+ */
+export enum TodoStatus {
+  PENDING = "pending",
+  COMPLETED = "completed",
+  CANCELLED = "cancelled",
+  OVERDUE = "overdue",
+}
+
+/**
+ * 批注目标类型
+ */
+export enum AnnotationTargetType {
+  CUSTOMER = "customer",
+  OPPORTUNITY = "opportunity",
+  CALL_RECORD = "call_record",
+  CONTRACT = "contract",
 }

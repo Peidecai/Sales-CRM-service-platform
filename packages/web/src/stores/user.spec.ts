@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
+import { UserRole } from '@crm/shared'
 import { useUserStore } from './user'
 
 // Mock authApi
@@ -14,7 +15,7 @@ vi.mock('@/api/auth', () => ({
 // Import mocked module
 import { authApi } from '@/api/auth'
 
-const mockUser = { id: 1, username: 'admin', name: 'Admin', role: 'admin' }
+const mockUser = { id: 1, username: 'admin', name: 'Admin', role: UserRole.ADMIN }
 
 describe('useUserStore', () => {
   beforeEach(() => {
@@ -168,7 +169,7 @@ describe('useUserStore', () => {
 
     it('userRole should return role from userInfo', () => {
       const store = useUserStore()
-      store.userInfo = { ...mockUser, role: 'manager' }
+      store.userInfo = { ...mockUser, role: UserRole.MANAGER }
       expect(store.userRole).toBe('manager')
     })
   })

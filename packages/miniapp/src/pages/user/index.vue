@@ -15,40 +15,67 @@
       </view>
     </view>
 
+    <!-- Performance Overview -->
+    <view class="performance-section">
+      <view class="section-title">
+        <text class="section-title-text">业绩概览</text>
+      </view>
+      <view class="stats-row">
+        <StatsCard label="本月" :value="perfData.month" prefix="¥" />
+        <StatsCard label="本季" :value="perfData.quarter" prefix="¥" />
+        <StatsCard label="本年" :value="perfData.year" prefix="¥" />
+      </view>
+    </view>
+
     <!-- Menu List -->
     <view class="menu-section">
       <view class="menu-group">
-        <view class="menu-item" @click="navigateTo('/pages/message/index')">
-          <text class="menu-icon">&#x1F4E9;</text>
-          <text class="menu-label">消息中心</text>
-          <view v-if="appStore.unreadCount > 0" class="menu-badge">
-            {{ appStore.unreadCount > 99 ? '99+' : appStore.unreadCount }}
-          </view>
-          <text class="menu-arrow">&gt;</text>
-        </view>
-        <view class="menu-item" @click="navigateTo('/pages/check-in/index')">
-          <text class="menu-icon">&#x1F4CD;</text>
-          <text class="menu-label">外勤打卡</text>
-          <text class="menu-arrow">&gt;</text>
-        </view>
-        <view class="menu-item" @click="navigateTo('/pages/voice/record')">
-          <text class="menu-icon">&#x1F3A4;</text>
-          <text class="menu-label">语音记录</text>
-          <text class="menu-arrow">&gt;</text>
-        </view>
-        <view class="menu-item" @click="navigateTo('/pages/route/plan')">
-          <text class="menu-icon">&#x1F5FA;</text>
-          <text class="menu-label">路线规划</text>
-          <text class="menu-arrow">&gt;</text>
-        </view>
-      </view>
-
-      <view class="menu-group">
-        <view class="menu-item" @click="handleAbout">
-          <text class="menu-icon">&#x2139;</text>
-          <text class="menu-label">关于</text>
-          <text class="menu-arrow">&gt;</text>
-        </view>
+        <ListItem
+          title="消息中心"
+          icon="&#x1F4E9;"
+          :extra="unreadText"
+          @click="navigateTo('/pages-sub/other/message/index')"
+        />
+        <ListItem
+          title="通知设置"
+          icon="&#x1F514;"
+          @click="navigateTo('/pages-sub/user/notification-settings')"
+        />
+        <!-- #ifdef APP-PLUS -->
+        <ListItem
+          v-if="simResult.supported"
+          title="双卡设置"
+          icon="&#x1F4F1;"
+          :extra="simExtra"
+          @click="showSimPicker"
+        />
+        <!-- #endif -->
+        <ListItem
+          title="外呼模式选择"
+          icon="&#x1F4DE;"
+          :extra="callModeLabel"
+          @click="showCallModePicker"
+        />
+        <!-- #ifdef APP-PLUS -->
+        <ListItem
+          title="版本更新"
+          icon="&#x1F504;"
+          :extra="currentVersion"
+          @click="checkUpdate"
+        />
+        <!-- #endif -->
+        <ListItem
+          title="隐私协议"
+          icon="&#x1F512;"
+          @click="navigateTo('/pages-sub/user/privacy')"
+        />
+        <ListItem
+          title="关于我们"
+          icon="&#x2139;"
+          :show-arrow="false"
+          extra="v1.0.0"
+          @click="handleAbout"
+        />
       </view>
     </view>
 
@@ -60,13 +87,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import TabBar from '@/components/TabBar.vue'
+import StatsCard from '@/components/StatsCard.vue'
+import ListItem from '@/components/ListItem.vue'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
+import { useCallStateStore, type CallMode } from '@/stores/call-state'
+import { salesTargetApi, type OverviewItem } from '@/api/sales-target'
+import { TargetMetricType } from '@crm/shared'
+// #ifdef APP-PLUS
+import { getSimCards, getPreferredSimSlot, setPreferredSimSlot, type SimDetectionResult } from '@/native/sim-card'
+// #endif
 
 const userStore = useUserStore()
 const appStore = useAppStore()
+const callStateStore = useCallStateStore()
 
 const displayInitial = computed(() => {
   const name = userStore.displayName
@@ -82,19 +118,167 @@ const roleLabel = computed(() => {
   return map[userStore.role] || userStore.role
 })
 
-function navigateTo(url: string) {
+const unreadText = computed(() => {
+  if (appStore.unreadCount <= 0) return ''
+  return appStore.unreadCount > 99 ? '99+' : String(appStore.unreadCount)
+})
+
+// --- Performance Overview ---
+const perfData = ref({ month: 0, quarter: 0, year: 0 })
+
+async function loadPerformance(): Promise<void> {
+  try {
+    const now = new Date()
+    const year = now.getFullYear()
+    const res = await salesTargetApi.getOverview(year)
+    if (res.code === 0 && res.data) {
+      const revenueItem = res.data.find(
+        (item: OverviewItem) => item.metricType === TargetMetricType.REVENUE,
+      )
+      if (revenueItem) {
+        perfData.value = {
+          month: revenueItem.achievedValue,
+          quarter: revenueItem.targetValue,
+          year: revenueItem.targetValue,
+        }
+      }
+    }
+  } catch {
+    // Silently fail
+  }
+}
+
+// --- SIM Card (APP-PLUS only) ---
+// #ifdef APP-PLUS
+const simResult = ref<SimDetectionResult>(getSimCards())
+const preferredSlot = ref<number | null>(getPreferredSimSlot())
+
+const simExtra = computed(() => {
+  if (preferredSlot.value !== null) {
+    const card = simResult.value.cards.find((c) => c.slot === preferredSlot.value)
+    return card ? `SIM${card.slot + 1} ${card.carrier}` : `SIM${preferredSlot.value + 1}`
+  }
+  return '未设置'
+})
+
+function showSimPicker(): void {
+  const items = simResult.value.cards.map(
+    (c) => `SIM${c.slot + 1} - ${c.carrier}`,
+  )
+  items.push('取消设置')
+  uni.showActionSheet({
+    itemList: items,
+    success: (res) => {
+      if (res.tapIndex < simResult.value.cards.length) {
+        const slot = simResult.value.cards[res.tapIndex].slot
+        setPreferredSimSlot(slot)
+        preferredSlot.value = slot
+      } else {
+        setPreferredSimSlot(null)
+        preferredSlot.value = null
+      }
+    },
+  })
+}
+// #endif
+
+// #ifndef APP-PLUS
+const simResult = ref({ supported: false, cards: [] as Array<{ slot: number; carrier: string }> })
+// #endif
+
+// --- Call Mode ---
+const callModeLabels: Record<string, string> = {
+  native: '原生拨号',
+  cloud: '云呼录音',
+  ask: '每次询问',
+}
+
+const callModeLabel = computed(() => callModeLabels[callStateStore.callMode] || '原生拨号')
+
+function showCallModePicker(): void {
+  const modes: Array<{ value: CallMode | 'ask'; label: string }> = [
+    { value: 'native', label: '原生拨号' },
+    { value: 'cloud', label: '云呼录音' },
+  ]
+  uni.showActionSheet({
+    itemList: modes.map((m) => m.label),
+    success: (res) => {
+      const selected = modes[res.tapIndex]
+      if (selected) {
+        callStateStore.setCallMode(selected.value as CallMode, true)
+      }
+    },
+  })
+}
+
+// --- Version Update (APP-PLUS only) ---
+const currentVersion = ref('v1.0.0')
+
+// #ifdef APP-PLUS
+onMounted(() => {
+  try {
+    currentVersion.value = 'v' + (plus.runtime.version || '1.0.0')
+  } catch {
+    // ignore
+  }
+})
+// #endif
+
+function checkUpdate(): void {
+  // #ifdef APP-PLUS
+  uni.showLoading({ title: '检查更新...' })
+  uni.request({
+    url: `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/app/version`,
+    success: (res) => {
+      uni.hideLoading()
+      const data = res.data as { code: number; data?: { version: string; downloadUrl?: string; description?: string } }
+      if (data.code === 0 && data.data) {
+        const latest = data.data.version
+        const current = plus.runtime.version || '1.0.0'
+        if (latest > current) {
+          uni.showModal({
+            title: `发现新版本 v${latest}`,
+            content: data.data.description || '有新版本可用，是否更新？',
+            confirmText: '立即更新',
+            success: (modalRes) => {
+              if (modalRes.confirm && data.data?.downloadUrl) {
+                plus.runtime.openURL(data.data.downloadUrl)
+              }
+            },
+          })
+        } else {
+          uni.showToast({ title: '已是最新版本', icon: 'none' })
+        }
+      } else {
+        uni.showToast({ title: '检查失败', icon: 'none' })
+      }
+    },
+    fail: () => {
+      uni.hideLoading()
+      uni.showToast({ title: '网络错误', icon: 'none' })
+    },
+  })
+  // #endif
+
+  // #ifndef APP-PLUS
+  uni.showToast({ title: '仅 APP 端支持更新检测', icon: 'none' })
+  // #endif
+}
+
+// --- Navigation ---
+function navigateTo(url: string): void {
   uni.navigateTo({ url })
 }
 
-function handleAbout() {
+function handleAbout(): void {
   uni.showModal({
-    title: '关于',
+    title: '关于我们',
     content: 'AI 智能 CRM 销售管理系统 v1.0.0',
     showCancel: false,
   })
 }
 
-function handleLogout() {
+function handleLogout(): void {
   uni.showModal({
     title: '提示',
     content: '确定退出登录？',
@@ -105,6 +289,10 @@ function handleLogout() {
     },
   })
 }
+
+onMounted(() => {
+  loadPerformance()
+})
 </script>
 
 <style scoped>
@@ -162,8 +350,30 @@ function handleLogout() {
   display: inline-block;
 }
 
-.menu-section {
+.performance-section {
+  margin: 24rpx;
+  background: #ffffff;
+  border-radius: 16rpx;
   padding: 24rpx;
+}
+
+.section-title {
+  margin-bottom: 20rpx;
+}
+
+.section-title-text {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #303133;
+}
+
+.stats-row {
+  display: flex;
+  gap: 16rpx;
+}
+
+.menu-section {
+  padding: 0 24rpx;
 }
 
 .menu-group {
@@ -173,47 +383,12 @@ function handleLogout() {
   overflow: hidden;
 }
 
-.menu-item {
-  display: flex;
-  align-items: center;
-  padding: 32rpx;
+.menu-group :deep(.list-item) {
   border-bottom: 1rpx solid #f0f0f0;
-  position: relative;
 }
 
-.menu-item:last-child {
+.menu-group :deep(.list-item:last-child) {
   border-bottom: none;
-}
-
-.menu-icon {
-  font-size: 36rpx;
-  margin-right: 20rpx;
-  width: 44rpx;
-  text-align: center;
-}
-
-.menu-label {
-  flex: 1;
-  font-size: 30rpx;
-  color: #333333;
-}
-
-.menu-arrow {
-  font-size: 28rpx;
-  color: #cccccc;
-}
-
-.menu-badge {
-  min-width: 36rpx;
-  height: 36rpx;
-  line-height: 36rpx;
-  padding: 0 10rpx;
-  background: #ff4d4f;
-  color: #ffffff;
-  font-size: 20rpx;
-  border-radius: 18rpx;
-  text-align: center;
-  margin-right: 16rpx;
 }
 
 .logout-section {

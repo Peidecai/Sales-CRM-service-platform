@@ -102,8 +102,43 @@
           <el-icon><Search /></el-icon>
           去搜索获客
         </el-button>
+        <template v-if="isAdminOrManager">
+          <el-dropdown class="ml-2" @command="handleImportCommand">
+            <el-button type="success" plain>
+              <el-icon><Upload /></el-icon>
+              导入
+              <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="prospect">导入为线索</el-dropdown-item>
+                <el-dropdown-item command="customer">导入为客户</el-dropdown-item>
+                <el-dropdown-item divided command="template">下载导入模板</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <el-button
+            type="warning"
+            plain
+            :loading="exportLoading"
+            class="ml-2"
+            @click="handleExport"
+          >
+            <el-icon><Download /></el-icon>
+            导出
+          </el-button>
+        </template>
       </div>
     </el-card>
+
+    <!-- Hidden file input for import -->
+    <input
+      ref="fileInputRef"
+      type="file"
+      accept=".xlsx,.xls"
+      style="display: none"
+      @change="handleFileSelected"
+    />
 
     <!-- 列表 -->
     <el-card shadow="never" class="table-card">
@@ -239,9 +274,9 @@
       </el-form>
       <template #footer>
         <el-button @click="assignVisible = false">取消</el-button>
-        <el-button type="primary" :loading="assignLoading" @click="handleAssignSubmit"
-          >确认分配</el-button
-        >
+        <el-button type="primary" :loading="assignLoading" @click="handleAssignSubmit">
+          确认分配
+        </el-button>
       </template>
     </el-dialog>
   </div>
@@ -251,7 +286,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search } from '@element-plus/icons-vue'
+import { Search, Upload, Download, ArrowDown } from '@element-plus/icons-vue'
 import { usePermission } from '@/composables/usePermission'
 import {
   prospectApi,
@@ -480,6 +515,78 @@ async function handleBatchReject() {
     loadStats()
   } catch {
     ElMessage.error('操作失败')
+  }
+}
+
+/* ---- 导入导出 ---- */
+const exportLoading = ref(false)
+const importTarget = ref<'prospect' | 'customer'>('prospect')
+const fileInputRef = ref<HTMLInputElement | null>(null)
+
+function handleImportCommand(command: string) {
+  if (command === 'template') {
+    handleDownloadTemplate()
+    return
+  }
+  importTarget.value = command as 'prospect' | 'customer'
+  // Reset and trigger the hidden file input
+  if (fileInputRef.value) {
+    fileInputRef.value.value = ''
+    fileInputRef.value.click()
+  }
+}
+
+async function handleFileSelected(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  try {
+    const res =
+      importTarget.value === 'prospect'
+        ? await prospectApi.importExcel(file)
+        : await prospectApi.importAsCustomer(file)
+    const data = res.data ?? res
+    ElMessage.success(`成功导入 ${(data as { imported: number }).imported} 条记录`)
+    if ((data as { errors: string[] }).errors?.length) {
+      ElMessageBox.alert((data as { errors: string[] }).errors.join('\n'), '部分数据导入失败', {
+        type: 'warning',
+      })
+    }
+    loadData()
+    loadStats()
+  } catch {
+    ElMessage.error('导入失败')
+  }
+}
+
+async function handleDownloadTemplate() {
+  try {
+    const blob = await prospectApi.downloadImportTemplate()
+    const url = URL.createObjectURL(blob as Blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'prospect-import-template.xlsx'
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch {
+    ElMessage.error('下载模板失败')
+  }
+}
+
+async function handleExport() {
+  exportLoading.value = true
+  try {
+    const blob = await prospectApi.exportExcel()
+    const url = URL.createObjectURL(blob as Blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `prospects-export-${new Date().toISOString().slice(0, 10)}.xlsx`
+    a.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success('导出成功')
+  } catch {
+    ElMessage.error('导出失败')
+  } finally {
+    exportLoading.value = false
   }
 }
 

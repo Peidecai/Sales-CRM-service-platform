@@ -1,0 +1,5 @@
+export { CreateCustomerGroupDto } from './create-customer-group.dto'
+export { UpdateCustomerGroupDto } from './update-customer-group.dto'
+export { AddMembersDto } from './add-members.dto'
+export { BatchActionDto } from './batch-action.dto'
+export { GroupRuleDto } from './group-rule.dto'

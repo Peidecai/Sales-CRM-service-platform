@@ -5,8 +5,8 @@ const config: Config = {
   rootDir: '.',
   testRegex: '.*\\.spec\\.ts$',
   transform: {
-    '^.+\\.ts$': 'ts-jest',
-    '^.+\\.js$': 'ts-jest',
+    '^.+\\.ts$': require.resolve('ts-jest'),
+    '^.+\\.js$': require.resolve('ts-jest'),
   },
   transformIgnorePatterns: [
     'node_modules/(?!(uuid)/)',

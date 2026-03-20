@@ -20,8 +20,10 @@ import { RolesGuard } from '../../common/guards/roles.guard'
 import { CurrentUser, type AuthUser } from '../../common/decorators/current-user.decorator'
 import { AuditLogInterceptor } from '../../common/interceptors/audit-log.interceptor'
 import { FollowUpService } from './follow-up.service'
+import { FollowUpAiReminderService } from './follow-up-ai-reminder.service'
 import { CreateFollowUpDto } from './dto/create-follow-up.dto'
 import { QueryFollowUpDto } from './dto/query-follow-up.dto'
+import { UpdateReminderSettingDto } from './dto/update-reminder-setting.dto'
 
 @ApiTags('跟进记录')
 @ApiBearerAuth()
@@ -29,7 +31,10 @@ import { QueryFollowUpDto } from './dto/query-follow-up.dto'
 @UseInterceptors(AuditLogInterceptor)
 @Controller('follow-ups')
 export class FollowUpController {
-  constructor(private readonly followUpService: FollowUpService) {}
+  constructor(
+    private readonly followUpService: FollowUpService,
+    private readonly aiReminderService: FollowUpAiReminderService,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -54,6 +59,24 @@ export class FollowUpController {
       page: query.page ?? 1,
       pageSize: query.pageSize ?? 20,
     }
+  }
+
+  @Get('reminder-settings')
+  @ApiOperation({ summary: '获取提醒设置' })
+  @ApiResponse({ status: 200, description: '返回当前用户的提醒设置' })
+  async getReminderSettings(@CurrentUser() user: AuthUser) {
+    return this.aiReminderService.getReminderSettings(user.id)
+  }
+
+  @Put('reminder-settings')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '更新提醒设置' })
+  @ApiResponse({ status: 200, description: '更新成功' })
+  async updateReminderSettings(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateReminderSettingDto,
+  ) {
+    return this.aiReminderService.updateReminderSettings(user.id, dto)
   }
 
   @Put(':id')

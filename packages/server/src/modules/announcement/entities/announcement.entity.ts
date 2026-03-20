@@ -41,6 +41,9 @@ export class Announcement extends BaseEntity {
   @Column({ name: 'end_at', type: 'datetime', nullable: true })
   endAt!: Date | null
 
+  @Column({ name: 'force_read', default: false })
+  forceRead!: boolean
+
   @Column({ name: 'created_by', type: 'int', nullable: true })
   createdBy!: number | null
 }

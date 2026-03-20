@@ -170,3 +170,109 @@ export function getScriptRecommend(params: { customerId: number; opportunityId?:
 export function getAiUsage() {
   return request.get('/ai/usage')
 }
+
+// ---- Copilot ----
+export function copilotChat(data: { message: string; context?: string }) {
+  return request.post<{ reply: string }>('/ai/copilot/chat', data)
+}
+
+export function copilotQueryCrm(data: { query: string }) {
+  return request.post('/ai/copilot/query-crm', data)
+}
+
+export function getSuggestFollowUps(opportunityId: number) {
+  return request.get(`/ai/copilot/suggest-follow-ups/${opportunityId}`)
+}
+
+// ---- Employee Profile ----
+export interface EmployeeRadarProfileVO {
+  userId: number
+  communication: number
+  professionalism: number
+  execution: number
+  satisfaction: number
+  closeRate: number
+}
+
+export interface GrowthPointVO {
+  month: string
+  communication: number
+  professionalism: number
+  execution: number
+  satisfaction: number
+  closeRate: number
+}
+
+export interface BenchmarkComparisonVO {
+  userId: number
+  user: EmployeeRadarProfileVO
+  teamAverage: EmployeeRadarProfileVO
+}
+
+export function getEmployeeProfile(userId: number) {
+  return request.get<EmployeeRadarProfileVO>(`/ai/employee-profile/${userId}`)
+}
+
+export function getEmployeeGrowth(userId: number, months?: number) {
+  return request.get<GrowthPointVO[]>(`/ai/employee-profile/${userId}/growth`, {
+    params: months ? { months } : undefined,
+  })
+}
+
+export function getEmployeeBenchmark(userId: number) {
+  return request.get<BenchmarkComparisonVO>(`/ai/employee-profile/${userId}/benchmark`)
+}
+
+// ---- Customer Profile Enhanced ----
+export interface NextBestActionVO {
+  action: string
+  reason: string
+  priority: 'high' | 'medium' | 'low'
+}
+
+export interface ChurnRiskVO {
+  customerId: number
+  riskScore: number
+  factors: string[]
+}
+
+export interface BestContactTimeVO {
+  customerId: number
+  bestHours: { hour: number; successRate: number }[]
+  bestDayOfWeek: { day: number; successRate: number }[]
+}
+
+export function getNextBestAction(customerId: number) {
+  return request.get<NextBestActionVO[]>(`/ai/customer-profile/${customerId}/nba`)
+}
+
+export function getChurnRisk(customerId: number) {
+  return request.get<ChurnRiskVO>(`/ai/customer-profile/${customerId}/churn-risk`)
+}
+
+export function getBestContactTime(customerId: number) {
+  return request.get<BestContactTimeVO>(`/ai/customer-profile/${customerId}/best-contact-time`)
+}
+
+// ---- Article Versions ----
+export interface ArticleVersionVO {
+  id: number
+  articleId: number
+  version: number
+  title: string
+  content: string
+  editedById: number
+  createdAt: string
+}
+
+export function getArticleVersions(articleId: number) {
+  return request.get<ArticleVersionVO[]>(`/knowledge/articles/${articleId}/versions`)
+}
+
+export function getArticleVersion(versionId: number) {
+  return request.get<ArticleVersionVO>(`/knowledge/versions/${versionId}`)
+}
+
+export function diffArticleVersions(v1Id: number, v2Id: number) {
+  return request.get(`/knowledge/versions/diff`, { params: { v1: v1Id, v2: v2Id } })
+}

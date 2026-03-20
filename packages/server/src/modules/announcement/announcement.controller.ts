@@ -43,6 +43,26 @@ export class AnnouncementController {
     return this.announcementService.getUnreadCount(userId)
   }
 
+  @Get('unread')
+  @ApiOperation({ summary: 'Get unread announcements for current user' })
+  getUnread(@CurrentUser('id') userId: number) {
+    return this.announcementService.getUnreadAnnouncements(userId)
+  }
+
+  @Get('force-unread')
+  @ApiOperation({ summary: 'Get unread force-read announcements' })
+  getForceUnread(@CurrentUser('id') userId: number) {
+    return this.announcementService.getForceUnread(userId)
+  }
+
+  @Get(':id/read-stats')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get read statistics for an announcement' })
+  @ApiParam({ name: 'id', type: Number })
+  getReadStats(@Param('id', ParseIntPipe) id: number) {
+    return this.announcementService.getReadStats(id)
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get announcement by ID' })
   @ApiParam({ name: 'id', type: Number })

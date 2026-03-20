@@ -12,7 +12,19 @@ import {
   UseInterceptors,
   HttpCode,
   HttpStatus,
+  UploadedFile,
+  Res,
+  BadRequestException,
 } from '@nestjs/common'
+import { FileInterceptor } from '@nestjs/platform-express'
+import type { Response } from 'express'
+
+interface UploadedFileShape {
+  buffer: Buffer
+  originalname: string
+  mimetype: string
+  size: number
+}
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 import { RolesGuard } from '../../common/guards/roles.guard'
@@ -23,6 +35,8 @@ import { UserRole } from '@crm/shared'
 import type { ProspectSearchResult } from '@crm/shared'
 import { ProspectService } from './prospect.service'
 import { ProspectConfigService } from './prospect-config.service'
+import { ProspectImportService } from './prospect-import.service'
+import { ProspectExportService } from './prospect-export.service'
 import { SearchProspectDto } from './dto/search-prospect.dto'
 import { QueryProspectDto } from './dto/query-prospect.dto'
 import { UpdateProspectDto } from './dto/update-prospect.dto'
@@ -42,6 +56,8 @@ export class ProspectController {
   constructor(
     private readonly prospectService: ProspectService,
     private readonly prospectConfigService: ProspectConfigService,
+    private readonly prospectImportService: ProspectImportService,
+    private readonly prospectExportService: ProspectExportService,
   ) {}
 
   // ===== Data Sources (Admin only) — MUST be before :id routes =====
@@ -134,6 +150,64 @@ export class ProspectController {
     return null
   }
 
+  // ===== Import / Export — MUST be before :id routes =====
+
+  @Get('import-template')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @ApiOperation({ summary: '下载线索导入模板' })
+  @ApiResponse({ status: 200, description: '返回 Excel 模板文件' })
+  async downloadImportTemplate(@Res({ passthrough: true }) res: Response) {
+    const buffer = await this.prospectImportService.generateImportTemplate()
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    res.setHeader('Content-Disposition', 'attachment; filename=prospect-import-template.xlsx')
+    res.send(buffer)
+  }
+
+  @Post('import-excel')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  @ApiOperation({ summary: '导入 Excel 为线索' })
+  @ApiResponse({ status: 200, description: '返回导入结果' })
+  async importExcel(
+    @UploadedFile() file: UploadedFileShape | undefined,
+    @CurrentUser() user: AuthUser,
+  ) {
+    if (!file) throw new BadRequestException('请上传 Excel 文件')
+    return this.prospectImportService.importAsProspect(file.buffer, user)
+  }
+
+  @Post('import-as-customer')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  @ApiOperation({ summary: '导入 Excel 直接为客户' })
+  @ApiResponse({ status: 200, description: '返回导入结果' })
+  async importAsCustomer(
+    @UploadedFile() file: UploadedFileShape | undefined,
+    @CurrentUser() user: AuthUser,
+  ) {
+    if (!file) throw new BadRequestException('请上传 Excel 文件')
+    return this.prospectImportService.importAsCustomer(file.buffer, user)
+  }
+
+  @Get('export')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @ApiOperation({ summary: '导出线索为 Excel' })
+  @ApiResponse({ status: 200, description: '返回 Excel 文件' })
+  async exportExcel(@CurrentUser() user: AuthUser, @Res({ passthrough: true }) res: Response) {
+    const buffer = await this.prospectExportService.exportExcel(user)
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    res.setHeader('Content-Disposition', 'attachment; filename=prospects-export.xlsx')
+    res.send(buffer)
+  }
+
   // ===== Filter Config — MUST be before :id routes =====
 
   @Get('filter-config')
@@ -218,6 +292,28 @@ export class ProspectController {
   @ApiResponse({ status: 200, description: '返回当前用户的搜索历史' })
   getSearchHistory(@CurrentUser() user: AuthUser) {
     return this.prospectService.getSearchHistory(user)
+  }
+
+  @Get('query-history')
+  @ApiOperation({ summary: '查询历史记录' })
+  @ApiResponse({ status: 200, description: '返回当前用户的查询历史' })
+  getQueryHistory(
+    @CurrentUser() user: AuthUser,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    const p = page ? parseInt(page, 10) : 1
+    const ps = pageSize ? parseInt(pageSize, 10) : 20
+    return this.prospectService.getQueryHistory(user.id, p, ps)
+  }
+
+  @Delete('query-history/:id')
+  @ApiOperation({ summary: '删除查询历史' })
+  @ApiParam({ name: 'id', description: '查询历史ID', type: Number })
+  @ApiResponse({ status: 200, description: '删除成功' })
+  async deleteQueryHistory(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    await this.prospectService.deleteQueryHistory(id, user.id)
+    return null
   }
 
   // ===== Parameterized :id routes — MUST be last =====

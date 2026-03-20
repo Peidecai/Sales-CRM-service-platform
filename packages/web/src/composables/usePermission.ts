@@ -14,11 +14,16 @@ export function usePermission() {
     return roles.includes(userStore.userRole as UserRole)
   }
 
+  function hasPermission(code: string): boolean {
+    return userStore.hasPermission(code)
+  }
+
   return {
     isAdmin,
     isManager,
     isSales,
     isAdminOrManager,
     hasRole,
+    hasPermission,
   }
 }

@@ -13,12 +13,6 @@
       }
     },
     {
-      "path": "pages/customer/detail",
-      "style": {
-        "navigationBarTitleText": "客户详情"
-      }
-    },
-    {
       "path": "pages/performance/index",
       "style": {
         "navigationBarTitleText": "业绩"
@@ -36,44 +30,155 @@
         "navigationBarTitleText": "登录",
         "navigationStyle": "custom"
       }
-    },
-    {
-      "path": "pages/follow-up/create",
-      "style": {
-        "navigationBarTitleText": "新建跟进"
-      }
-    },
-    {
-      "path": "pages/check-in/index",
-      "style": {
-        "navigationBarTitleText": "外勤打卡"
-      }
-    },
-    {
-      "path": "pages/voice/record",
-      "style": {
-        "navigationBarTitleText": "语音记录"
-      }
-    },
-    {
-      "path": "pages/route/plan",
-      "style": {
-        "navigationBarTitleText": "路线规划"
-      }
-    },
-    {
-      "path": "pages/message/index",
-      "style": {
-        "navigationBarTitleText": "消息中心"
-      }
-    },
-    {
-      "path": "pages/call/after-call",
-      "style": {
-        "navigationBarTitleText": "通话记录"
-      }
     }
   ],
+  "subPackages": [
+    {
+      "root": "pages-sub/customer",
+      "pages": [
+        {
+          "path": "detail",
+          "style": { "navigationBarTitleText": "客户详情" }
+        },
+        {
+          "path": "create",
+          "style": { "navigationBarTitleText": "新建客户" }
+        }
+      ]
+    },
+    {
+      "root": "pages-sub/call",
+      "pages": [
+        {
+          "path": "list",
+          "style": { "navigationBarTitleText": "通话记录" }
+        },
+        {
+          "path": "detail",
+          "style": { "navigationBarTitleText": "通话详情" }
+        },
+        {
+          "path": "after-call",
+          "style": { "navigationBarTitleText": "通话记录" }
+        }
+      ]
+    },
+    {
+      "root": "pages-sub/opportunity",
+      "pages": [
+        {
+          "path": "list",
+          "style": { "navigationBarTitleText": "商机列表" }
+        },
+        {
+          "path": "detail",
+          "style": { "navigationBarTitleText": "商机详情" }
+        },
+        {
+          "path": "create",
+          "style": { "navigationBarTitleText": "新建商机" }
+        }
+      ]
+    },
+    {
+      "root": "pages-sub/follow-up",
+      "pages": [
+        {
+          "path": "list",
+          "style": { "navigationBarTitleText": "跟进记录" }
+        },
+        {
+          "path": "create",
+          "style": { "navigationBarTitleText": "新建跟进" }
+        }
+      ]
+    },
+    {
+      "root": "pages-sub/user",
+      "pages": [
+        {
+          "path": "notification-settings",
+          "style": { "navigationBarTitleText": "通知设置" }
+        },
+        {
+          "path": "privacy",
+          "style": { "navigationBarTitleText": "隐私协议" }
+        }
+      ]
+    },
+    {
+      "root": "pages-sub/ai-reminder",
+      "pages": [
+        {
+          "path": "list",
+          "style": { "navigationBarTitleText": "AI 提醒" }
+        },
+        {
+          "path": "detail",
+          "style": { "navigationBarTitleText": "提醒详情" }
+        }
+      ]
+    },
+    {
+      "root": "pages-sub/other",
+      "pages": [
+        {
+          "path": "check-in/index",
+          "style": { "navigationBarTitleText": "外勤打卡" }
+        },
+        {
+          "path": "voice/record",
+          "style": { "navigationBarTitleText": "语音记录" }
+        },
+        {
+          "path": "route/plan",
+          "style": { "navigationBarTitleText": "路线规划" }
+        },
+        {
+          "path": "message/index",
+          "style": { "navigationBarTitleText": "消息中心" }
+        },
+        {
+          "path": "ai-chat/index",
+          "style": { "navigationBarTitleText": "AI 助理" }
+        },
+        {
+          "path": "pk/ranking",
+          "style": { "navigationBarTitleText": "PK排行榜" }
+        },
+        {
+          "path": "knowledge/list",
+          "style": { "navigationBarTitleText": "知识库" }
+        },
+        {
+          "path": "knowledge/detail",
+          "style": { "navigationBarTitleText": "文章详情" }
+        },
+        {
+          "path": "material/list",
+          "style": { "navigationBarTitleText": "素材库" }
+        },
+        {
+          "path": "exam/index",
+          "style": { "navigationBarTitleText": "在线考试" }
+        },
+        {
+          "path": "exam/take",
+          "style": { "navigationBarTitleText": "答题" }
+        }
+      ]
+    }
+  ],
+  "preloadRule": {
+    "pages/customer/list": {
+      "network": "all",
+      "packages": ["pages-sub/customer"]
+    },
+    "pages/index/index": {
+      "network": "wifi",
+      "packages": ["pages-sub/call", "pages-sub/follow-up"]
+    }
+  },
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "CRM",

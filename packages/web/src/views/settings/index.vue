@@ -366,6 +366,55 @@
             </div>
           </div>
         </el-tab-pane>
+
+        <!-- ==================== TAB 4: 提醒设置 ==================== -->
+        <el-tab-pane label="提醒设置" name="reminder">
+          <div class="ai-config-panel">
+            <h4>跟进提醒配置</h4>
+            <p class="section-desc">配置跟进提醒和AI智能提醒的全局默认值</p>
+
+            <el-form label-width="180px" class="ai-switch-form">
+              <el-form-item label="默认提醒时间">
+                <el-time-select
+                  v-model="reminderForm.defaultReminderTime"
+                  start="06:00"
+                  step="00:30"
+                  end="22:00"
+                  placeholder="选择时间"
+                />
+              </el-form-item>
+              <el-form-item label="启用跟进提醒">
+                <el-switch v-model="reminderForm.reminderEnabled" />
+                <span class="form-hint" style="margin-left: 12px"
+                  >每日按设定时间提醒当天待跟进任务</span
+                >
+              </el-form-item>
+              <el-form-item label="启用AI智能提醒">
+                <el-switch v-model="reminderForm.aiReminderEnabled" />
+                <span class="form-hint" style="margin-left: 12px"
+                  >AI分析久未联系的客户并生成提醒建议</span
+                >
+              </el-form-item>
+              <el-form-item label="未联系天数阈值">
+                <el-input-number
+                  v-model="reminderForm.inactiveDaysThreshold"
+                  :min="1"
+                  :max="30"
+                  :step="1"
+                />
+                <span class="form-hint" style="margin-left: 12px"
+                  >超过此天数未联系的客户将触发AI提醒</span
+                >
+              </el-form-item>
+            </el-form>
+
+            <div class="section-actions">
+              <el-button type="primary" :loading="reminderSaving" @click="saveReminderSettings">
+                保存设置
+              </el-button>
+            </div>
+          </div>
+        </el-tab-pane>
       </el-tabs>
     </el-card>
 
@@ -542,10 +591,11 @@ import {
   type CustomFilterVO,
 } from '@/api/prospect-config'
 import { analysisConfigApi, type AiAnalysisConfigVO, type ClassifyRule } from '@/api/ai-analysis'
+import { reminderApi } from '@/api/reminder'
 
 // ==================== Tab ====================
 
-const activeTab = ref<'datasource' | 'filter' | 'ai-analysis'>('datasource')
+const activeTab = ref<'datasource' | 'filter' | 'ai-analysis' | 'reminder'>('datasource')
 
 // ==================== Helpers ====================
 
@@ -760,7 +810,48 @@ watch(activeTab, (tab) => {
   if (tab === 'ai-analysis' && !aiConfigLoaded.value && !aiLoading.value) {
     void loadAiConfig()
   }
+  if (tab === 'reminder' && !reminderLoaded.value) {
+    void loadReminderSettings()
+  }
 })
+
+// ==================== Reminder Settings ====================
+
+const reminderForm = reactive({
+  defaultReminderTime: '09:00',
+  reminderEnabled: true,
+  aiReminderEnabled: true,
+  inactiveDaysThreshold: 3,
+})
+const reminderSaving = ref(false)
+const reminderLoaded = ref(false)
+
+async function loadReminderSettings() {
+  try {
+    const res = await reminderApi.getSettings()
+    if (res.data) {
+      reminderForm.defaultReminderTime = res.data.defaultReminderTime ?? '09:00'
+      reminderForm.reminderEnabled = res.data.reminderEnabled ?? true
+      reminderForm.aiReminderEnabled = res.data.aiReminderEnabled ?? true
+      reminderForm.inactiveDaysThreshold = res.data.inactiveDaysThreshold ?? 3
+      reminderLoaded.value = true
+    }
+  } catch {
+    // handled by interceptor
+  }
+}
+
+async function saveReminderSettings() {
+  reminderSaving.value = true
+  try {
+    await reminderApi.updateSettings({ ...reminderForm })
+    ElMessage.success('提醒设置已保存')
+  } catch {
+    // handled by interceptor
+  } finally {
+    reminderSaving.value = false
+  }
+}
 
 // ==================== All standard filter fields ====================
 

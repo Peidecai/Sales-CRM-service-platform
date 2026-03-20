@@ -28,12 +28,26 @@ export interface ContractVO {
   signFileUrl: string | null
   renewalReminderDays: number
   parentContractId: number | null
+  originalContractId: number | null
+  renewedAt: string | null
   attachments: Record<string, unknown>[] | null
   customFields: Record<string, unknown> | null
   createdBy: number
   createdAt: string
   updatedAt: string
   deleted: boolean
+}
+
+export interface ContractTemplateVO {
+  id: number
+  name: string
+  content: string
+  category: string | null
+  variables: Array<{ name: string; label: string; type: string; required: boolean }> | null
+  isDefault: boolean
+  createdBy: number
+  createdAt: string
+  updatedAt: string
 }
 
 // Query params
@@ -45,6 +59,12 @@ export interface ContractQueryParams {
   contractType?: ContractType
   customerId?: number
   ownerId?: number
+}
+
+export interface ContractTemplateQueryParams {
+  page?: number
+  pageSize?: number
+  category?: string
 }
 
 // Create params
@@ -107,5 +127,46 @@ export const contractApi = {
 
   confirmSign(id: number, data?: ConfirmSignParams): Promise<ApiResponse<ContractVO>> {
     return request.put(`/contracts/${id}/sign`, data ?? {})
+  },
+
+  renew(
+    id: number,
+    data: { newEndDate: string; newAmount: number },
+  ): Promise<ApiResponse<ContractVO>> {
+    return request.post(`/contracts/${id}/renew`, data)
+  },
+
+  eSign(id: number): Promise<ApiResponse<{ message: string }>> {
+    return request.post(`/contracts/${id}/e-sign`)
+  },
+
+  // Templates
+  getTemplates(
+    params?: ContractTemplateQueryParams,
+  ): Promise<ApiResponse<PageResult<ContractTemplateVO>>> {
+    return request.get('/contracts/templates', { params })
+  },
+
+  createTemplate(data: Partial<ContractTemplateVO>): Promise<ApiResponse<ContractTemplateVO>> {
+    return request.post('/contracts/templates', data)
+  },
+
+  updateTemplate(
+    id: number,
+    data: Partial<ContractTemplateVO>,
+  ): Promise<ApiResponse<ContractTemplateVO>> {
+    return request.put(`/contracts/templates/${id}`, data)
+  },
+
+  removeTemplate(id: number): Promise<ApiResponse<null>> {
+    return request.delete(`/contracts/templates/${id}`)
+  },
+
+  createFromTemplate(data: {
+    templateId: number
+    variables: Record<string, string>
+    contractData: CreateContractParams
+  }): Promise<ApiResponse<ContractVO>> {
+    return request.post('/contracts/from-template', data)
   },
 }

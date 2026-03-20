@@ -3,8 +3,15 @@ import { onLaunch, onShow } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
 import { useCallStateStore } from '@/stores/call-state'
+import { autoCheckUpdate } from '@/utils/update-checker'
+import { reportError } from '@/utils/error-reporter'
 
 let navigatingToAfterCall = false
+
+// Global error capture
+uni.onError((error: string) => {
+  reportError(error)
+})
 
 onLaunch(() => {
   const userStore = useUserStore()
@@ -21,6 +28,9 @@ onLaunch(() => {
     // Restore user profile from server
     userStore.fetchProfile()
   }
+
+  // Check for app updates (APP-PLUS only)
+  autoCheckUpdate()
 
   // Monitor network status changes
   uni.onNetworkStatusChange((res) => {
@@ -48,9 +58,9 @@ onShow(() => {
       const pages = getCurrentPages()
       const currentPath = pages.length > 0 ? pages[pages.length - 1].route : ''
       // Avoid navigating if already on after-call page
-      if (currentPath !== 'pages/call/after-call') {
+      if (currentPath !== 'pages-sub/call/after-call') {
         uni.navigateTo({
-          url: '/pages/call/after-call',
+          url: '/pages-sub/call/after-call',
           complete: () => { navigatingToAfterCall = false },
         })
       } else {

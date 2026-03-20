@@ -17,6 +17,15 @@ export class SysPermission {
   @Column({ length: 50 })
   action!: string
 
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  module!: string | null
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  description!: string | null
+
+  @Column({ type: 'int', default: 0 })
+  sort!: number
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date
 }

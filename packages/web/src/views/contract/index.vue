@@ -4,7 +4,12 @@
       <template #header>
         <div class="card-header">
           <span>合同管理</span>
-          <el-button type="primary" @click="showCreateDialog = true">新建合同</el-button>
+          <div>
+            <el-button v-if="isAdminOrManager" @click="$router.push('/contract/templates')"
+              >合同模板</el-button
+            >
+            <el-button type="primary" @click="goDetail(0)">新建合同</el-button>
+          </div>
         </div>
       </template>
 
@@ -38,23 +43,21 @@
         <el-table-column label="合同编号" prop="contractNo" width="180" />
         <el-table-column label="合同名称" prop="title" min-width="200" show-overflow-tooltip />
         <el-table-column label="合同金额" width="130" align="right">
-          <template #default="{ row }">¥{{ Number(row.totalAmount).toLocaleString() }}</template>
+          <template #default="{ row }">{{ formatCurrency(row.totalAmount) }}</template>
         </el-table-column>
         <el-table-column label="已回款" width="130" align="right">
-          <template #default="{ row }">¥{{ Number(row.paidAmount).toLocaleString() }}</template>
+          <template #default="{ row }">{{ formatCurrency(row.paidAmount) }}</template>
         </el-table-column>
         <el-table-column label="状态" width="110" align="center">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)" size="small">
-              {{
-                statusLabels[row.status] || row.status
-              }}
+              {{ statusLabels[row.status] || row.status }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="开始日期" prop="startDate" width="120" />
         <el-table-column label="结束日期" prop="endDate" width="120" />
-        <el-table-column label="操作" width="150" align="center">
+        <el-table-column label="操作" width="220" align="center">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="goDetail(row.id)">详情</el-button>
             <el-button
@@ -62,11 +65,19 @@
               type="success"
               link
               size="small"
-              @click="confirmSign(row.id)"
+              @click="handleConfirmSign(row.id)"
             >
               签署
-            </el-button
+            </el-button>
+            <el-button
+              v-if="['signed', 'executing', 'completed'].includes(row.status)"
+              type="warning"
+              link
+              size="small"
+              @click="openRenewDialog(row)"
             >
+              续签
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -81,6 +92,33 @@
         />
       </div>
     </el-card>
+
+    <!-- Renew Dialog -->
+    <el-dialog v-model="renewDialogVisible" title="续签合同" width="500px">
+      <el-form label-width="100px">
+        <el-form-item label="原合同">
+          <span>{{ renewTarget?.title }} ({{ renewTarget?.contractNo }})</span>
+        </el-form-item>
+        <el-form-item label="原金额">
+          <span>{{ formatCurrency(renewTarget?.totalAmount ?? 0) }}</span>
+        </el-form-item>
+        <el-form-item label="新结束日期" required>
+          <el-date-picker v-model="renewForm.newEndDate" type="date" value-format="YYYY-MM-DD" />
+        </el-form-item>
+        <el-form-item label="新合同金额" required>
+          <el-input-number
+            v-model="renewForm.newAmount"
+            :min="0"
+            :precision="2"
+            style="width: 200px"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="renewDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="renewLoading" @click="handleRenew">确认续签</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -89,12 +127,13 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { contractApi, type ContractVO, type ContractQueryParams } from '@/api/contract'
+import { usePermission } from '@/composables/usePermission'
 
 const router = useRouter()
+const { isAdminOrManager } = usePermission()
 const loading = ref(false)
 const list = ref<ContractVO[]>([])
 const total = ref(0)
-const showCreateDialog = ref(false)
 const query = reactive({ page: 1, pageSize: 20, status: '', keyword: '' })
 
 const statusLabels: Record<string, string> = {
@@ -108,6 +147,7 @@ const statusLabels: Record<string, string> = {
   completed: '已完成',
   terminated: '已终止',
   cancelled: '已取消',
+  renewed: '已续签',
 }
 
 type TagType = 'success' | 'primary' | 'warning' | 'danger' | 'info'
@@ -121,8 +161,13 @@ function getStatusType(status: string): TagType {
     executing: 'success',
     completed: 'success',
     terminated: 'danger',
+    renewed: 'primary',
   }
   return map[status] || 'info'
+}
+
+function formatCurrency(val: number): string {
+  return `¥${Number(val).toLocaleString()}`
 }
 
 async function loadData() {
@@ -153,7 +198,7 @@ function goDetail(id: number) {
   router.push(`/contract/${id}`)
 }
 
-async function confirmSign(id: number) {
+async function handleConfirmSign(id: number) {
   try {
     await ElMessageBox.confirm('确认该合同已签署？', '签署确认', { type: 'info' })
     await contractApi.confirmSign(id)
@@ -161,6 +206,41 @@ async function confirmSign(id: number) {
     loadData()
   } catch {
     /* cancelled */
+  }
+}
+
+// ─── Renew ──────────────────────────────────────────────────────────────
+
+const renewDialogVisible = ref(false)
+const renewTarget = ref<ContractVO | null>(null)
+const renewLoading = ref(false)
+const renewForm = reactive({ newEndDate: '', newAmount: 0 })
+
+function openRenewDialog(row: ContractVO) {
+  renewTarget.value = row
+  renewForm.newEndDate = ''
+  renewForm.newAmount = row.totalAmount
+  renewDialogVisible.value = true
+}
+
+async function handleRenew() {
+  if (!renewTarget.value || !renewForm.newEndDate) {
+    ElMessage.warning('请填写完整续签信息')
+    return
+  }
+  renewLoading.value = true
+  try {
+    await contractApi.renew(renewTarget.value.id, {
+      newEndDate: renewForm.newEndDate,
+      newAmount: renewForm.newAmount,
+    })
+    ElMessage.success('续签成功')
+    renewDialogVisible.value = false
+    loadData()
+  } catch {
+    ElMessage.error('续签失败')
+  } finally {
+    renewLoading.value = false
   }
 }
 

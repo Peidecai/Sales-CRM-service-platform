@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common'
+import { Controller, Get, Post, Body, Logger } from '@nestjs/common'
 import { ApiTags, ApiOperation } from '@nestjs/swagger'
 import {
   HealthCheck,
@@ -9,9 +9,21 @@ import {
 } from '@nestjs/terminus'
 import { RedisService } from '../../common/redis'
 
+interface ErrorReportDto {
+  message: string
+  stack?: string
+  page?: string
+  timestamp: number
+  deviceInfo: Record<string, unknown>
+  appVersion: string
+  userId?: string
+}
+
 @ApiTags('系统')
 @Controller('health')
 export class HealthController {
+  private readonly logger = new Logger('AppErrorReport')
+
   constructor(
     private health: HealthCheckService,
     private db: TypeOrmHealthIndicator,
@@ -47,5 +59,23 @@ export class HealthController {
 
   private indicators() {
     return [() => this.db.pingCheck('database'), () => this.checkRedis()]
+  }
+}
+
+@ApiTags('系统')
+@Controller('app')
+export class AppErrorReportController {
+  private readonly logger = new Logger('AppErrorReport')
+
+  @Post('error-report')
+  @ApiOperation({ summary: 'APP 端错误上报' })
+  reportError(@Body() body: ErrorReportDto) {
+    this.logger.warn(
+      `[APP Error] ${body.message} | page=${body.page || 'unknown'} | user=${body.userId || 'anonymous'} | version=${body.appVersion} | device=${JSON.stringify(body.deviceInfo)}`,
+    )
+    if (body.stack) {
+      this.logger.debug(`Stack: ${body.stack}`)
+    }
+    return { code: 0, message: 'success', data: null }
   }
 }

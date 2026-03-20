@@ -46,7 +46,14 @@
 
       <!-- Content -->
       <el-card shadow="never" class="article-content-card">
-        <div v-safe-html="renderedContent" class="article-content" />
+        <el-tabs v-model="activeTab">
+          <el-tab-pane label="内容" name="content">
+            <div v-safe-html="renderedContent" class="article-content" />
+          </el-tab-pane>
+          <el-tab-pane label="版本历史" name="versions">
+            <VersionHistory :article-id="article.id" />
+          </el-tab-pane>
+        </el-tabs>
       </el-card>
 
       <!-- Comments -->
@@ -129,6 +136,7 @@ import MarkdownIt from 'markdown-it'
 import { knowledgeApi, type ArticleVO, type CategoryVO, type CommentVO } from '@/api/knowledge'
 import { formatDate } from '@/utils/format'
 import { useUserStore } from '@/stores/user'
+import VersionHistory from './components/VersionHistory.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -142,6 +150,7 @@ const commentLoading = ref(false)
 const commentContent = ref('')
 const submitting = ref(false)
 const userStore = useUserStore()
+const activeTab = ref('content')
 
 const categoryName = computed(() => {
   if (!article.value?.categoryId) return ''

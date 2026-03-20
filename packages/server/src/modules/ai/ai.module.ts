@@ -17,6 +17,9 @@ import { AiAnalysisConfigService } from './ai-analysis-config.service'
 import { CallAnalysisService } from './call-analysis.service'
 import { AiController } from './ai.controller'
 import { CallAnalysisController } from './call-analysis.controller'
+import { AiCopilotService } from './ai-copilot.service'
+import { AiEmployeeProfileService } from './ai-employee-profile.service'
+import { AiCustomerProfileService } from './ai-customer-profile.service'
 import { VectorModule } from './vector/vector.module'
 import { CallSummaryProcessor } from './processors/call-summary.processor'
 import { EmbeddingProcessor } from './processors/embedding.processor'
@@ -164,6 +167,9 @@ import { OpportunityModule } from '../opportunity/opportunity.module'
     AnomalyDetectProcessor,
     ReportGenerateProcessor,
     SalesForecastProcessor,
+    AiCopilotService,
+    AiEmployeeProfileService,
+    AiCustomerProfileService,
   ],
   exports: [
     AiService,

@@ -117,6 +117,12 @@
         </el-descriptions>
       </el-card>
 
+      <!-- AI Score Panel -->
+      <AiScorePanel :opportunity-id="opportunityId" />
+
+      <!-- Competitor Mentions -->
+      <CompetitorAlert :opportunity-id="opportunityId" />
+
       <!-- Related Call Records -->
       <el-card shadow="never" class="related-card">
         <template #header>
@@ -206,7 +212,7 @@
                   <el-icon><Calendar /></el-icon>
                   下次跟进：{{ item.nextFollowUpDate }}
                   <span v-if="item.nextFollowUpNote" class="follow-up-next-note"
-                  >— {{ item.nextFollowUpNote }}</span
+                    >— {{ item.nextFollowUpNote }}</span
                   >
                 </div>
               </el-card>
@@ -424,6 +430,8 @@ import {
 import { formatDate, formatDuration } from '@/utils/format'
 import { getStageTagType, getStageLabel } from '@/utils/tag-helpers'
 import { usePermission } from '@/composables/usePermission'
+import AiScorePanel from '@/views/opportunity/components/AiScorePanel.vue'
+import CompetitorAlert from '@/views/opportunity/components/CompetitorAlert.vue'
 
 const route = useRoute()
 const router = useRouter()

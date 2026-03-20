@@ -45,6 +45,16 @@
       </button>
     </view>
 
+    <!-- Biometric Login Button -->
+    <!-- #ifdef APP-PLUS -->
+    <view v-if="biometricAvailable && biometricUserEnabled" class="biometric-section">
+      <button class="btn-biometric" :loading="loading" @click="handleBiometricLogin">
+        <text class="biometric-icon">{{ biometricType === 'face' ? '👤' : '🔒' }}</text>
+        {{ biometricType === 'face' ? '面容登录' : '指纹登录' }}
+      </button>
+    </view>
+    <!-- #endif -->
+
     <!-- Dev Mode Toggle -->
     <view class="dev-toggle" @click="showDevLogin = !showDevLogin">
       <text class="dev-toggle-text">
@@ -63,14 +73,52 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
+import {
+  checkBiometricAvailable,
+  authenticate,
+  isBiometricEnabled,
+} from '@/native/biometric'
+import type { BiometricStatus } from '@/native/biometric'
+import { TOKEN_KEY, REFRESH_TOKEN_KEY } from '@/api/request'
 
 const userStore = useUserStore()
 const loading = ref(false)
 const showDevLogin = ref(false)
 const username = ref('')
 const password = ref('')
+
+// Biometric state
+const biometricAvailable = ref(false)
+const biometricUserEnabled = ref(false)
+const biometricType = ref<BiometricStatus['type']>('unknown')
+
+onMounted(() => {
+  checkBiometric()
+})
+
+/**
+ * Check biometric availability and user preference
+ */
+function checkBiometric(): void {
+  // #ifdef APP-PLUS
+  try {
+    const status = checkBiometricAvailable()
+    biometricAvailable.value = status.supported
+    biometricType.value = status.type
+    biometricUserEnabled.value = isBiometricEnabled()
+
+    // Also need a stored token to use biometric login
+    const hasToken = !!uni.getStorageSync(TOKEN_KEY)
+    if (!hasToken) {
+      biometricUserEnabled.value = false
+    }
+  } catch {
+    biometricAvailable.value = false
+  }
+  // #endif
+}
 
 /**
  * WeChat login
@@ -103,6 +151,54 @@ async function handlePasswordLogin() {
     if (success) {
       uni.switchTab({ url: '/pages/index/index' })
     }
+  } finally {
+    loading.value = false
+  }
+}
+
+/**
+ * Biometric login — verify identity then use stored token to auto-login
+ */
+async function handleBiometricLogin() {
+  if (loading.value) return
+  loading.value = true
+  try {
+    const result = await authenticate('请验证身份以登录 CRM')
+    if (!result.success) {
+      if (result.error && result.error !== '已取消验证') {
+        uni.showToast({ title: result.error, icon: 'none' })
+      }
+      return
+    }
+
+    // Biometric verified — check if we have a valid token
+    const token = uni.getStorageSync(TOKEN_KEY) as string
+    const refreshToken = uni.getStorageSync(REFRESH_TOKEN_KEY) as string
+
+    if (!token && !refreshToken) {
+      uni.showToast({ title: '登录信息已过期，请重新登录', icon: 'none' })
+      return
+    }
+
+    // Try to refresh profile with existing token
+    await userStore.fetchProfile()
+    if (userStore.isLoggedIn) {
+      uni.switchTab({ url: '/pages/index/index' })
+      return
+    }
+
+    // Token expired, try refresh
+    if (refreshToken) {
+      const newToken = await userStore.refreshAccessToken()
+      if (newToken) {
+        uni.switchTab({ url: '/pages/index/index' })
+        return
+      }
+    }
+
+    uni.showToast({ title: '登录信息已过期，请重新登录', icon: 'none' })
+  } catch {
+    uni.showToast({ title: '生物识别登录失败', icon: 'none' })
   } finally {
     loading.value = false
   }
@@ -218,6 +314,35 @@ async function handlePasswordLogin() {
 }
 
 .wx-icon {
+  margin-right: 12rpx;
+  font-size: 36rpx;
+}
+
+.biometric-section {
+  width: 100%;
+  margin-bottom: 32rpx;
+}
+
+.btn-biometric {
+  width: 100%;
+  height: 96rpx;
+  line-height: 96rpx;
+  background: #ffffff;
+  color: #409eff;
+  font-size: 32rpx;
+  font-weight: 500;
+  border-radius: 16rpx;
+  border: 2rpx solid #409eff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-biometric::after {
+  border: none;
+}
+
+.biometric-icon {
   margin-right: 12rpx;
   font-size: 36rpx;
 }

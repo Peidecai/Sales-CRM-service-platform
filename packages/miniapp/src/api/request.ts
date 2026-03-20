@@ -9,6 +9,7 @@
  */
 
 import type { ApiResponse } from '@crm/shared'
+import { reportApiError } from '@/utils/error-reporter'
 
 // Environment-specific base URL — set VITE_API_BASE_URL in .env.*
 const BASE_URL = import.meta.env.VITE_API_BASE_URL
@@ -154,6 +155,7 @@ export async function request<T = unknown>(options: RequestOptions): Promise<Api
           if (options.showError !== false) {
             uni.showToast({ title: msg, icon: 'none', duration: 2000 })
           }
+          reportApiError(options.url, statusCode, msg)
           reject(new Error(msg))
           return
         }
@@ -164,6 +166,7 @@ export async function request<T = unknown>(options: RequestOptions): Promise<Api
         if (options.showError !== false) {
           uni.showToast({ title: '网络连接失败', icon: 'none', duration: 2000 })
         }
+        reportApiError(options.url, 0, err.errMsg || '网络错误')
         reject(new Error(err.errMsg || '网络错误'))
       },
     })

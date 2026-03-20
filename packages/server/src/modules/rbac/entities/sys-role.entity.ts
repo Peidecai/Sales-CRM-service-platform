@@ -4,6 +4,7 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  DeleteDateColumn,
   ManyToMany,
   JoinTable,
 } from 'typeorm'
@@ -20,14 +21,26 @@ export class SysRole {
   @Column({ length: 50, unique: true })
   code!: string
 
-  @Column({ length: 255, nullable: true })
-  description!: string
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  description!: string | null
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  label!: string | null
+
+  @Column({ name: 'is_builtin', type: 'boolean', default: false })
+  isBuiltin!: boolean
+
+  @Column({ type: 'enum', enum: ['active', 'disabled'], default: 'active' })
+  status!: 'active' | 'disabled'
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt!: Date
+
+  @DeleteDateColumn({ name: 'deleted_at' })
+  deletedAt!: Date | null
 
   @ManyToMany(() => SysPermission)
   @JoinTable({

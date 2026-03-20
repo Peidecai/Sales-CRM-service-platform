@@ -3,6 +3,7 @@ services:
     image: mysql:8.0
     container_name: crm-mysql
     restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-time-zone=+08:00
     deploy:
       resources:
         limits:
@@ -101,6 +102,8 @@ services:
       JWT_REFRESH_EXPIRES_IN: 7d
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      WX_MINIAPP_APPID: ${WX_MINIAPP_APPID:-}
+      WX_MINIAPP_SECRET: ${WX_MINIAPP_SECRET:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
     ports:
       - "${SERVER_PORT:-3000}:3000"

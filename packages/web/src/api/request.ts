@@ -102,11 +102,23 @@ request.interceptors.request.use(
 let isRefreshing = false
 let pendingQueue: Array<(token: string) => void> = []
 
+/** Set to true during intentional logout to suppress 401 error toasts */
+let isLoggingOut = false
+
+export function setLoggingOut(value: boolean): void {
+  isLoggingOut = value
+}
+
 // Response interceptor — handle 401 with token refresh
 request.interceptors.response.use(
   (response: AxiosResponse) => response.data,
   async (error) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean }
+
+    // During intentional logout, silently reject all 401s
+    if (isLoggingOut) {
+      return Promise.reject(error)
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {

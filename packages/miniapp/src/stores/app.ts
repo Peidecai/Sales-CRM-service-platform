@@ -21,10 +21,15 @@ export const useAppStore = defineStore('app', () => {
     isOnline.value = online
   }
 
+  function incrementUnreadCount() {
+    setUnreadCount(unreadCount.value + 1)
+  }
+
   return {
     unreadCount,
     isOnline,
     setUnreadCount,
+    incrementUnreadCount,
     setOnlineStatus,
   }
 })

@@ -6,6 +6,11 @@ import { RedisService } from '../../common/redis'
 import { UserService } from '../user/user.service'
 import { TokenService, type TokenPair } from './token.service'
 import { CaptchaService } from './captcha.service'
+import { PermissionCacheService } from '../rbac/permission-cache.service'
+
+export interface LoginResult extends TokenPair {
+  permissions: string[]
+}
 
 const AUTH_KEYS = {
   LOGIN_FAIL: 'login_fail',
@@ -18,11 +23,12 @@ export class AuthService {
     private readonly userService: UserService,
     private readonly tokenService: TokenService,
     private readonly captchaService: CaptchaService,
+    private readonly permissionCacheService: PermissionCacheService,
   ) {}
 
   // ─── Login ───────────────────────────────────────────────────────────
 
-  async login(loginDto: LoginDto): Promise<TokenPair> {
+  async login(loginDto: LoginDto): Promise<LoginResult> {
     // Login failure lockout check — fail-open on Redis error (skip lockout, allow login attempt)
     const failKey = `${AUTH_KEYS.LOGIN_FAIL}:${loginDto.username}`
     let failCount = 0
@@ -77,10 +83,15 @@ export class AuthService {
     await this.redisService.del(failKey)
 
     const deviceType = loginDto.deviceType || 'web'
-    return this.tokenService.generateTokens(
+    const tokenPair = await this.tokenService.generateTokens(
       { id: user.id, username: user.username, role: user.role, name: user.name },
       deviceType,
     )
+
+    // Fetch user permissions
+    const permissions = await this.permissionCacheService.getPermissionCodes(user.id)
+
+    return { ...tokenPair, permissions }
   }
 
   // ─── Refresh Token ──────────────────────────────────────────────────

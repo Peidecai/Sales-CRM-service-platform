@@ -39,13 +39,36 @@ import { PaymentModule } from './modules/payment/payment.module'
 import { ContractModule } from './modules/contract/contract.module'
 import { ApprovalModule } from './modules/approval/approval.module'
 import { ProspectModule } from './modules/prospect/prospect.module'
+import { CloudCallModule } from './modules/cloud-call/cloud-call.module'
+import { PushModule } from './modules/push/push.module'
+import { CheckInModule } from './modules/check-in/check-in.module'
+import { AppVersionModule } from './modules/app-version/app-version.module'
+import { ProductModule } from './modules/product/product.module'
+import { DataMaskingModule } from './modules/data-masking/data-masking.module'
+import { PostLoanModule } from './modules/post-loan/post-loan.module'
+import { SpeechModule } from './modules/speech/speech.module'
+import { ReportModule } from './modules/report/report.module'
+import { NegotiationAnalysisModule } from './modules/negotiation/negotiation-analysis.module'
+import { CustomerGroupModule } from './modules/customer-group/customer-group.module'
+import { ServiceRecordModule } from './modules/service-record/service-record.module'
+import { ForumModule } from './modules/forum/forum.module'
+import { AiBusinessReminderModule } from './modules/ai-reminder/ai-business-reminder.module'
+import { ExamModule } from './modules/exam/exam.module'
+import { AiConfigModule } from './modules/ai-config/ai-config.module'
+import { PkModule } from './modules/pk/pk.module'
+import { TrainingModule } from './modules/training/training.module'
+import { SigningModule } from './modules/signing/signing.module'
+import { PaymentTrackingModule } from './modules/payment-tracking/payment-tracking.module'
+import { SimModule } from './modules/sim/sim.module'
+import { TodoModule } from './modules/todo/todo.module'
+import { AnnotationModule } from './modules/annotation/annotation.module'
 
 @Module({
   imports: [
     // Configuration
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['.env', '.env.example'],
+      envFilePath: ['.env'],
     }),
 
     // Database
@@ -111,6 +134,29 @@ import { ProspectModule } from './modules/prospect/prospect.module'
     ContractModule,
     ApprovalModule,
     ProspectModule,
+    CloudCallModule,
+    PushModule,
+    CheckInModule,
+    AppVersionModule,
+    ProductModule,
+    DataMaskingModule,
+    PostLoanModule,
+    SpeechModule,
+    ReportModule,
+    NegotiationAnalysisModule,
+    CustomerGroupModule,
+    ServiceRecordModule,
+    ForumModule,
+    AiBusinessReminderModule,
+    ExamModule,
+    AiConfigModule,
+    PkModule,
+    TrainingModule,
+    SigningModule,
+    PaymentTrackingModule,
+    SimModule,
+    TodoModule,
+    AnnotationModule,
   ],
   providers: [
     {

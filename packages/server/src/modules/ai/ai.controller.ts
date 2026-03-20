@@ -5,6 +5,7 @@ import {
   Post,
   Param,
   Query,
+  Body,
   UseGuards,
   UseInterceptors,
   ParseIntPipe,
@@ -25,6 +26,9 @@ import { AiProfileService } from './ai-profile.service'
 import { AiPredictionService } from './ai-prediction.service'
 import { ScriptRecommendService } from './script-recommend.service'
 import { CostTrackerService } from './cost-tracker.service'
+import { AiCopilotService } from './ai-copilot.service'
+import { AiEmployeeProfileService } from './ai-employee-profile.service'
+import { AiCustomerProfileService } from './ai-customer-profile.service'
 
 @Controller('ai')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -39,6 +43,9 @@ export class AiController {
     private readonly predictionService: AiPredictionService,
     private readonly scriptRecommendService: ScriptRecommendService,
     private readonly costTrackerService: CostTrackerService,
+    private readonly copilotService: AiCopilotService,
+    private readonly employeeProfileService: AiEmployeeProfileService,
+    private readonly customerProfileService: AiCustomerProfileService,
   ) {}
 
   // ---- Alerts (#124) ----
@@ -191,5 +198,70 @@ export class AiController {
   @Get('usage')
   async getUsage() {
     return this.costTrackerService.getCurrentUsage()
+  }
+
+  // ---- Copilot ----
+  @Post('copilot/chat')
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @HttpCode(200)
+  async copilotChat(
+    @CurrentUser('id') userId: number,
+    @Body() body: { message: string; context?: string },
+  ) {
+    if (!body.message) {
+      throw new BadRequestException('message is required')
+    }
+    return this.copilotService.chat(userId, body.message, body.context)
+  }
+
+  @Post('copilot/query-crm')
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @HttpCode(200)
+  async copilotQueryCrm(@CurrentUser('id') userId: number, @Body() body: { query: string }) {
+    if (!body.query) {
+      throw new BadRequestException('query is required')
+    }
+    return this.copilotService.queryCrm(userId, body.query)
+  }
+
+  @Get('copilot/suggest-follow-ups/:opportunityId')
+  async suggestFollowUps(@Param('opportunityId', ParseIntPipe) opportunityId: number) {
+    return this.copilotService.suggestFollowUps(opportunityId)
+  }
+
+  // ---- Employee Profile ----
+  @Get('employee-profile/:userId')
+  async getEmployeeProfile(@Param('userId', ParseIntPipe) userId: number) {
+    return this.employeeProfileService.getProfile(userId)
+  }
+
+  @Get('employee-profile/:userId/growth')
+  async getEmployeeGrowth(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Query('months') months = '6',
+  ) {
+    const m = parseInt(months, 10) || 6
+    return this.employeeProfileService.getGrowthCurve(userId, m)
+  }
+
+  @Get('employee-profile/:userId/benchmark')
+  async getEmployeeBenchmark(@Param('userId', ParseIntPipe) userId: number) {
+    return this.employeeProfileService.compareBenchmark(userId)
+  }
+
+  // ---- Customer Profile Enhanced ----
+  @Get('customer-profile/:customerId/nba')
+  async getNextBestAction(@Param('customerId', ParseIntPipe) customerId: number) {
+    return this.customerProfileService.getNextBestAction(customerId)
+  }
+
+  @Get('customer-profile/:customerId/churn-risk')
+  async getChurnRisk(@Param('customerId', ParseIntPipe) customerId: number) {
+    return this.customerProfileService.getChurnRisk(customerId)
+  }
+
+  @Get('customer-profile/:customerId/best-contact-time')
+  async getBestContactTime(@Param('customerId', ParseIntPipe) customerId: number) {
+    return this.customerProfileService.getBestContactTime(customerId)
   }
 }

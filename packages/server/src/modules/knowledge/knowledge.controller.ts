@@ -150,8 +150,12 @@ export class KnowledgeController {
   @ApiResponse({ status: 200, description: 'Article updated successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Article not found' })
-  updateArticle(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateArticleDto) {
-    return this.knowledgeService.updateArticle(id, dto)
+  updateArticle(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateArticleDto,
+    @CurrentUser('id') userId: number,
+  ) {
+    return this.knowledgeService.updateArticle(id, dto, userId)
   }
 
   @Post('articles/:id/submit')
@@ -313,6 +317,28 @@ export class KnowledgeController {
   ) {
     await this.articleCommentService.remove(id, userId, userRole)
     return null
+  }
+
+  // ---- Version History Endpoints ----
+
+  @Get('articles/:id/versions')
+  @ApiOperation({ summary: 'Get version history of an article' })
+  @ApiParam({ name: 'id', description: 'Article ID', type: Number })
+  getVersionHistory(@Param('id', ParseIntPipe) id: number) {
+    return this.knowledgeService.getVersionHistory(id)
+  }
+
+  @Get('versions/:versionId')
+  @ApiOperation({ summary: 'Get a specific article version' })
+  @ApiParam({ name: 'versionId', description: 'Version ID', type: Number })
+  getVersion(@Param('versionId', ParseIntPipe) versionId: number) {
+    return this.knowledgeService.getVersion(versionId)
+  }
+
+  @Get('versions/diff')
+  @ApiOperation({ summary: 'Diff two article versions' })
+  getDiffVersions(@Query('v1') v1: string, @Query('v2') v2: string) {
+    return this.knowledgeService.diffVersions(parseInt(v1, 10), parseInt(v2, 10))
   }
 
   // ---- AI / RAG Endpoints ----

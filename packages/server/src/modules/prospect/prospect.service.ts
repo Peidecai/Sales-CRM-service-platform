@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, DataSource, In, SelectQueryBuilder } from 'typeorm'
 import { Prospect } from './prospect.entity'
 import { ProspectSearchLog } from './entities/prospect-search-log.entity'
+import { ProspectQueryHistory } from './entities/prospect-query-history.entity'
 import { Customer } from '../customer/customer.entity'
 import { MockProspectAdapter } from './adapters/mock.adapter'
 import { TianyanchaAdapter } from './adapters/tianyancha.adapter'
@@ -48,6 +49,8 @@ export class ProspectService {
     private readonly prospectRepository: Repository<Prospect>,
     @InjectRepository(ProspectSearchLog)
     private readonly searchLogRepository: Repository<ProspectSearchLog>,
+    @InjectRepository(ProspectQueryHistory)
+    private readonly queryHistoryRepository: Repository<ProspectQueryHistory>,
     @InjectRepository(Customer)
     private readonly customerRepository: Repository<Customer>,
     private readonly dataSource: DataSource,
@@ -100,6 +103,11 @@ export class ProspectService {
     // 记录搜索日志（fire-and-forget）
     this.logSearch(user.id, adapter.channel, dto, total, cost).catch((err) =>
       this.logger.warn(`Failed to log search: ${String(err)}`),
+    )
+
+    // 记录查询历史（fire-and-forget）
+    this.saveQueryHistory(user.id, dto as unknown as Record<string, unknown>, total).catch((err) =>
+      this.logger.warn(`Failed to save query history: ${String(err)}`),
     )
 
     return { results: resultsWithDuplicate, total }
@@ -385,6 +393,37 @@ export class ProspectService {
     })
   }
 
+  /* ========== 查询历史 ========== */
+
+  async getQueryHistory(
+    userId: number,
+    page = 1,
+    pageSize = 20,
+  ): Promise<{ list: ProspectQueryHistory[]; total: number }> {
+    const [list, total] = await this.queryHistoryRepository.findAndCount({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    })
+    return { list, total }
+  }
+
+  async deleteQueryHistory(id: number, userId: number): Promise<void> {
+    const history = await this.queryHistoryRepository.findOne({ where: { id, userId } })
+    if (!history) throw new NotFoundException(`Query history ${id} not found`)
+    await this.queryHistoryRepository.remove(history)
+  }
+
+  async saveQueryHistory(
+    userId: number,
+    queryParams: Record<string, unknown>,
+    resultCount: number,
+  ): Promise<void> {
+    const entry = this.queryHistoryRepository.create({ userId, queryParams, resultCount })
+    await this.queryHistoryRepository.save(entry)
+  }
+
   /* ========== 统计 ========== */
 
   async getStats(user: AuthUser): Promise<{
@@ -444,9 +483,7 @@ export class ProspectService {
 
   /* ========== 私有方法 ========== */
 
-  private async getAvailableAdapter(
-    channelOverride?: ProspectChannel,
-  ): Promise<{
+  private async getAvailableAdapter(channelOverride?: ProspectChannel): Promise<{
     adapter: IProspectAdapter
     dbSourceId: number | null
     credentials: DataSourceCredentials | undefined

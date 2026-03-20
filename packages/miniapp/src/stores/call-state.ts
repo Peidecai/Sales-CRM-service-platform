@@ -8,7 +8,10 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
 const STORAGE_KEY = 'crm_pending_call'
+const CALL_MODE_KEY = 'crm_call_mode'
 const MAX_AGE_MS = 24 * 60 * 60 * 1000 // 24 hours
+
+export type CallMode = 'native' | 'cloud'
 
 export interface PendingCall {
   customerId: number
@@ -21,9 +24,12 @@ export interface PendingCall {
 export const useCallStateStore = defineStore('callState', () => {
   // State
   const pendingCall = ref<PendingCall | null>(restoreFromStorage())
+  const callMode = ref<CallMode>(restoreCallMode())
+  const isInCall = ref(false)
 
   // Getters
   const pending = computed(() => !!pendingCall.value)
+  const hasRememberedMode = computed(() => !!uni.getStorageSync(CALL_MODE_KEY))
 
   // Actions
 
@@ -49,6 +55,23 @@ export const useCallStateStore = defineStore('callState', () => {
       pendingCall.value.returnTime = new Date().toISOString()
       saveToStorage(pendingCall.value)
     }
+  }
+
+  /**
+   * 设置通话模式（可选持久化）
+   */
+  function setCallMode(mode: CallMode, remember: boolean) {
+    callMode.value = mode
+    if (remember) {
+      uni.setStorageSync(CALL_MODE_KEY, mode)
+    }
+  }
+
+  /**
+   * 清除记住的通话模式
+   */
+  function clearRememberedMode() {
+    uni.removeStorageSync(CALL_MODE_KEY)
   }
 
   /**
@@ -86,11 +109,26 @@ export const useCallStateStore = defineStore('callState', () => {
     }
   }
 
+  function restoreCallMode(): CallMode {
+    try {
+      const saved = uni.getStorageSync(CALL_MODE_KEY) as string
+      if (saved === 'native' || saved === 'cloud') return saved
+    } catch {
+      // ignore
+    }
+    return 'native'
+  }
+
   return {
     pendingCall,
     pending,
+    callMode,
+    isInCall,
+    hasRememberedMode,
     setPendingCall,
     markReturned,
+    setCallMode,
+    clearRememberedMode,
     clearPendingCall,
   }
 })

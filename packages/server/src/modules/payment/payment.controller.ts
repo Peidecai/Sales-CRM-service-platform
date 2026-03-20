@@ -13,7 +13,14 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common'
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger'
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { Roles } from '../../common/decorators/roles.decorator'
@@ -37,10 +44,35 @@ export class PaymentController {
   // ─── Static routes (MUST come before :id) ─────────────────────────────
 
   @Get('overdue')
-  @ApiOperation({ summary: '获取逾期回款列表' })
-  @ApiResponse({ status: 200, description: '逾期回款列表（计划日期已过但未确认的回款）' })
-  getOverdue() {
-    return this.paymentService.getOverduePayments()
+  @ApiOperation({ summary: '获取逾期回款列表（分页）' })
+  @ApiQuery({ name: 'page', type: Number, required: false })
+  @ApiQuery({ name: 'pageSize', type: Number, required: false })
+  @ApiResponse({ status: 200, description: '逾期回款列表' })
+  getOverdue(@Query('page') page?: string, @Query('pageSize') pageSize?: string) {
+    const p = page ? parseInt(page, 10) || 1 : 1
+    const ps = pageSize ? parseInt(pageSize, 10) || 20 : 20
+    return this.paymentService.getOverdueList(p, ps)
+  }
+
+  @Get('statistics')
+  @ApiOperation({ summary: '获取回款统计数据' })
+  @ApiQuery({ name: 'startDate', type: String, required: false })
+  @ApiQuery({ name: 'endDate', type: String, required: false })
+  @ApiQuery({ name: 'ownerId', type: Number, required: false })
+  @ApiQuery({ name: 'customerId', type: Number, required: false })
+  @ApiResponse({ status: 200, description: '回款统计' })
+  getStatistics(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('ownerId') ownerId?: string,
+    @Query('customerId') customerId?: string,
+  ) {
+    return this.paymentService.getStatistics({
+      startDate,
+      endDate,
+      ownerId: ownerId ? parseInt(ownerId, 10) : undefined,
+      customerId: customerId ? parseInt(customerId, 10) : undefined,
+    })
   }
 
   // ─── List & Create ─────────────────────────────────────────────────────
@@ -66,16 +98,20 @@ export class PaymentController {
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: '回款详情' })
   @ApiResponse({ status: 404, description: '回款记录不存在' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.paymentService.findOne(id)
+  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.paymentService.findOne(id, user)
   }
 
   @Put(':id')
   @ApiOperation({ summary: '更新回款记录' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: '回款记录更新成功' })
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdatePaymentDto) {
-    return this.paymentService.update(id, dto)
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdatePaymentDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.paymentService.update(id, dto, user)
   }
 
   @Put(':id/confirm')

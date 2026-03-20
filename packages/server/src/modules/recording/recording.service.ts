@@ -16,8 +16,9 @@ import { CallTranscript, TranscriptSpeaker } from './entities/call-transcript.en
 import { CallRecord } from '../call-record/call-record.entity'
 import type { AsrProviderAdapter } from './adapters/asr-provider.adapter'
 import type { AuthUser } from '../../common/decorators/current-user.decorator'
-import { UserRole, RecordingSourceType } from '@crm/shared'
+import { UserRole, RecordingSourceType, CallDirection, CallStatus } from '@crm/shared'
 import { OssRecordingService } from './oss-recording.service'
+import { UploadRecordingDto } from './dto/upload-recording.dto'
 
 export interface AsrJobData {
   recordingFileId: number
@@ -51,15 +52,17 @@ export class RecordingService {
     page: number,
     pageSize: number,
     user: AuthUser,
+    source?: RecordingSourceType,
   ): Promise<{ list: RecordingFile[]; total: number }> {
     const qb = this.recordingFileRepository
       .createQueryBuilder('rf')
-      .innerJoin(CallRecord, 'cr', 'cr.id = rf.call_record_id')
+      .innerJoin(CallRecord, 'cr', 'cr.id = rf.callRecordId')
 
     if (user.role === UserRole.SALES) {
       qb.andWhere('(cr.userId = :uid OR cr.agentId = :uid)', { uid: user.id })
     }
     if (callRecordId) qb.andWhere('rf.callRecordId = :callRecordId', { callRecordId })
+    if (source) qb.andWhere('rf.sourceType = :source', { source })
 
     qb.orderBy('rf.createdAt', 'DESC')
       .skip((page - 1) * pageSize)
@@ -110,14 +113,14 @@ export class RecordingService {
       return { taskId: 0, status: 'skipped' }
     }
 
-    let task = await this.asrTaskRepository.findOne({
+    const existingTask = await this.asrTaskRepository.findOne({
       where: { recordingFileId: recordingId },
       order: { createdAt: 'DESC' },
     })
-    if (task) {
-      return { taskId: task.id, status: task.status }
+    if (existingTask && existingTask.status !== AsrTaskStatus.FAILED) {
+      return { taskId: existingTask.id, status: existingTask.status }
     }
-    task = this.asrTaskRepository.create({
+    let task = this.asrTaskRepository.create({
       recordingFileId: recordingId,
       status: AsrTaskStatus.PENDING,
       provider: 'xunfei',
@@ -259,8 +262,130 @@ export class RecordingService {
       task.status = AsrTaskStatus.FAILED
       task.errorMessage = err instanceof Error ? err.message : String(err)
       task.completedAt = new Date()
+      await this.asrTaskRepository.save(task)
       throw err
     }
     await this.asrTaskRepository.save(task)
+  }
+
+  /**
+   * 手动上传录音文件（外部通话/个人手机等）
+   * 1. 校验文件格式和大小
+   * 2. 存储到本地/OSS
+   * 3. 创建 RecordingFile + CallRecord（isManualUpload=true）
+   * 4. 投入 ASR 队列
+   */
+  async uploadManualRecording(
+    file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
+    dto: UploadRecordingDto,
+    user: AuthUser,
+  ): Promise<{ recordingFile: RecordingFile; callRecord: CallRecord; asrTriggered: boolean }> {
+    // 1. 校验格式
+    const allowedMimes = [
+      'audio/mpeg',
+      'audio/mp3',
+      'audio/wav',
+      'audio/x-wav',
+      'audio/mp4',
+      'audio/amr',
+      'audio/aac',
+      'audio/ogg',
+    ]
+    if (!allowedMimes.includes(file.mimetype)) {
+      throw new BadRequestException(`不支持的音频格式: ${file.mimetype}，支持 mp3/wav/m4a/amr`)
+    }
+
+    // 2. 校验大小
+    const maxSize = 100 * 1024 * 1024 // 100MB
+    if (file.size > maxSize) {
+      throw new BadRequestException('文件大小超过 100MB 限制')
+    }
+
+    // 3. 创建 CallRecord（手动上传标记）
+    const callRecord = this.callRecordRepository.create({
+      customerId: dto.customerId ?? null,
+      opportunityId: dto.opportunityId ?? null,
+      userId: user.id,
+      callAt: dto.actualCallTime ? new Date(dto.actualCallTime) : new Date(),
+      duration: dto.duration ?? 0,
+      notes: dto.notes ?? null,
+      direction: CallDirection.OUTBOUND,
+      status: CallStatus.ENDED,
+      isManualUpload: true,
+    })
+    await this.callRecordRepository.save(callRecord)
+
+    // 4. 上传文件到 OSS
+    const now = new Date()
+    const datePath = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}`
+    const ext = file.originalname.split('.').pop() ?? 'mp3'
+    const uuid = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+    const ossKey = `recordings/manual/${datePath}/${uuid}.${ext}`
+
+    await this.ossRecording.uploadBuffer(file.buffer, ossKey, file.mimetype)
+
+    // 5. 创建 RecordingFile
+    const recordingFile = this.recordingFileRepository.create({
+      callRecordId: callRecord.id,
+      fileName: file.originalname,
+      ossKey,
+      ossBucket: this.ossRecording.getBucket(),
+      fileSize: file.size,
+      mimeType: file.mimetype,
+      sourceType: RecordingSourceType.MANUAL_UPLOAD,
+      counterpartPhone: dto.counterpartPhone ?? null,
+      actualCallTime: dto.actualCallTime ? new Date(dto.actualCallTime) : null,
+      uploadedById: user.id,
+      notes: dto.notes ?? null,
+    })
+    await this.recordingFileRepository.save(recordingFile)
+
+    // 6. 触发 ASR
+    let asrTriggered = false
+    try {
+      const result = await this.triggerAsr(recordingFile.id, user)
+      asrTriggered = result.status !== 'skipped'
+    } catch (err) {
+      this.logger.warn(`ASR trigger failed for manual upload #${recordingFile.id}: ${String(err)}`)
+    }
+
+    return { recordingFile, callRecord, asrTriggered }
+  }
+
+  /**
+   * 批量手动上传录音
+   */
+  async batchUploadManual(
+    files: Array<{ buffer: Buffer; originalname: string; mimetype: string; size: number }>,
+    dtos: UploadRecordingDto[],
+    user: AuthUser,
+  ): Promise<
+    Array<{
+      success: boolean
+      recordingFile?: RecordingFile
+      callRecord?: CallRecord
+      error?: string
+    }>
+  > {
+    const results: Array<{
+      success: boolean
+      recordingFile?: RecordingFile
+      callRecord?: CallRecord
+      error?: string
+    }> = []
+    for (let i = 0; i < files.length; i++) {
+      try {
+        const dto = dtos[i] ?? {}
+        const result = await this.uploadManualRecording(files[i], dto, user)
+        results.push({
+          success: true,
+          recordingFile: result.recordingFile,
+          callRecord: result.callRecord,
+        })
+      } catch (err) {
+        results.push({ success: false, error: err instanceof Error ? err.message : String(err) })
+      }
+    }
+    return results
   }
 }

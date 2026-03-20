@@ -1,0 +1,156 @@
+name: APP Build
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - "packages/miniapp/**"
+      - "packages/shared/**"
+  pull_request:
+    paths:
+      - "packages/miniapp/**"
+      - "packages/shared/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Lint & Type Check ─────────────────────────────────────
+  lint-miniapp:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm --filter @crm/shared build
+
+      - name: Lint miniapp
+        run: pnpm --filter @crm/miniapp lint --if-present
+
+      - name: Type check miniapp
+        run: pnpm --filter @crm/miniapp type-check
+
+      - name: Summary
+        if: success()
+        run: |
+          echo "## ✅ Miniapp Lint & Type Check — PASS" >> "$GITHUB_STEP_SUMMARY"
+
+  # ── WeChat Mini Program Build ─────────────────────────────
+  build-mp-weixin:
+    name: Build MP-Weixin
+    runs-on: ubuntu-latest
+    needs: [lint-miniapp]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm --filter @crm/shared build
+
+      - name: Build MP-Weixin
+        run: pnpm --filter @crm/miniapp build:mp-weixin
+        env:
+          NODE_ENV: production
+
+      - name: Upload mp-weixin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mp-weixin-dist
+          path: packages/miniapp/dist/build/mp-weixin/
+          retention-days: 7
+
+      - name: Summary
+        if: success()
+        run: |
+          echo "## ✅ MP-Weixin Build — PASS" >> "$GITHUB_STEP_SUMMARY"
+          if [ -d packages/miniapp/dist/build/mp-weixin ]; then
+            SIZE=$(du -sh packages/miniapp/dist/build/mp-weixin | cut -f1)
+            echo "📦 Build output size: **${SIZE}**" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # ── APP Android Build ─────────────────────────────────────
+  build-app-android:
+    name: Build APP-Android
+    runs-on: ubuntu-latest
+    needs: [lint-miniapp]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm --filter @crm/shared build
+
+      - name: Build APP-Android
+        run: pnpm --filter @crm/miniapp build:app-android
+        env:
+          NODE_ENV: production
+        continue-on-error: true
+
+      - name: Upload app-android artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-android-dist
+          path: packages/miniapp/dist/build/app/
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Summary
+        if: success()
+        run: |
+          echo "## ✅ APP-Android Build — PASS" >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Pipeline Summary ──────────────────────────────────────
+  app-summary:
+    name: APP Build Summary
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [lint-miniapp, build-mp-weixin, build-app-android]
+    steps:
+      - name: Generate summary
+        run: |
+          echo "# 📱 APP Build Pipeline Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Job | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-----|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Lint & Type Check | ${{ needs.lint-miniapp.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| MP-Weixin Build | ${{ needs.build-mp-weixin.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| APP-Android Build | ${{ needs.build-app-android.result }} |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail if critical jobs failed
+        if: >-
+          needs.lint-miniapp.result == 'failure' ||
+          needs.build-mp-weixin.result == 'failure'
+        run: exit 1

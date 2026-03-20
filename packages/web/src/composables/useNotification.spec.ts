@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia, type Pinia } from 'pinia'
+import { UserRole } from '@crm/shared'
 import { useUserStore } from '@/stores/user'
 
 const { ioMock, notificationMock } = vi.hoisted(() => ({
@@ -86,7 +87,7 @@ describe('useNotification', () => {
   it('connects and handles lifecycle and notification events', async () => {
     const userStore = useUserStore()
     userStore.token = 'token-1'
-    userStore.userInfo = { id: 101, username: 'admin', name: 'Admin', role: 'admin' }
+    userStore.userInfo = { id: 101, username: 'admin', name: 'Admin', role: UserRole.ADMIN }
 
     const socket = createMockSocket(false)
     ioMock.mockReturnValue(socket)
@@ -182,7 +183,7 @@ describe('useNotification', () => {
   it('deduplicates notifications by eventId', async () => {
     const userStore = useUserStore()
     userStore.token = 'token-dedup'
-    userStore.userInfo = { id: 300, username: 'sales', name: 'Sales', role: 'sales' }
+    userStore.userInfo = { id: 300, username: 'sales', name: 'Sales', role: UserRole.SALES }
 
     const socket = createMockSocket(false)
     ioMock.mockReturnValue(socket)
@@ -217,7 +218,11 @@ describe('useNotification', () => {
     expect(notificationMock).toHaveBeenCalledTimes(2)
 
     // Notification without eventId should always be accepted (no dedup)
-    const noIdPayload: NotificationPayload = { ...basePayload, eventId: undefined, message: 'no id 1' }
+    const noIdPayload: NotificationPayload = {
+      ...basePayload,
+      eventId: undefined,
+      message: 'no id 1',
+    }
     socket.handlers.notification?.(noIdPayload)
     socket.handlers.notification?.(noIdPayload)
     expect(api.notifications.value).toHaveLength(4)
@@ -229,7 +234,7 @@ describe('useNotification', () => {
   it('evicts oldest eventIds when max capacity exceeded', async () => {
     const userStore = useUserStore()
     userStore.token = 'token-evict'
-    userStore.userInfo = { id: 400, username: 'admin2', name: 'Admin2', role: 'admin' }
+    userStore.userInfo = { id: 400, username: 'admin2', name: 'Admin2', role: UserRole.ADMIN }
 
     const socket = createMockSocket(false)
     ioMock.mockReturnValue(socket)
@@ -267,7 +272,7 @@ describe('useNotification', () => {
   it('uses a singleton socket across multiple consumers', async () => {
     const userStore = useUserStore()
     userStore.token = 'token-2'
-    userStore.userInfo = { id: 201, username: 'manager', name: 'Manager', role: 'manager' }
+    userStore.userInfo = { id: 201, username: 'manager', name: 'Manager', role: UserRole.MANAGER }
 
     const socket = createMockSocket(false)
     ioMock.mockReturnValue(socket)

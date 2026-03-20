@@ -108,10 +108,10 @@ function showQuickActions() {
     itemList: ['新建跟进', '外勤打卡', '语音记录', '路线规划'],
     success: (res) => {
       const routes = [
-        '/pages/follow-up/create',
-        '/pages/check-in/index',
-        '/pages/voice/record',
-        '/pages/route/plan',
+        '/pages-sub/follow-up/create',
+        '/pages-sub/other/check-in/index',
+        '/pages-sub/other/voice/record',
+        '/pages-sub/other/route/plan',
       ]
       uni.navigateTo({ url: routes[res.tapIndex] })
     },

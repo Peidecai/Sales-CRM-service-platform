@@ -167,4 +167,54 @@ export const prospectApi = {
   getSearchHistory(): Promise<ApiResponse<ProspectSearchLogVO[]>> {
     return request.get('/prospects/search-history')
   },
+
+  /** 查询历史 */
+  getQueryHistory(params?: {
+    page?: number
+    pageSize?: number
+  }): Promise<
+    ApiResponse<
+      PageResult<{
+        id: number
+        queryParams: Record<string, unknown>
+        resultCount: number
+        createdAt: string
+      }>
+    >
+  > {
+    return request.get('/prospects/query-history', { params: params ?? {} })
+  },
+
+  /** 删除查询历史 */
+  deleteQueryHistory(id: number): Promise<ApiResponse<null>> {
+    return request.delete(`/prospects/query-history/${id}`)
+  },
+
+  /** 下载导入模板 */
+  downloadImportTemplate(): Promise<Blob> {
+    return request.get('/prospects/import-template', { responseType: 'blob' })
+  },
+
+  /** 导入 Excel 为线索 */
+  importExcel(file: File): Promise<ApiResponse<{ imported: number; errors: string[] }>> {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request.post('/prospects/import-excel', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+
+  /** 导入 Excel 直接为客户 */
+  importAsCustomer(file: File): Promise<ApiResponse<{ imported: number; errors: string[] }>> {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request.post('/prospects/import-as-customer', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+
+  /** 导出线索为 Excel */
+  exportExcel(): Promise<Blob> {
+    return request.get('/prospects/export', { responseType: 'blob' })
+  },
 }

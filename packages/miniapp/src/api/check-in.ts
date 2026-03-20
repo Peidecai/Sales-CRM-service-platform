@@ -36,18 +36,31 @@ export interface CheckInQueryParams {
   endDate?: string
 }
 
+export interface CheckInStats {
+  todayCount: number
+  weekCount: number
+  monthCount: number
+}
+
 export const checkInApi = {
   /**
-   * Submit a field check-in (stub API — backend TODO)
+   * Submit a field check-in
    */
   create(data: CheckInParams): Promise<ApiResponse<CheckInVO>> {
-    return http.post('/attendance/check-in', data as unknown as Record<string, unknown>)
+    return http.post('/check-in', data as unknown as Record<string, unknown>)
   },
 
   /**
    * Get check-in history
    */
   getList(params: CheckInQueryParams): Promise<ApiResponse<PageResult<CheckInVO>>> {
-    return http.get('/attendance/check-in', params as unknown as Record<string, unknown>)
+    return http.get('/check-in', params as unknown as Record<string, unknown>)
+  },
+
+  /**
+   * Get check-in statistics (today/week/month counts)
+   */
+  getStats(): Promise<ApiResponse<CheckInStats>> {
+    return http.get('/check-in/stats')
   },
 }

@@ -5,6 +5,8 @@ import { RecordingFile } from './entities/recording-file.entity'
 import { AsrTask } from './entities/asr-task.entity'
 import { CallTranscript } from './entities/call-transcript.entity'
 import { CallRecordModule } from '../call-record/call-record.module'
+import { CustomerModule } from '../customer/customer.module'
+import { OpportunityModule } from '../opportunity/opportunity.module'
 import { OssRecordingService } from './oss-recording.service'
 import { XunfeiAsrAdapter } from './adapters/xunfei-asr.adapter'
 import { RecordingService } from './recording.service'
@@ -15,6 +17,8 @@ import { AsrProcessor } from './asr.processor'
   imports: [
     TypeOrmModule.forFeature([RecordingFile, AsrTask, CallTranscript]),
     CallRecordModule,
+    CustomerModule,
+    OpportunityModule,
     BullModule.registerQueue({
       name: 'asr',
       defaultJobOptions: {

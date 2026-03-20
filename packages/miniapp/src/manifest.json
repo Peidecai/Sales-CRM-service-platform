@@ -5,8 +5,49 @@
   "versionName": "1.0.0",
   "versionCode": "100",
   "transformPx": false,
+  "app-plus": {
+    "compilerVersion": 3,
+    "splashscreen": {
+      "alwaysShowBeforeRender": true,
+      "autoclose": true,
+      "waiting": true
+    },
+    "modules": {
+      "Push": {},
+      "Fingerprint": {},
+      "Record": {}
+    },
+    "distribute": {
+      "android": {
+        "permissions": [
+          "<uses-permission android:name=\"android.permission.INTERNET\"/>",
+          "<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/>",
+          "<uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\"/>",
+          "<uses-permission android:name=\"android.permission.CAMERA\"/>",
+          "<uses-permission android:name=\"android.permission.ACCESS_FINE_LOCATION\"/>",
+          "<uses-permission android:name=\"android.permission.RECORD_AUDIO\"/>",
+          "<uses-permission android:name=\"android.permission.READ_PHONE_STATE\"/>",
+          "<uses-permission android:name=\"android.permission.CALL_PHONE\"/>",
+          "<uses-permission android:name=\"android.permission.USE_FINGERPRINT\"/>",
+          "<uses-permission android:name=\"android.permission.VIBRATE\"/>"
+        ],
+        "abiFilters": ["armeabi-v7a", "arm64-v8a"]
+      },
+      "ios": {
+        "privacyDescription": {
+          "NSCameraUsageDescription": "用于名片扫描和拍照取号",
+          "NSLocationWhenInUseUsageDescription": "用于外勤打卡和客户定位",
+          "NSMicrophoneUsageDescription": "用于语音速记",
+          "NSFaceIDUsageDescription": "用于快捷登录",
+          "NSPhotoLibraryUsageDescription": "用于选择图片上传"
+        }
+      },
+      "sdkConfigs": {}
+    },
+    "ssl": "accept"
+  },
   "mp-weixin": {
-    "appid": "wx_placeholder_appid",
+    "appid": "wx023758441b0c3e33",
     "setting": {
       "urlCheck": false,
       "es6": true,

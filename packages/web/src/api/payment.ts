@@ -78,6 +78,21 @@ export interface ConfirmPaymentParams {
   bankTransactionNo?: string
 }
 
+export interface PaymentStatisticsVO {
+  totalPlanned: number
+  totalReceived: number
+  overdueAmount: number
+  overdueRate: number
+  collectionRate: number
+}
+
+export interface PaymentStatisticsParams {
+  startDate?: string
+  endDate?: string
+  ownerId?: number
+  customerId?: number
+}
+
 // ── API ───────────────────────────────────────────────────────────────────
 
 export const paymentApi = {
@@ -85,8 +100,15 @@ export const paymentApi = {
     return request.get('/payments', { params })
   },
 
-  getOverdue(): Promise<ApiResponse<PaymentVO[]>> {
-    return request.get('/payments/overdue')
+  getOverdue(params?: {
+    page?: number
+    pageSize?: number
+  }): Promise<ApiResponse<PageResult<PaymentVO>>> {
+    return request.get('/payments/overdue', { params })
+  },
+
+  getStatistics(params?: PaymentStatisticsParams): Promise<ApiResponse<PaymentStatisticsVO>> {
+    return request.get('/payments/statistics', { params })
   },
 
   getDetail(id: number): Promise<ApiResponse<PaymentVO>> {

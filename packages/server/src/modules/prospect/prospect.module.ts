@@ -5,10 +5,13 @@ import { ProspectSearchLog } from './entities/prospect-search-log.entity'
 import { ProspectDataSource } from './entities/prospect-data-source.entity'
 import { ProspectSearchTemplate } from './entities/prospect-search-template.entity'
 import { ProspectFilterConfig } from './entities/prospect-filter-config.entity'
+import { ProspectQueryHistory } from './entities/prospect-query-history.entity'
 import { CustomerModule } from '../customer/customer.module'
 import { ProspectController } from './prospect.controller'
 import { ProspectService } from './prospect.service'
 import { ProspectConfigService } from './prospect-config.service'
+import { ProspectImportService } from './prospect-import.service'
+import { ProspectExportService } from './prospect-export.service'
 import { MockProspectAdapter } from './adapters/mock.adapter'
 import { TianyanchaAdapter } from './adapters/tianyancha.adapter'
 import { QichachaAdapter } from './adapters/qichacha.adapter'
@@ -21,6 +24,7 @@ import { QichachaAdapter } from './adapters/qichacha.adapter'
       ProspectDataSource,
       ProspectSearchTemplate,
       ProspectFilterConfig,
+      ProspectQueryHistory,
     ]),
     CustomerModule,
   ],
@@ -28,6 +32,8 @@ import { QichachaAdapter } from './adapters/qichacha.adapter'
   providers: [
     ProspectService,
     ProspectConfigService,
+    ProspectImportService,
+    ProspectExportService,
     MockProspectAdapter,
     TianyanchaAdapter,
     QichachaAdapter,

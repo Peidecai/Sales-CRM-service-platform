@@ -5,8 +5,9 @@ import { useUserStore } from '@/stores/user'
  * v-permission directive
  *
  * Usage:
- *   v-permission="'admin'"           — visible only to admin
- *   v-permission="['admin','manager']" — visible to admin or manager
+ *   v-permission="'admin'"                     — visible only to admin (role check)
+ *   v-permission="['admin','manager']"          — visible to admin or manager (role check)
+ *   v-permission="'customer:customer:delete'"   — visible if user has permission code
  */
 const permissionDirective: Directive = {
   mounted(el: HTMLElement, binding: DirectiveBinding<string | string[]>) {
@@ -17,14 +18,28 @@ const permissionDirective: Directive = {
   },
 }
 
+function isPermissionCode(value: string): boolean {
+  // Permission codes contain at least 2 colons: module:resource:action
+  return value.includes(':')
+}
+
 function checkPermission(el: HTMLElement, binding: DirectiveBinding<string | string[]>) {
   const userStore = useUserStore()
-  const currentRole = userStore.userRole
-  const requiredRoles = Array.isArray(binding.value) ? binding.value : [binding.value]
+  const value = binding.value
 
-  if (requiredRoles.length > 0 && !requiredRoles.includes(currentRole)) {
-    // Remove element from DOM
-    el.parentNode?.removeChild(el)
+  if (typeof value === 'string' && isPermissionCode(value)) {
+    // Permission code check
+    if (!userStore.hasPermission(value)) {
+      el.parentNode?.removeChild(el)
+    }
+  } else {
+    // Role check (backward compatible)
+    const currentRole = userStore.userRole
+    const requiredRoles = Array.isArray(value) ? value : [value]
+
+    if (requiredRoles.length > 0 && !requiredRoles.includes(currentRole)) {
+      el.parentNode?.removeChild(el)
+    }
   }
 }
 

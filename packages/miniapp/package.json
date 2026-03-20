@@ -6,6 +6,10 @@
   "scripts": {
     "dev:mp-weixin": "uni -p mp-weixin",
     "build:mp-weixin": "uni build -p mp-weixin",
+    "dev:app-android": "uni -p app-android",
+    "dev:app-ios": "uni -p app-ios",
+    "build:app-android": "uni build -p app-android",
+    "build:app-ios": "uni build -p app-ios",
     "type-check": "tsc --noEmit",
     "lint": "tsc --noEmit"
   },

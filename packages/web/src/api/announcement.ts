@@ -7,6 +7,7 @@ export interface AnnouncementVO {
   content: string | null
   priority: string
   isPinned: boolean
+  forceRead: boolean
   publishAt: string | null
   endAt: string | null
   createdAt: string
@@ -20,6 +21,12 @@ export interface AnnouncementQueryParams {
   pageSize?: number
 }
 
+export interface ReadStatsVO {
+  totalUsers: number
+  readCount: number
+  readRate: number
+}
+
 export const announcementApi = {
   list(params?: AnnouncementQueryParams): Promise<ApiResponse<PageResult<AnnouncementVO>>> {
     return request.get('/announcements', { params: params ?? {} })
@@ -31,6 +38,18 @@ export const announcementApi = {
 
   getUnreadCount(): Promise<ApiResponse<number>> {
     return request.get('/announcements/unread-count')
+  },
+
+  getUnread(): Promise<ApiResponse<AnnouncementVO[]>> {
+    return request.get('/announcements/unread')
+  },
+
+  getForceUnread(): Promise<ApiResponse<AnnouncementVO[]>> {
+    return request.get('/announcements/force-unread')
+  },
+
+  getReadStats(id: number): Promise<ApiResponse<ReadStatsVO>> {
+    return request.get(`/announcements/${id}/read-stats`)
   },
 
   markRead(id: number): Promise<ApiResponse<void>> {
