@@ -62,6 +62,14 @@ interface KnowledgeGapResult {
   matchRate: number
 }
 
+/** Enriched analysis result with joined columns from related tables. */
+export type AnalysisListItem = CallAnalysisResult & {
+  customerName: string | null
+  customerCompany: string | null
+  salesUserName: string | null
+  callDuration: number | null
+}
+
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 @Injectable()
@@ -287,22 +295,30 @@ export class CallAnalysisService {
 
   /**
    * Paginated list of analysis results with optional filters.
+   * Returns enriched data with customer/user names via getRawAndEntities.
    */
   async getAnalysisList(
     query: QueryAnalysisDto,
     user?: AuthUser,
-  ): Promise<{ list: CallAnalysisResult[]; total: number; page: number; pageSize: number }> {
+  ): Promise<{
+    list: AnalysisListItem[]
+    total: number
+    page: number
+    pageSize: number
+    tabs: { total: number; analyzed: number; pending: number }
+  }> {
     const page = query.page ?? 1
     const pageSize = query.pageSize ?? 20
 
-    const qb = this.analysisRepo.createQueryBuilder('r')
+    const qb = this.analysisRepo
+      .createQueryBuilder('r')
+      .leftJoin('call_records', 'cr', 'cr.id = r.callRecordId')
+      .leftJoin('customers', 'c', 'c.id = r.customerId')
+      .leftJoin('users', 'u', 'u.id = cr.user_id')
 
     // Data ownership: SALES users can only see their own call records' analyses
     if (user && user.role === UserRole.SALES) {
-      qb.innerJoin('call_records', 'cr', 'cr.id = r.callRecordId').andWhere(
-        'cr.user_id = :userId',
-        { userId: user.id },
-      )
+      qb.andWhere('cr.user_id = :userId', { userId: user.id })
     }
 
     if (query.callRecordId != null) {
@@ -321,19 +337,331 @@ export class CallAnalysisService {
       qb.andWhere('r.createdAt >= :startDate', { startDate: `${query.startDate} 00:00:00` })
     }
     if (query.endDate) {
-      // Use next day 00:00:00 to include all records on endDate
       const nextDay = new Date(query.endDate)
       nextDay.setDate(nextDay.getDate() + 1)
       const nextDayStr = nextDay.toISOString().slice(0, 10)
       qb.andWhere('r.createdAt < :endDate', { endDate: `${nextDayStr} 00:00:00` })
     }
+    // New filters — joined table columns use raw names
+    if (query.userId != null) {
+      qb.andWhere('cr.user_id = :filterUserId', { filterUserId: query.userId })
+    }
+    if (query.minDuration != null) {
+      qb.andWhere('cr.duration >= :minDuration', { minDuration: query.minDuration })
+    }
+    if (query.maxDuration != null) {
+      qb.andWhere('cr.duration <= :maxDuration', { maxDuration: query.maxDuration })
+    }
+    if (query.inputSource) {
+      qb.andWhere('r.inputSource = :inputSource', { inputSource: query.inputSource })
+    }
 
     qb.orderBy('r.createdAt', 'DESC')
       .skip((page - 1) * pageSize)
       .take(pageSize)
+      .addSelect('c.name', 'customerName')
+      .addSelect('c.company', 'customerCompany')
+      .addSelect('u.name', 'salesUserName')
+      .addSelect('cr.duration', 'callDuration')
 
-    const [list, total] = await qb.getManyAndCount()
-    return { list, total, page, pageSize }
+    const { raw, entities } = await qb.getRawAndEntities()
+    const total = await qb.getCount()
+
+    // Merge raw joined columns into entity results
+    const list = entities.map((entity, i) => {
+      const item = entity as AnalysisListItem
+      item.customerName = (raw[i]?.customerName as string) ?? null
+      item.customerCompany = (raw[i]?.customerCompany as string) ?? null
+      item.salesUserName = (raw[i]?.salesUserName as string) ?? null
+      item.callDuration = raw[i]?.callDuration != null ? Number(raw[i].callDuration) : null
+      return item
+    })
+
+    // Tab counts — same ownership + filter scope (#6 fix)
+    const tabsQb = this.analysisRepo.createQueryBuilder('r2')
+    if (user && user.role === UserRole.SALES) {
+      tabsQb
+        .innerJoin('call_records', 'cr2', 'cr2.id = r2.callRecordId')
+        .andWhere('cr2.user_id = :tabUserId', { tabUserId: user.id })
+    }
+    if (query.customerClassify) {
+      tabsQb.andWhere('r2.customerClassify = :tabClassify', { tabClassify: query.customerClassify })
+    }
+    if (query.startDate) {
+      tabsQb.andWhere('r2.createdAt >= :tabStart', { tabStart: `${query.startDate} 00:00:00` })
+    }
+    if (query.endDate) {
+      const nextDay = new Date(query.endDate)
+      nextDay.setDate(nextDay.getDate() + 1)
+      tabsQb.andWhere('r2.createdAt < :tabEnd', {
+        tabEnd: `${nextDay.toISOString().slice(0, 10)} 00:00:00`,
+      })
+    }
+    const tabsRaw = await tabsQb
+      .select('COUNT(*)', 'total')
+      .addSelect(
+        `SUM(CASE WHEN r2.status IN ('completed','applied') THEN 1 ELSE 0 END)`,
+        'analyzed',
+      )
+      .addSelect(`SUM(CASE WHEN r2.status = 'pending' THEN 1 ELSE 0 END)`, 'pending')
+      .getRawOne<{ total: string; analyzed: string; pending: string }>()
+
+    const tabs = {
+      total: parseInt(tabsRaw?.total ?? '0', 10),
+      analyzed: parseInt(tabsRaw?.analyzed ?? '0', 10),
+      pending: parseInt(tabsRaw?.pending ?? '0', 10),
+    }
+
+    return { list, total, page, pageSize, tabs }
+  }
+
+  /**
+   * Get the latest COMPLETED analysis for a customer.
+   */
+  async getLatestByCustomer(
+    customerId: number,
+    user?: AuthUser,
+  ): Promise<CallAnalysisResult | null> {
+    const qb = this.analysisRepo
+      .createQueryBuilder('r')
+      .where('r.customerId = :customerId', { customerId })
+      .andWhere('r.status = :status', { status: AnalysisStatus.COMPLETED })
+      .orderBy('r.createdAt', 'DESC')
+
+    if (user && user.role === UserRole.SALES) {
+      qb.innerJoin('call_records', 'cr', 'cr.id = r.callRecordId').andWhere(
+        'cr.user_id = :userId',
+        { userId: user.id },
+      )
+    }
+
+    return qb.getOne()
+  }
+
+  /**
+   * Aggregate all call analyses for an opportunity (deal analysis).
+   * Returns per-analysis intent trends + overall stats.
+   */
+  async getDealAnalysis(
+    opportunityId: number,
+    user?: AuthUser,
+  ): Promise<{
+    analyses: CallAnalysisResult[]
+    intentTrend: { date: string; classify: string | null; confidence: number | null }[]
+    summary: { total: number; avgSpeechScore: number | null; avgConfidence: number | null }
+  }> {
+    // Get call records linked to this opportunity
+    const crQb = this.callRecordRepo
+      .createQueryBuilder('cr')
+      .where('cr.opportunityId = :opportunityId', { opportunityId })
+      .select(['cr.id'])
+    if (user && user.role === UserRole.SALES) {
+      crQb.andWhere('cr.userId = :userId', { userId: user.id })
+    }
+    const callRecords = await crQb.getMany()
+    const callRecordIds = callRecords.map((cr) => cr.id)
+
+    if (callRecordIds.length === 0) {
+      return {
+        analyses: [],
+        intentTrend: [],
+        summary: { total: 0, avgSpeechScore: null, avgConfidence: null },
+      }
+    }
+
+    const analyses = await this.analysisRepo
+      .createQueryBuilder('r')
+      .where('r.callRecordId IN (:...ids)', { ids: callRecordIds })
+      .andWhere('r.status IN (:...statuses)', {
+        statuses: [AnalysisStatus.COMPLETED, AnalysisStatus.APPLIED],
+      })
+      .orderBy('r.createdAt', 'ASC')
+      .getMany()
+
+    const intentTrend = analyses.map((a) => ({
+      date: a.createdAt.toISOString().slice(0, 10),
+      classify: a.customerClassify,
+      confidence: a.classifyConfidence,
+    }))
+
+    const speechScores = analyses.map((a) => a.speechScore).filter((s): s is number => s != null)
+    const confidences = analyses
+      .map((a) => a.classifyConfidence)
+      .filter((c): c is number => c != null)
+
+    return {
+      analyses,
+      intentTrend,
+      summary: {
+        total: analyses.length,
+        avgSpeechScore:
+          speechScores.length > 0
+            ? Math.round(speechScores.reduce((a, b) => a + b, 0) / speechScores.length)
+            : null,
+        avgConfidence:
+          confidences.length > 0
+            ? Math.round((confidences.reduce((a, b) => a + b, 0) / confidences.length) * 100) / 100
+            : null,
+      },
+    }
+  }
+
+  /**
+   * Aggregate all call analyses for a customer — stats, trends, and summary.
+   * Uses fresh QueryBuilder per query (no clone) and Promise.all for concurrency.
+   */
+  async getCustomerCallSummary(
+    customerId: number,
+    user: AuthUser,
+  ): Promise<{
+    totalCalls: number
+    totalAnalyzed: number
+    avgSpeechScore: number | null
+    avgKnowledgeMatchRate: number | null
+    speechScoreTrend: { date: string; score: number }[]
+    knowledgeCoverageTrend: { date: string; rate: number }[]
+    topClassifications: { label: string; count: number }[]
+    overallSummary: string | null
+  }> {
+    const isSales = user.role === UserRole.SALES
+    const completedStatuses = [AnalysisStatus.COMPLETED, AnalysisStatus.APPLIED]
+
+    /** Build a fresh analysis QueryBuilder with ownership filter applied. */
+    const makeAnalysisQb = () => {
+      const qb = this.analysisRepo
+        .createQueryBuilder('r')
+        .innerJoin('call_records', 'cr', 'cr.id = r.callRecordId')
+        .where('r.customerId = :customerId', { customerId })
+        .andWhere('r.status IN (:...statuses)', { statuses: completedStatuses })
+      if (isSales) {
+        qb.andWhere('cr.user_id = :userId', { userId: user.id })
+      }
+      return qb
+    }
+
+    // Total calls for this customer
+    const totalCallsQb = this.callRecordRepo
+      .createQueryBuilder('cr2')
+      .where('cr2.customerId = :customerId', { customerId })
+    if (isSales) {
+      totalCallsQb.andWhere('cr2.userId = :userId', { userId: user.id })
+    }
+
+    // Run all 6 queries concurrently
+    const [totalCalls, statsRaw, speechTrendRaw, knowledgeTrendRaw, classifyRaw, recentSummaries] =
+      await Promise.all([
+        // 1. Total calls
+        totalCallsQb.getCount(),
+
+        // 2. Aggregate stats
+        makeAnalysisQb()
+          .select('COUNT(*)', 'totalAnalyzed')
+          .addSelect('AVG(r.speechScore)', 'avgSpeechScore')
+          .addSelect('AVG(r.knowledgeMatchRate)', 'avgKnowledgeMatchRate')
+          .getRawOne<{
+            totalAnalyzed: string
+            avgSpeechScore: string | null
+            avgKnowledgeMatchRate: string | null
+          }>(),
+
+        // 3. Speech score trend by date
+        makeAnalysisQb()
+          .select('DATE(r.createdAt)', 'date')
+          .addSelect('AVG(r.speechScore)', 'score')
+          .andWhere('r.speechScore IS NOT NULL')
+          .groupBy('DATE(r.createdAt)')
+          .orderBy('DATE(r.createdAt)', 'ASC')
+          .getRawMany<{ date: string; score: string }>(),
+
+        // 4. Knowledge coverage trend by date
+        makeAnalysisQb()
+          .select('DATE(r.createdAt)', 'date')
+          .addSelect('AVG(r.knowledgeMatchRate)', 'rate')
+          .andWhere('r.knowledgeMatchRate IS NOT NULL')
+          .groupBy('DATE(r.createdAt)')
+          .orderBy('DATE(r.createdAt)', 'ASC')
+          .getRawMany<{ date: string; rate: string }>(),
+
+        // 5. Top classifications
+        makeAnalysisQb()
+          .select('r.customerClassify', 'label')
+          .addSelect('COUNT(*)', 'count')
+          .andWhere('r.customerClassify IS NOT NULL')
+          .groupBy('r.customerClassify')
+          .orderBy('count', 'DESC')
+          .take(10)
+          .getRawMany<{ label: string; count: string }>(),
+
+        // 6. Recent summaries
+        makeAnalysisQb()
+          .select(['r.summary', 'r.createdAt'])
+          .andWhere('r.summary IS NOT NULL')
+          .orderBy('r.createdAt', 'DESC')
+          .take(3)
+          .getMany(),
+      ])
+
+    const totalAnalyzed = parseInt(statsRaw?.totalAnalyzed ?? '0', 10)
+    const avgSpeechScore =
+      statsRaw?.avgSpeechScore != null
+        ? Math.round(Number(statsRaw.avgSpeechScore) * 10) / 10
+        : null
+    const avgKnowledgeMatchRate =
+      statsRaw?.avgKnowledgeMatchRate != null
+        ? Math.round(Number(statsRaw.avgKnowledgeMatchRate) * 100) / 100
+        : null
+
+    const speechScoreTrend = speechTrendRaw.map((row) => ({
+      date:
+        typeof row.date === 'string'
+          ? row.date.slice(0, 10)
+          : new Date(row.date).toISOString().slice(0, 10),
+      score: Math.round(Number(row.score) * 10) / 10,
+    }))
+
+    const knowledgeCoverageTrend = knowledgeTrendRaw.map((row) => ({
+      date:
+        typeof row.date === 'string'
+          ? row.date.slice(0, 10)
+          : new Date(row.date).toISOString().slice(0, 10),
+      rate: Math.round(Number(row.rate) * 100) / 100,
+    }))
+
+    const topClassifications = classifyRaw.map((row) => ({
+      label: row.label,
+      count: parseInt(row.count, 10),
+    }))
+
+    const overallSummary =
+      recentSummaries.length > 0
+        ? recentSummaries
+            .map((r) => `[${r.createdAt?.toISOString().slice(0, 10)}] ${r.summary}`)
+            .filter(Boolean)
+            .join('\n\n')
+        : null
+
+    return {
+      totalCalls,
+      totalAnalyzed,
+      avgSpeechScore,
+      avgKnowledgeMatchRate,
+      speechScoreTrend,
+      knowledgeCoverageTrend,
+      topClassifications,
+      overallSummary,
+    }
+  }
+
+  /**
+   * Export analysis list as CSV-ready data.
+   */
+  async exportAnalysisList(
+    query: QueryAnalysisDto,
+    user?: AuthUser,
+  ): Promise<{ list: AnalysisListItem[]; total: number }> {
+    const overrideQuery = { ...query, page: 1, pageSize: Math.min(query.pageSize ?? 5000, 5000) }
+    const result = await this.getAnalysisList(overrideQuery, user)
+    return { list: result.list, total: result.total }
   }
 
   // ─── Private: text assembly ──────────────────────────────────────────────────

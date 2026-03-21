@@ -1,10 +1,10 @@
 # 13 — 移动端 APP
 
-> 原 miniapp（微信小程序）→ 改为原生 APP
+> 移动端 APP（uni-app 编译 iOS + Android）
 
 ## 现有功能（miniapp）
 
-- [x] 微信小程序端
+- [x] APP 端（iOS + Android）
 - [x] uni-app 3.x + Vue 3
 - [x] 基础客户/商机/通话功能
 - [x] 离线队列
@@ -19,7 +19,7 @@
 | **Flutter**       | 高性能UI、跨平台一致性        | 生态相对较新         |
 | **uni-app → APP** | 复用现有代码最多              | 性能有限、原生能力弱 |
 
-**建议**: 如果追求快速迭代复用现有代码，保留 uni-app 打 APP 包；如果追求性能和原生体验，选 React Native。
+**已确定**: 选用 uni-app 3.x + Vue 3 编译 APP（iOS + Android），最大化代码复用，后期性能瓶颈时可渐进切换。
 
 ### 13.2 APP 核心功能清单
 

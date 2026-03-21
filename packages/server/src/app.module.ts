@@ -80,11 +80,11 @@ import { AnnotationModule } from './modules/annotation/annotation.module'
     // Redis (global)
     RedisModule,
 
-    // Rate limiting — global: 60 req/min (tiered per-route via @Throttle)
+    // Rate limiting — global: 200 req/min (tiered per-route via @Throttle)
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
-        limit: 60,
+        limit: 200,
       },
     ]),
 

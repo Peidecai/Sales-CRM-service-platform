@@ -9,6 +9,7 @@ export interface JwtPayload {
   sub: number
   username: string
   role: string
+  type?: 'access' | 'refresh'
   jti?: string
   iat?: number
   exp?: number
@@ -27,10 +28,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const publicKey = (configService.get<string>('JWT_PUBLIC_KEY', '') || '').replace(/\\n/g, '\n')
     const useRS256 = !!privateKey
 
+    const nodeEnv = configService.get<string>('NODE_ENV', 'development')
+    const jwtSecret = configService.get<string>('JWT_SECRET', '')
+    if (nodeEnv === 'production' && !useRS256) {
+      if (!jwtSecret || jwtSecret === 'your-secret-key' || jwtSecret.length < 32) {
+        throw new Error('JWT_SECRET must be set to a strong secret (>=32 chars) in production')
+      }
+    }
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: useRS256 ? publicKey : configService.get<string>('JWT_SECRET', 'dev-secret-key'),
+      secretOrKey: useRS256 ? publicKey : jwtSecret || 'dev-secret-key',
       algorithms: useRS256 ? ['RS256'] : ['HS256'],
       passReqToCallback: true,
     })
@@ -39,6 +48,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(req: Request, payload: JwtPayload) {
     if (!payload.sub || !payload.username) {
       throw new UnauthorizedException('Invalid token')
+    }
+
+    // Reject refresh tokens used as access tokens
+    if (payload.type && payload.type !== 'access') {
+      throw new UnauthorizedException('Invalid token type')
     }
 
     // Check JWT blacklist (logout)

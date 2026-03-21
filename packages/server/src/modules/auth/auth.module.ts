@@ -33,11 +33,13 @@ import { UserModule } from '../user/user.module'
         )
         const jwtSecret = configService.get<string>('JWT_SECRET', '')
 
-        // Production: require explicit key configuration
-        if (isProduction && !privateKey && !jwtSecret) {
-          throw new Error(
-            'Production 环境必须配置 JWT_PRIVATE_KEY（RS256）或 JWT_SECRET（HS256），禁止使用默认密钥',
-          )
+        // Production: require explicit, strong key configuration
+        if (isProduction && !privateKey) {
+          if (!jwtSecret || jwtSecret.length < 32) {
+            throw new Error(
+              'Production 环境必须配置 JWT_PRIVATE_KEY（RS256）或 JWT_SECRET（HS256, >=32字符），禁止使用默认或弱密钥',
+            )
+          }
         }
 
         const useRS256 = !!privateKey

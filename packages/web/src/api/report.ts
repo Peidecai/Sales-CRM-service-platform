@@ -67,6 +67,10 @@ export function getAiTagStatistics(params: ReportFilter) {
   return request.get('/reports/ai/tags', { params })
 }
 
+export function getAiAppointmentAbility(params: ReportFilter) {
+  return request.get('/reports/ai/appointment-ability', { params })
+}
+
 // ─── Funnel Reports ─────────────────────────────────────────────────
 
 export function getSalesFunnel(params: ReportFilter) {

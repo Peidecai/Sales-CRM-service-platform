@@ -121,11 +121,8 @@ export class CreateAiAnalysisTables1709000067500 implements MigrationInterface {
         `(id, call_analysis_enabled, customer_classify_enabled, speech_scoring_enabled, ` +
         `knowledge_compare_enabled, auto_create_opportunity, chat_model, embedding_model, ` +
         `call_analysis_prompt, customer_classify_prompt, speech_scoring_prompt, classify_rules) ` +
-        `VALUES (1, 1, 1, 1, 1, 1, 'qwen-plus', 'text-embedding-v3', ` +
-        `${queryRunner.connection.driver.escape(callAnalysisPrompt)}, ` +
-        `${queryRunner.connection.driver.escape(customerClassifyPrompt)}, ` +
-        `${queryRunner.connection.driver.escape(speechScoringPrompt)}, ` +
-        `${queryRunner.connection.driver.escape(classifyRules)})`,
+        `VALUES (1, 1, 1, 1, 1, 1, 'qwen-plus', 'text-embedding-v3', ?, ?, ?, ?)`,
+      [callAnalysisPrompt, customerClassifyPrompt, speechScoringPrompt, classifyRules],
     )
 
     // ── call_analysis_results 表 ──

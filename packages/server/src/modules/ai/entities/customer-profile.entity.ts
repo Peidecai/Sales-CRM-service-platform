@@ -26,6 +26,29 @@ export class CustomerProfile {
   @Column({ name: 'raw_analysis', type: 'json', nullable: true })
   rawAnalysis!: Record<string, unknown> | null
 
+  // ---- Intent & Risk fields (Phase B) ----
+
+  @Column({ name: 'intent_level', type: 'varchar', length: 50, nullable: true })
+  intentLevel!: string | null
+
+  @Column({ name: 'intent_tags', type: 'json', nullable: true })
+  intentTags!: string[] | null
+
+  @Column({ name: 'risk_level', type: 'varchar', length: 50, nullable: true })
+  riskLevel!: string | null
+
+  @Column({ name: 'risk_text', type: 'text', nullable: true })
+  riskText!: string | null
+
+  @Column({ name: 'risk_advice', type: 'text', nullable: true })
+  riskAdvice!: string | null
+
+  @Column({ name: 'occupation_tags', type: 'json', nullable: true })
+  occupationTags!: string[] | null
+
+  @Column({ name: 'wechat_status', type: 'varchar', length: 50, nullable: true })
+  wechatStatus!: string | null
+
   @Column({
     name: 'created_at',
     type: 'datetime',

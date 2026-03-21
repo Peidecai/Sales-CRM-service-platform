@@ -2,12 +2,14 @@ import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { BullModule } from '@nestjs/bull'
 import { CallRecord } from './call-record.entity'
+import { LeaderReview } from './entities/leader-review.entity'
 import { CallRecordController } from './call-record.controller'
 import { CallRecordService } from './call-record.service'
+import { LeaderReviewService } from './leader-review.service'
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([CallRecord]),
+    TypeOrmModule.forFeature([CallRecord, LeaderReview]),
     // Register call-summary queue directly — no need to import all of AiModule for queue access
     BullModule.registerQueue({
       name: 'call-summary',
@@ -20,7 +22,7 @@ import { CallRecordService } from './call-record.service'
     }),
   ],
   controllers: [CallRecordController],
-  providers: [CallRecordService],
-  exports: [CallRecordService, TypeOrmModule],
+  providers: [CallRecordService, LeaderReviewService],
+  exports: [CallRecordService, LeaderReviewService, TypeOrmModule],
 })
 export class CallRecordModule {}

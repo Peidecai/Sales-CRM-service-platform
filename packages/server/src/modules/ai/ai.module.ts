@@ -38,12 +38,14 @@ import { SalesForecast } from './entities/sales-forecast.entity'
 import { CompetitorReport } from './entities/competitor-report.entity'
 import { AiAnalysisConfig } from './entities/ai-analysis-config.entity'
 import { CallAnalysisResult } from './entities/call-analysis-result.entity'
+import { EmployeeBadge } from './entities/employee-badge.entity'
 import { CallTranscript } from '../recording/entities/call-transcript.entity'
 import { RecordingFile } from '../recording/entities/recording-file.entity'
 import { CallRecordModule } from '../call-record/call-record.module'
 import { CustomerModule } from '../customer/customer.module'
 import { KnowledgeModule } from '../knowledge/knowledge.module'
 import { OpportunityModule } from '../opportunity/opportunity.module'
+import { UserModule } from '../user/user.module'
 
 @Module({
   imports: [
@@ -58,6 +60,7 @@ import { OpportunityModule } from '../opportunity/opportunity.module'
       CompetitorReport,
       AiAnalysisConfig,
       CallAnalysisResult,
+      EmployeeBadge,
       // Register CallTranscript and RecordingFile directly to avoid importing RecordingModule
       // (which would create a cross-module dep chain: AiModule → RecordingModule → CallRecordModule → AiModule)
       CallTranscript,
@@ -67,6 +70,7 @@ import { OpportunityModule } from '../opportunity/opportunity.module'
     CallRecordModule,
     CustomerModule,
     OpportunityModule,
+    UserModule,
     forwardRef(() => KnowledgeModule),
     // Shared queues — general retry policy
     BullModule.registerQueue(

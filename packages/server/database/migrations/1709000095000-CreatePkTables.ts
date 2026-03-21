@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner, Table, TableIndex, TableUnique } from 'typeorm'
+import { MigrationInterface, QueryRunner, Table, TableIndex } from 'typeorm'
 
 export class CreatePkTables1709000095000 implements MigrationInterface {
   name = 'CreatePkTables1709000095000'
@@ -71,7 +71,7 @@ export class CreatePkTables1709000095000 implements MigrationInterface {
 
     await queryRunner.createIndex('pk_members', new TableIndex({ name: 'IDX_pk_members_team_id', columnNames: ['team_id'] }))
     await queryRunner.createIndex('pk_members', new TableIndex({ name: 'IDX_pk_members_pk_id', columnNames: ['pk_id'] }))
-    await queryRunner.createUniqueConstraint('pk_members', new TableUnique({ name: 'UQ_pk_members_pk_user', columnNames: ['pk_id', 'user_id'] }))
+    await queryRunner.createIndex('pk_members', new TableIndex({ name: 'UQ_pk_members_pk_user', columnNames: ['pk_id', 'user_id'], isUnique: true }))
 
     // 4. pk_badges
     await queryRunner.createTable(

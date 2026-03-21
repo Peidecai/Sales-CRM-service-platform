@@ -10,7 +10,8 @@ import {
   UseInterceptors,
   ParseIntPipe,
 } from '@nestjs/common'
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiParam } from '@nestjs/swagger'
+import { Throttle } from '@nestjs/throttler'
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { Roles } from '../../common/decorators/roles.decorator'
@@ -63,6 +64,7 @@ export class CallAnalysisController {
   // ---- Analysis Operations ----
 
   @Post('call-analysis/:callRecordId')
+  @Throttle({ default: { ttl: 60000, limit: 3 } })
   @ApiOperation({ summary: '触发通话AI分析（同步，返回分析结果）' })
   @ApiParam({ name: 'callRecordId', description: '通话记录 ID' })
   async triggerAnalysis(
@@ -77,6 +79,49 @@ export class CallAnalysisController {
   @ApiOperation({ summary: '分析记录列表（支持多维过滤 + 分页）' })
   async getAnalysisList(@Query() query: QueryAnalysisDto, @CurrentUser() user: AuthUser) {
     const data = await this.callAnalysisService.getAnalysisList(query, user)
+    return { code: 0, message: 'success', data }
+  }
+
+  @Get('call-analysis/export')
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @ApiOperation({ summary: '导出分析记录列表' })
+  async exportAnalysisList(@Query() query: QueryAnalysisDto, @CurrentUser() user: AuthUser) {
+    const data = await this.callAnalysisService.exportAnalysisList(query, user)
+    return { code: 0, message: 'success', data }
+  }
+
+  @Get('call-analysis/customer/:customerId/summary')
+  @ApiOperation({ summary: '客户通话聚合分析（统计+趋势+分类分布+摘要）' })
+  @ApiParam({ name: 'customerId', description: '客户 ID' })
+  @ApiResponse({ status: 200, description: '返回客户通话聚合分析数据' })
+  async getCustomerCallSummary(
+    @Param('customerId', ParseIntPipe) customerId: number,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const data = await this.callAnalysisService.getCustomerCallSummary(customerId, user)
+    return { code: 0, message: 'success', data }
+  }
+
+  @Get('call-analysis/customer/:customerId/latest')
+  @ApiOperation({ summary: '获取客户最新已完成分析' })
+  @ApiParam({ name: 'customerId', description: '客户 ID' })
+  async getLatestByCustomer(
+    @Param('customerId', ParseIntPipe) customerId: number,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const data = await this.callAnalysisService.getLatestByCustomer(customerId, user)
+    return { code: 0, message: 'success', data }
+  }
+
+  @Get('deal-analysis/:opportunityId')
+  @ApiOperation({ summary: '谈单分析（按商机聚合通话分析）' })
+  @ApiParam({ name: 'opportunityId', description: '商机 ID' })
+  async getDealAnalysis(
+    @Param('opportunityId', ParseIntPipe) opportunityId: number,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const data = await this.callAnalysisService.getDealAnalysis(opportunityId, user)
     return { code: 0, message: 'success', data }
   }
 

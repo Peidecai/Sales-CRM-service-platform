@@ -34,7 +34,11 @@
       "js-yaml": "^4.1.1",
       "lodash": "^4.17.23",
       "multer": "^2.1.1",
-      "tmp": "^0.2.4"
+      "tmp": "^0.2.4",
+      "@jest/core": "^29.7.0",
+      "jest-snapshot": "^29.7.0",
+      "jest-haste-map": "^29.7.0",
+      "jest-resolve": "^29.7.0"
     },
     "onlyBuiltDependencies": [
       "better-sqlite3"

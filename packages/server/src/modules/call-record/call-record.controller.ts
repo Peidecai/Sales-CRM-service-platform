@@ -24,9 +24,11 @@ import { UserRole } from '@crm/shared'
 import { AuditLogInterceptor } from '../../common/interceptors/audit-log.interceptor'
 import { NotificationService } from '../notification/notification.service'
 import { CallRecordService } from './call-record.service'
+import { LeaderReviewService } from './leader-review.service'
 import { CreateCallRecordDto } from './dto/create-call-record.dto'
 import { UpdateCallRecordDto } from './dto/update-call-record.dto'
 import { QueryCallRecordDto } from './dto/query-call-record.dto'
+import { CreateLeaderReviewDto } from './dto/create-leader-review.dto'
 
 @ApiTags('通话记录')
 @ApiBearerAuth()
@@ -37,6 +39,7 @@ export class CallRecordController {
   constructor(
     private readonly callRecordService: CallRecordService,
     private readonly notificationService: NotificationService,
+    private readonly leaderReviewService: LeaderReviewService,
   ) {}
 
   @Get()
@@ -125,5 +128,49 @@ export class CallRecordController {
   @ApiResponse({ status: 404, description: 'Call record not found' })
   summarize(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
     return this.callRecordService.summarize(id, user)
+  }
+
+  // ---- Leader Reviews ----
+
+  @Get('customer/:customerId/reviews')
+  @ApiOperation({ summary: '获取客户的领导点评列表' })
+  @ApiParam({ name: 'customerId', description: '客户 ID' })
+  async getCustomerReviews(
+    @Param('customerId', ParseIntPipe) customerId: number,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    const data = await this.leaderReviewService.findByCustomer(
+      customerId,
+      page ? parseInt(page, 10) : 1,
+      pageSize ? parseInt(pageSize, 10) : 20,
+    )
+    return { code: 0, message: 'success', data }
+  }
+
+  @Post(':id/reviews')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @ApiOperation({ summary: '为通话记录添加领导点评' })
+  @ApiParam({ name: 'id', description: 'Call record ID' })
+  async createReview(
+    @Param('id', ParseIntPipe) callRecordId: number,
+    @Body() body: CreateLeaderReviewDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const data = await this.leaderReviewService.create({
+      callRecordId,
+      customerId: body.customerId,
+      reviewerId: user.id,
+      content: body.content,
+    })
+    return { code: 0, message: 'success', data }
+  }
+
+  @Get(':id/reviews')
+  @ApiOperation({ summary: '获取通话记录的领导点评' })
+  @ApiParam({ name: 'id', description: 'Call record ID' })
+  async getReviews(@Param('id', ParseIntPipe) callRecordId: number) {
+    const data = await this.leaderReviewService.findByCallRecord(callRecordId)
+    return { code: 0, message: 'success', data }
   }
 }

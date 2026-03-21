@@ -340,6 +340,11 @@
         </div>
       </el-card>
 
+      <!-- Leader Review Section -->
+      <el-card shadow="never" class="content-card">
+        <LeaderReviewSection :call-record-id="recordId" :customer-id="record?.customerId" />
+      </el-card>
+
       <!-- Edit Dialog -->
       <el-dialog
         v-model="editDialogVisible"
@@ -491,6 +496,7 @@ import { customerApi, type CustomerVO } from '@/api/customer'
 import { opportunityApi, type OpportunityVO } from '@/api/opportunity'
 import { formatDate, formatDuration } from '@/utils/format'
 import { callAnalysisApi, type CallAnalysisResultVO } from '@/api/ai-analysis'
+import LeaderReviewSection from './components/LeaderReviewSection.vue'
 import { AnalysisStatus } from '@crm/shared'
 import { usePermission } from '@/composables/usePermission'
 

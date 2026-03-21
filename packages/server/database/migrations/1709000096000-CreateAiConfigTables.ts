@@ -83,32 +83,35 @@ export class CreateAiConfigTables1709000096000 implements MigrationInterface {
       new TableIndex({ name: 'IDX_ai_prompt_hist_template', columnNames: ['template_id'] }),
     )
 
-    // 4. ai_usage_logs (no deleted_at)
-    await queryRunner.createTable(
-      new Table({
-        name: 'ai_usage_logs',
-        columns: [
-          { name: 'id', type: 'int', isPrimary: true, isGenerated: true, generationStrategy: 'increment' },
-          { name: 'module', type: 'varchar', length: '50' },
-          { name: 'model', type: 'varchar', length: '100' },
-          { name: 'prompt_tokens', type: 'int', default: 0 },
-          { name: 'completion_tokens', type: 'int', default: 0 },
-          { name: 'total_tokens', type: 'int', default: 0 },
-          { name: 'estimated_cost', type: 'decimal', precision: 10, scale: 6, default: 0 },
-          { name: 'latency_ms', type: 'int', default: 0 },
-          { name: 'is_success', type: 'tinyint', default: 1 },
-          { name: 'error_message', type: 'text', isNullable: true },
-          { name: 'triggered_by_id', type: 'int', isNullable: true },
-          { name: 'created_at', type: 'datetime', precision: 6, default: 'CURRENT_TIMESTAMP(6)' },
-        ],
-      }),
-      true,
-    )
+    // 4. ai_usage_logs — may already exist from migration 38000
+    const hasUsageLogs = await queryRunner.hasTable('ai_usage_logs')
+    if (!hasUsageLogs) {
+      await queryRunner.createTable(
+        new Table({
+          name: 'ai_usage_logs',
+          columns: [
+            { name: 'id', type: 'int', isPrimary: true, isGenerated: true, generationStrategy: 'increment' },
+            { name: 'module', type: 'varchar', length: '50' },
+            { name: 'model', type: 'varchar', length: '100' },
+            { name: 'prompt_tokens', type: 'int', default: 0 },
+            { name: 'completion_tokens', type: 'int', default: 0 },
+            { name: 'total_tokens', type: 'int', default: 0 },
+            { name: 'estimated_cost', type: 'decimal', precision: 10, scale: 6, default: 0 },
+            { name: 'latency_ms', type: 'int', default: 0 },
+            { name: 'is_success', type: 'tinyint', default: 1 },
+            { name: 'error_message', type: 'text', isNullable: true },
+            { name: 'triggered_by_id', type: 'int', isNullable: true },
+            { name: 'created_at', type: 'datetime', precision: 6, default: 'CURRENT_TIMESTAMP(6)' },
+          ],
+        }),
+        true,
+      )
 
-    await queryRunner.createIndex(
-      'ai_usage_logs',
-      new TableIndex({ name: 'IDX_ai_usage_module_created', columnNames: ['module', 'created_at'] }),
-    )
+      await queryRunner.createIndex(
+        'ai_usage_logs',
+        new TableIndex({ name: 'IDX_ai_usage_module_created', columnNames: ['module', 'created_at'] }),
+      )
+    }
 
     // Seed default config
     await queryRunner.query(`

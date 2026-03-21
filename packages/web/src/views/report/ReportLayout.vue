@@ -18,6 +18,8 @@
           <el-menu-item index="/report/ai/speech-skill">话术分析</el-menu-item>
           <el-menu-item index="/report/ai/score-ranking">评分排行</el-menu-item>
           <el-menu-item index="/report/ai/employee-portrait">员工画像</el-menu-item>
+          <el-menu-item index="/report/ai/tag-stats">标签统计</el-menu-item>
+          <el-menu-item index="/report/ai/appointment-ability">邀约能力</el-menu-item>
         </el-menu-item-group>
         <el-menu-item-group title="漏斗转化">
           <el-menu-item index="/report/funnel/sales">销售漏斗</el-menu-item>

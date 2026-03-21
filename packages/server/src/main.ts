@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common'
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger'
 import { ConfigService } from '@nestjs/config'
 import * as cookieParser from 'cookie-parser'
+import helmet from 'helmet'
 import { AppModule } from './app.module'
 import { HttpExceptionFilter } from './common/filters/http-exception.filter'
 import { ResponseInterceptor } from './common/interceptors/response.interceptor'
@@ -53,6 +54,14 @@ async function bootstrap() {
 
   // Cookie parser — required for CSRF double-submit cookie pattern
   app.use(cookieParser())
+
+  // Helmet — secure HTTP headers (after CORS so it doesn't override CORS headers)
+  app.use(
+    helmet({
+      contentSecurityPolicy: false, // API server, no HTML pages need CSP
+      crossOriginEmbedderPolicy: false,
+    }),
+  )
 
   // Request context middleware — traceId via AsyncLocalStorage (must be first)
   const requestContextMiddleware = new RequestContextMiddleware()
@@ -120,12 +129,14 @@ async function bootstrap() {
       .build()
     const document = SwaggerModule.createDocument(app, config)
     SwaggerModule.setup(swaggerPath, app, document)
-    console.log(`Swagger docs available at: http://localhost:${port}/${swaggerPath}`)
+    logger.log(`Swagger docs available at: http://localhost:${port}/${swaggerPath}`, 'Bootstrap')
   }
 
+  app.enableShutdownHooks()
+
   await app.listen(port)
-  console.log(`NestJS server running on: http://localhost:${port}`)
-  console.log(`API prefix: ${apiPrefix}`)
+  logger.log(`NestJS server running on: http://localhost:${port}`, 'Bootstrap')
+  logger.log(`API prefix: ${apiPrefix}`, 'Bootstrap')
 }
 
 bootstrap()

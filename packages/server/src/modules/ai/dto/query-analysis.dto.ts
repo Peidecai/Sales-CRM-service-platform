@@ -1,4 +1,4 @@
-import { IsOptional, IsInt, IsString, IsEnum, Min, Max } from 'class-validator'
+import { IsOptional, IsInt, IsString, IsEnum, IsIn, Matches, Min, Max } from 'class-validator'
 import { Type } from 'class-transformer'
 import { ApiPropertyOptional } from '@nestjs/swagger'
 import { AnalysisStatus } from '@crm/shared'
@@ -47,10 +47,37 @@ export class QueryAnalysisDto {
   @ApiPropertyOptional({ description: '开始日期 (YYYY-MM-DD)', example: '2026-01-01' })
   @IsOptional()
   @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: '日期格式必须为 YYYY-MM-DD' })
   startDate?: string
 
   @ApiPropertyOptional({ description: '结束日期 (YYYY-MM-DD)', example: '2026-12-31' })
   @IsOptional()
   @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: '日期格式必须为 YYYY-MM-DD' })
   endDate?: string
+
+  @ApiPropertyOptional({ description: '销售人员 ID' })
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  userId?: number
+
+  @ApiPropertyOptional({ description: '最小通话时长(秒)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  minDuration?: number
+
+  @ApiPropertyOptional({ description: '最大通话时长(秒)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  maxDuration?: number
+
+  @ApiPropertyOptional({ description: '录音来源', enum: ['asr', 'notes', 'voice_memo', 'both'] })
+  @IsOptional()
+  @IsIn(['asr', 'notes', 'voice_memo', 'both'])
+  inputSource?: string
 }

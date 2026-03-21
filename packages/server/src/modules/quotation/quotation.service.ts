@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { Repository, type SelectQueryBuilder } from 'typeorm'
+import { UserRole } from '@crm/shared'
 import { Quotation } from './entities/quotation.entity'
 import { QuotationItem } from './entities/quotation-item.entity'
 import { CreateQuotationDto } from './dto/create-quotation.dto'
@@ -63,15 +64,12 @@ export class QuotationService {
     return this.findOne(saved.id, user)
   }
 
-  async findAll(query: QueryQuotationDto, _user: AuthUser) {
+  async findAll(query: QueryQuotationDto, user: AuthUser) {
     const { page = 1, pageSize = 20, keyword, status, opportunityId, customerId } = query
-    const where: Record<string, unknown> = {}
-
-    if (status) where.status = status
-    if (opportunityId) where.opportunityId = opportunityId
-    if (customerId) where.customerId = customerId
 
     const qb = this.quotationRepo.createQueryBuilder('q')
+
+    this.applyDataPermission(qb, user)
 
     if (status) qb.andWhere('q.status = :status', { status })
     if (opportunityId) qb.andWhere('q.opportunityId = :opportunityId', { opportunityId })
@@ -88,12 +86,13 @@ export class QuotationService {
     return { list, total, page, pageSize }
   }
 
-  async findOne(id: number, _user: AuthUser) {
+  async findOne(id: number, user: AuthUser) {
     const quotation = await this.quotationRepo.findOne({
       where: { id },
       relations: ['items'],
     })
     if (!quotation) throw new NotFoundException(`报价单 #${id} 不存在`)
+    this.checkOwnership(quotation, user)
     return quotation
   }
 
@@ -130,9 +129,20 @@ export class QuotationService {
     return this.quotationRepo.save(quotation)
   }
 
-  async remove(id: number) {
-    const quotation = await this.quotationRepo.findOne({ where: { id } })
-    if (!quotation) throw new NotFoundException(`报价单 #${id} 不存在`)
+  async remove(id: number, user: AuthUser) {
+    const quotation = await this.findOne(id, user)
     await this.quotationRepo.softRemove(quotation)
+  }
+
+  private applyDataPermission(qb: SelectQueryBuilder<Quotation>, user: AuthUser): void {
+    if (user.role === UserRole.SALES) {
+      qb.andWhere('q.ownerId = :currentUserId', { currentUserId: user.id })
+    }
+  }
+
+  private checkOwnership(quotation: Quotation, user: AuthUser): void {
+    if (user.role === UserRole.SALES && quotation.ownerId !== user.id) {
+      throw new ForbiddenException('您无权访问此报价单')
+    }
   }
 }

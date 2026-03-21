@@ -74,21 +74,17 @@
             <el-descriptions-item label="PK标题">
               <el-input v-model="form.title" placeholder="输入PK标题" />
             </el-descriptions-item>
-            <el-descriptions-item label="类型">{{
-              form.type === 'one_on_one' ? '1v1' : '团战'
-            }}</el-descriptions-item>
+            <el-descriptions-item label="类型">
+              {{ form.type === 'one_on_one' ? '1v1' : '团战' }}
+            </el-descriptions-item>
             <el-descriptions-item label="指标">{{ metricLabel(form.metric) }}</el-descriptions-item>
             <el-descriptions-item label="时间">{{ formatDateRange() }}</el-descriptions-item>
-            <el-descriptions-item label="A队"
-              >{{ form.teams[0].name }} ({{
-                form.teams[0].memberIds.length
-              }}人)</el-descriptions-item
-            >
-            <el-descriptions-item label="B队"
-              >{{ form.teams[1].name }} ({{
-                form.teams[1].memberIds.length
-              }}人)</el-descriptions-item
-            >
+            <el-descriptions-item label="A队">
+              {{ form.teams[0].name }} ({{ form.teams[0].memberIds.length }}人)
+            </el-descriptions-item>
+            <el-descriptions-item label="B队">
+              {{ form.teams[1].name }} ({{ form.teams[1].memberIds.length }}人)
+            </el-descriptions-item>
           </el-descriptions>
           <el-input v-model="form.stake" placeholder="赌注（可选）" class="stake-input" />
         </div>
@@ -97,9 +93,9 @@
       <div class="step-actions">
         <el-button v-if="step > 0" @click="step--">上一步</el-button>
         <el-button v-if="step < 4" type="primary" @click="step++">下一步</el-button>
-        <el-button v-if="step === 4" type="primary" :loading="submitting" @click="handleSubmit"
-          >创建PK</el-button
-        >
+        <el-button v-if="step === 4" type="primary" :loading="submitting" @click="handleSubmit">
+          创建PK
+        </el-button>
       </div>
     </el-card>
   </div>
@@ -110,7 +106,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { createPk } from '@/api/pk'
-import request from '@/api/request'
+import { userApi } from '@/api/user'
 
 const router = useRouter()
 const step = ref(0)
@@ -148,10 +144,10 @@ function formatDateRange(): string {
 
 async function fetchUsers() {
   try {
-    const res = (await request.get('/users', { params: { pageSize: 200 } })) as unknown as {
-      list: Array<{ id: number; name: string }>
+    const res = (await userApi.getList({ pageSize: 200 })) as unknown as {
+      data: { list: Array<{ id: number; name: string }> }
     }
-    userList.value = res.list ?? []
+    userList.value = res.data?.list ?? []
   } catch {
     userList.value = []
   }

@@ -68,8 +68,8 @@ export class QuotationController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '删除报价单' })
   @ApiParam({ name: 'id', type: Number })
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    await this.quotationService.remove(id)
+  async remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    await this.quotationService.remove(id, user)
     return null
   }
 }

@@ -41,7 +41,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { getCallPersonalAnalysis } from '@/api/report'
 import type { ReportFilter } from '@/api/report'
-import request from '@/api/request'
+import { userApi } from '@/api/user'
 
 const props = defineProps<{ filter: ReportFilter }>()
 
@@ -57,7 +57,7 @@ const metrics = ref({
 
 async function loadUsers() {
   try {
-    const res = await request.get('/users', { params: { page: 1, pageSize: 200 } })
+    const res = await userApi.getList({ page: 1, pageSize: 200 })
     const data = (res as unknown as { data: { list: Array<{ id: number; name: string }> } }).data
     users.value = data?.list ?? []
   } catch {

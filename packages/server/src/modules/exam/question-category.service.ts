@@ -4,7 +4,7 @@ import { Repository } from 'typeorm'
 import { QuestionCategory } from './entities/question-category.entity'
 import { CreateQuestionCategoryDto } from './dto/create-question-category.dto'
 
-interface CategoryTreeNode {
+export interface CategoryTreeNode {
   id: number
   name: string
   description: string | null

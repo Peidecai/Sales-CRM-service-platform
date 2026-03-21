@@ -34,7 +34,12 @@ export interface IntentPredictionVO {
   updatedAt: string
 }
 
-export function getIntentPredictions(params: { customerId?: number; opportunityId?: number }) {
+export function getIntentPredictions(params: {
+  customerId?: number
+  opportunityId?: number
+  page?: number
+  pageSize?: number
+}) {
   return request.get('/ai/intent-predictions', { params })
 }
 
@@ -192,6 +197,7 @@ export interface EmployeeRadarProfileVO {
   execution: number
   satisfaction: number
   closeRate: number
+  solutionAbility: number
 }
 
 export interface GrowthPointVO {
@@ -201,6 +207,7 @@ export interface GrowthPointVO {
   execution: number
   satisfaction: number
   closeRate: number
+  solutionAbility: number
 }
 
 export interface BenchmarkComparisonVO {
@@ -254,6 +261,21 @@ export function getBestContactTime(customerId: number) {
   return request.get<BestContactTimeVO>(`/ai/customer-profile/${customerId}/best-contact-time`)
 }
 
+// ---- Customer Risk & Intent ----
+export interface CustomerRiskIntentVO {
+  intentLevel: string | null
+  intentTags: string[] | null
+  riskLevel: string | null
+  riskText: string | null
+  riskAdvice: string | null
+  occupationTags: string[] | null
+  wechatStatus: string | null
+}
+
+export function getCustomerRiskIntent(customerId: number) {
+  return request.get<CustomerRiskIntentVO>(`/ai/customer-profile/${customerId}/risk-intent`)
+}
+
 // ---- Article Versions ----
 export interface ArticleVersionVO {
   id: number
@@ -275,4 +297,32 @@ export function getArticleVersion(versionId: number) {
 
 export function diffArticleVersions(v1Id: number, v2Id: number) {
   return request.get(`/knowledge/versions/diff`, { params: { v1: v1Id, v2: v2Id } })
+}
+
+// ---- Intent Prediction Actions ----
+export function refreshIntentPrediction(customerId: number) {
+  return request.post(`/ai/intent-predictions/${customerId}/refresh`)
+}
+
+export function batchRefreshIntentPredictions() {
+  return request.post('/ai/intent-predictions/batch-refresh')
+}
+
+// ---- Employee Portrait ----
+export function getEmployeePortraitCards(params: {
+  page?: number
+  pageSize?: number
+  month?: string
+}) {
+  return request.get('/ai/employee-portrait/cards', { params })
+}
+
+export function getEmployeeAchievements(userId: number) {
+  return request.get('/ai/employee-portrait/' + userId + '/achievements')
+}
+
+export function getEmployeeNarrative(userId: number, month?: string) {
+  return request.get(`/ai/employee-portrait/${userId}/narrative`, {
+    params: month ? { month } : undefined,
+  })
 }

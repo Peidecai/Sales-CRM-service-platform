@@ -4,7 +4,7 @@ import { Repository, In } from 'typeorm'
 import { AppVersion, AppPlatform } from './entities/app-version.entity'
 import { CreateVersionDto } from './dto/create-version.dto'
 
-interface VersionCheckResult {
+export interface VersionCheckResult {
   hasUpdate: boolean
   version?: string
   buildNumber?: number

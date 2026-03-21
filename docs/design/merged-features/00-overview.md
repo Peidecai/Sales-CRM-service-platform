@@ -10,7 +10,7 @@
 | ------------- | ----------------------------------------------------------------------------- |
 | 后端框架      | **保留** NestJS 10 + TypeORM + MySQL + Redis + Bull                           |
 | 前端框架 (PC) | **保留** Vue 3 + Vite + Element Plus + Pinia                                  |
-| 移动端        | **改为 APP**（uni-app → 原生 APP，React Native 或 Flutter）                   |
+| 移动端        | **改为 APP**（uni-app 编译 APP，iOS + Android）                               |
 | AI 能力       | **保留+增强** 现有 RAG/Chat/通话摘要 + 新增磐销云的意向分析/话术评估/员工画像 |
 | 权限体系      | **保留** RBAC 三级角色，扩展主管(Supervisor)角色                              |
 | 数据字典      | **新增** 系统字典管理模块（参考磐销云 dict 体系）                             |
@@ -51,7 +51,7 @@ crm-sales-platform/
 | ------------- | ---------------------------------------------------- |
 | Backend       | NestJS 10 + TypeORM 0.3 + MySQL 8.0 + Redis 7 + Bull |
 | Frontend (PC) | Vue 3.4 + Vite 5 + Element Plus 2 + Pinia + ECharts  |
-| Mobile (APP)  | React Native / Flutter（待定）                       |
+| Mobile (APP)  | uni-app 3.x + Vue 3（编译 APP）                      |
 | AI Engine     | OpenAI API + 向量数据库 + RAG Pipeline               |
 | 实时通信      | WebSocket (Socket.IO)                                |
 | 文件存储      | OSS (阿里云/MinIO)                                   |

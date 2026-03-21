@@ -56,7 +56,24 @@ export interface DefaultPromptsVO {
   speechScoringPrompt: string
 }
 
+export interface CustomerCallSummaryVO {
+  totalCalls: number
+  totalAnalyzed: number
+  avgSpeechScore: number | null
+  avgKnowledgeMatchRate: number | null
+  speechScoreTrend: { date: string; score: number }[]
+  knowledgeCoverageTrend: { date: string; rate: number }[]
+  topClassifications: { label: string; count: number }[]
+  overallSummary: string | null
+}
+
 // API objects
+export interface DealAnalysisVO {
+  analyses: CallAnalysisResultVO[]
+  intentTrend: { date: string; classify: string | null; confidence: number | null }[]
+  summary: { total: number; avgSpeechScore: number | null; avgConfidence: number | null }
+}
+
 export const analysisConfigApi = {
   get: (): Promise<ApiResponse<AiAnalysisConfigVO>> => request.get('/ai/analysis-config'),
   update: (data: Partial<AiAnalysisConfigVO>): Promise<ApiResponse<AiAnalysisConfigVO>> =>
@@ -73,10 +90,26 @@ export const callAnalysisApi = {
   getList: (
     params: Record<string, unknown>,
   ): Promise<
-    ApiResponse<{ list: CallAnalysisResultVO[]; total: number; page: number; pageSize: number }>
+    ApiResponse<{
+      list: CallAnalysisResultVO[]
+      total: number
+      page: number
+      pageSize: number
+      tabs?: { total: number; analyzed: number; pending: number }
+    }>
   > => request.get('/ai/call-analysis', { params }),
   addNote: (resultId: number, note: string): Promise<ApiResponse<CallAnalysisResultVO>> =>
     request.put(`/ai/call-analysis/${resultId}/note`, { note }),
   apply: (resultId: number): Promise<ApiResponse<CallAnalysisResultVO>> =>
     request.post(`/ai/call-analysis/${resultId}/apply`),
+  getLatestByCustomer: (customerId: number): Promise<ApiResponse<CallAnalysisResultVO>> =>
+    request.get(`/ai/call-analysis/customer/${customerId}/latest`),
+  getCustomerCallSummary: (customerId: number): Promise<ApiResponse<CustomerCallSummaryVO>> =>
+    request.get(`/ai/call-analysis/customer/${customerId}/summary`),
+  getDealAnalysis: (opportunityId: number): Promise<ApiResponse<DealAnalysisVO>> =>
+    request.get(`/ai/deal-analysis/${opportunityId}`),
+  exportList: (
+    params: Record<string, unknown>,
+  ): Promise<ApiResponse<{ list: CallAnalysisResultVO[]; total: number }>> =>
+    request.get('/ai/call-analysis/export', { params }),
 }

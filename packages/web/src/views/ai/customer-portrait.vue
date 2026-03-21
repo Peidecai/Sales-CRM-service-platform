@@ -26,14 +26,10 @@
               <template #header><span>基本信息</span></template>
               <el-descriptions :column="1" border size="small">
                 <el-descriptions-item label="客户名称">
-                  {{
-                    portrait.customerName
-                  }}
+                  {{ portrait.customerName }}
                 </el-descriptions-item>
                 <el-descriptions-item label="行业">
-                  {{
-                    portrait.industry || '未知'
-                  }}
+                  {{ portrait.industry || '未知' }}
                 </el-descriptions-item>
                 <el-descriptions-item label="意向评分">
                   <el-progress
@@ -41,15 +37,11 @@
                     :color="getScoreColor(portrait.intentScore)"
                   />
                 </el-descriptions-item>
-                <el-descriptions-item label="成交概率"
-                >
+                <el-descriptions-item label="成交概率">
                   {{ portrait.dealProbability }}%
-                </el-descriptions-item
-                >
+                </el-descriptions-item>
                 <el-descriptions-item label="生成时间">
-                  {{
-                    portrait.generatedAt
-                  }}
+                  {{ portrait.generatedAt }}
                 </el-descriptions-item>
               </el-descriptions>
             </el-card>
@@ -114,7 +106,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import request from '@/api/request'
+import { customerApi } from '@/api/customer'
+import { getCustomerProfile } from '@/api/ai'
 
 interface CustomerOption {
   id: number
@@ -164,9 +157,10 @@ function getTimelineType(type: string): 'primary' | 'success' | 'warning' | 'dan
 
 async function loadCustomers() {
   try {
-    const res = (await request.get('/customers', {
-      params: { page: 1, pageSize: 100 },
-    })) as unknown as { code: number; data: { list: CustomerOption[] } }
+    const res = (await customerApi.getList({ page: 1, pageSize: 100 })) as unknown as {
+      code: number
+      data: { list: CustomerOption[] }
+    }
     if (res.code === 0 && res.data) customers.value = res.data.list
   } catch {
     /* ignore */
@@ -177,9 +171,10 @@ async function loadPortrait() {
   if (!selectedCustomerId.value) return
   loading.value = true
   try {
-    const res = (await request.get(
-      `/ai/customer-profile/${selectedCustomerId.value}`,
-    )) as unknown as { code: number; data: PortraitData }
+    const res = (await getCustomerProfile(selectedCustomerId.value)) as unknown as {
+      code: number
+      data: PortraitData
+    }
     if (res.code === 0 && res.data) portrait.value = res.data
   } catch {
     ElMessage.warning('未找到该客户的 AI 画像数据')

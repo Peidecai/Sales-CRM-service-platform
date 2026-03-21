@@ -127,6 +127,12 @@ export class ReportController {
     return this.aiReport.getTagStatistics(filter, user)
   }
 
+  @Get('ai/appointment-ability')
+  @ApiOperation({ summary: '邀约能力排行' })
+  getAiAppointmentAbility(@Query() filter: ReportFilterDto, @CurrentUser() user: AuthUser) {
+    return this.aiReport.getAppointmentAbility(filter, user)
+  }
+
   // ─── Funnel Reports ───────────────────────────────────────────────────
 
   @Get('funnel/sales')

@@ -6,6 +6,8 @@ import { RedisService } from '../../common/redis'
 import { CallRecord } from '../call-record/call-record.entity'
 import { Customer } from '../customer/customer.entity'
 import { Opportunity } from '../opportunity/opportunity.entity'
+import { CustomerProfile } from './entities/customer-profile.entity'
+import { CallAnalysisResult } from './entities/call-analysis-result.entity'
 
 export interface NextBestAction {
   action: string
@@ -38,6 +40,10 @@ export class AiCustomerProfileService {
     private readonly customerRepo: Repository<Customer>,
     @InjectRepository(Opportunity)
     private readonly opportunityRepo: Repository<Opportunity>,
+    @InjectRepository(CustomerProfile)
+    private readonly profileRepo: Repository<CustomerProfile>,
+    @InjectRepository(CallAnalysisResult)
+    private readonly analysisRepo: Repository<CallAnalysisResult>,
   ) {}
 
   /**
@@ -217,5 +223,120 @@ export class AiCustomerProfileService {
     }
 
     return result
+  }
+
+  /**
+   * Get risk + intent assessment for a customer.
+   * Uses existing analysis results + LLM to infer intent/risk/occupation.
+   * Updates customer_profiles table with the results.
+   */
+  async getRiskIntent(customerId: number): Promise<{
+    intentLevel: string | null
+    intentTags: string[] | null
+    riskLevel: string | null
+    riskText: string | null
+    riskAdvice: string | null
+    occupationTags: string[] | null
+    wechatStatus: string | null
+  }> {
+    // Check if we already have a profile with risk/intent data
+    let profile = await this.profileRepo.findOne({ where: { customerId } })
+    if (profile?.intentLevel && profile?.riskLevel) {
+      // Check staleness — re-evaluate if older than 24 hours
+      const ageMs = Date.now() - (profile.updatedAt?.getTime() ?? 0)
+      if (ageMs < 24 * 60 * 60 * 1000) {
+        return {
+          intentLevel: profile.intentLevel,
+          intentTags: profile.intentTags,
+          riskLevel: profile.riskLevel,
+          riskText: profile.riskText,
+          riskAdvice: profile.riskAdvice,
+          occupationTags: profile.occupationTags,
+          wechatStatus: profile.wechatStatus,
+        }
+      }
+    }
+
+    // Gather context from recent analyses
+    const analyses = await this.analysisRepo.find({
+      where: { customerId },
+      order: { createdAt: 'DESC' },
+      take: 5,
+    })
+
+    const customer = await this.customerRepo.findOne({ where: { id: customerId } })
+    if (!customer) {
+      return {
+        intentLevel: null,
+        intentTags: null,
+        riskLevel: null,
+        riskText: null,
+        riskAdvice: null,
+        occupationTags: null,
+        wechatStatus: null,
+      }
+    }
+
+    const churnRisk = await this.getChurnRisk(customerId)
+
+    const analysisContext = analyses
+      .map(
+        (a) =>
+          `[${a.createdAt.toISOString().slice(0, 10)}] 分类:${a.customerClassify ?? '未知'} 摘要:${a.summary?.slice(0, 100) ?? '无'}`,
+      )
+      .join('\n')
+
+    const systemPrompt = `你是客户风险和意向分析师。根据以下信息评估客户的意向和风险。
+返回JSON: {"intentLevel":"高意向|中意向|低意向|无意向","intentTags":["标签1"],"riskLevel":"低风险|中风险|高风险","riskText":"风险描述","riskAdvice":"建议","occupationTags":["职业标签"],"wechatStatus":"已加微|未加微|未知"}
+只返回JSON。`
+
+    const context = `客户: ${customer.name}
+行业: ${customer.industry ?? '未知'}
+状态: ${customer.status}
+流失风险分: ${churnRisk.riskScore}/100
+风险因素: ${churnRisk.factors.join(', ') || '无'}
+最近分析记录:
+${analysisContext || '无'}`
+
+    try {
+      const raw = await this.aiService.chat(systemPrompt, context, {
+        temperature: 0.3,
+        maxTokens: 512,
+      })
+      const fenceMatch = raw.match(/```(?:json)?\s*\n?([\s\S]*?)```/)
+      const stripped = (fenceMatch ? fenceMatch[1] : raw).trim()
+      const parsed = JSON.parse(stripped) as Record<string, unknown>
+
+      const result = {
+        intentLevel: (parsed.intentLevel as string) ?? null,
+        intentTags: (parsed.intentTags as string[]) ?? null,
+        riskLevel: (parsed.riskLevel as string) ?? null,
+        riskText: (parsed.riskText as string) ?? null,
+        riskAdvice: (parsed.riskAdvice as string) ?? null,
+        occupationTags: (parsed.occupationTags as string[]) ?? null,
+        wechatStatus: (parsed.wechatStatus as string) ?? null,
+      }
+
+      // Persist to profile
+      if (!profile) {
+        profile = this.profileRepo.create({ customerId })
+      }
+      Object.assign(profile, result)
+      await this.profileRepo.save(profile)
+
+      return result
+    } catch (err) {
+      this.logger.warn(`Risk-intent analysis failed for customer #${customerId}: ${String(err)}`)
+      return {
+        intentLevel: null,
+        intentTags: null,
+        riskLevel:
+          churnRisk.riskScore >= 60 ? '高风险' : churnRisk.riskScore >= 30 ? '中风险' : '低风险',
+        riskText: churnRisk.factors.join('; ') || null,
+        riskAdvice: null,
+        occupationTags: null,
+        wechatStatus: null,
+      }
+    }
   }
 }

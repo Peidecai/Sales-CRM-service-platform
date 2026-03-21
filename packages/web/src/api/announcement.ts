@@ -55,4 +55,16 @@ export const announcementApi = {
   markRead(id: number): Promise<ApiResponse<void>> {
     return request.post(`/announcements/${id}/read`)
   },
+
+  create(data: Partial<AnnouncementVO>): Promise<ApiResponse<AnnouncementVO>> {
+    return request.post('/announcements', data)
+  },
+
+  update(id: number, data: Partial<AnnouncementVO>): Promise<ApiResponse<AnnouncementVO>> {
+    return request.put(`/announcements/${id}`, data)
+  },
+
+  remove(id: number): Promise<ApiResponse<void>> {
+    return request.delete(`/announcements/${id}`)
+  },
 }

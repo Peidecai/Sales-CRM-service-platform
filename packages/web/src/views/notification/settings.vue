@@ -44,7 +44,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import request from '@/api/request'
+import { getNotificationSettings, updateNotificationSettings } from '@/api/notification'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -78,7 +78,7 @@ function parseTime(timeStr: string | null): Date | null {
 async function loadSettings() {
   loading.value = true
   try {
-    const res = await request.get('/notification/settings')
+    const res = await getNotificationSettings()
     const data = res as unknown as Record<string, unknown>
     settings.value.emailEnabled = (data.emailEnabled as boolean) ?? true
     settings.value.wsEnabled = (data.wsEnabled as boolean) ?? true
@@ -96,7 +96,7 @@ async function loadSettings() {
 async function handleSave() {
   saving.value = true
   try {
-    await request.put('/notification/settings', {
+    await updateNotificationSettings({
       emailEnabled: settings.value.emailEnabled,
       wsEnabled: settings.value.wsEnabled,
       smsEnabled: settings.value.smsEnabled,

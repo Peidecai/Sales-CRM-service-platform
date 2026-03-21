@@ -10,37 +10,38 @@ NestJS 10 + TypeORM 0.3 + MySQL 8.0 + Redis 7 + Bull 队列
 
 ### 业务模块
 
-| 模块          | 路径                     | 说明                       |
-| ------------- | ------------------------ | -------------------------- |
-| auth          | `modules/auth/`          | JWT 双 Token + 微信 OAuth  |
-| user          | `modules/user/`          | 用户管理 (Admin)           |
-| customer      | `modules/customer/`      | 客户 CRUD + 导入/导出/合并 |
-| opportunity   | `modules/opportunity/`   | 商机 + 看板 + 阶段推进     |
-| call-record   | `modules/call-record/`   | 通话记录 + AI 摘要         |
-| call          | `modules/call/`          | 电话拨打 + 外呼弹屏        |
-| recording     | `modules/recording/`     | 录音 + ASR 转写            |
-| agent         | `modules/agent/`         | 坐席状态 + 来电分配        |
-| campaign      | `modules/campaign/`      | 外呼任务/活动              |
-| knowledge     | `modules/knowledge/`     | 知识库 + RAG 问答          |
-| prospect      | `modules/prospect/`      | 互联网获客 + 数据源管理    |
-| ai            | `modules/ai/`            | AI 集成 (DashScope/Claude) |
-| notification  | `modules/notification/`  | WebSocket 实时通知         |
-| follow-up     | `modules/follow-up/`     | 跟进提醒调度               |
-| sales-target  | `modules/sales-target/`  | 销售目标 + 绩效排行        |
-| contact       | `modules/contact/`       | 联系人管理                 |
-| customer-pool | `modules/customer-pool/` | 公海池                     |
-| customer-tag  | `modules/customer-tag/`  | 标签 + 自动打标            |
-| custom-field  | `modules/custom-field/`  | 自定义字段                 |
-| material      | `modules/material/`      | 素材 (OSS)                 |
-| announcement  | `modules/announcement/`  | 公告管理                   |
-| rbac          | `modules/rbac/`          | 角色权限表                 |
-| route         | `modules/route/`         | 路由权限                   |
-| quotation     | `modules/quotation/`     | 报价单                     |
-| payment       | `modules/payment/`       | 回款记录                   |
-| contract      | `modules/contract/`      | 合同管理                   |
-| approval      | `modules/approval/`      | 审批流程                   |
-| audit-log     | `modules/audit-log/`     | 审计日志 (全局)            |
-| health        | `modules/health/`        | 健康检查                   |
+| 模块          | 路径                     | 说明                                                 |
+| ------------- | ------------------------ | ---------------------------------------------------- |
+| auth          | `modules/auth/`          | JWT 双 Token + 微信 OAuth                            |
+| user          | `modules/user/`          | 用户管理 (Admin)                                     |
+| customer      | `modules/customer/`      | 客户 CRUD + 导入/导出/合并                           |
+| opportunity   | `modules/opportunity/`   | 商机 + 看板 + 阶段推进                               |
+| call-record   | `modules/call-record/`   | 通话记录 + AI 摘要                                   |
+| call          | `modules/call/`          | 电话拨打 + 外呼弹屏                                  |
+| recording     | `modules/recording/`     | 录音 + ASR 转写                                      |
+| agent         | `modules/agent/`         | 坐席状态 + 来电分配                                  |
+| campaign      | `modules/campaign/`      | 外呼任务/活动                                        |
+| knowledge     | `modules/knowledge/`     | 知识库 + RAG 问答                                    |
+| prospect      | `modules/prospect/`      | 互联网获客 + 数据源管理                              |
+| ai            | `modules/ai/`            | AI 通话分析/客户画像/员工画像/意向预测               |
+| report        | `modules/report/`        | AI报表(标签统计/邀约能力/话术评分/评分排名/员工画像) |
+| notification  | `modules/notification/`  | WebSocket 实时通知                                   |
+| follow-up     | `modules/follow-up/`     | 跟进提醒调度                                         |
+| sales-target  | `modules/sales-target/`  | 销售目标 + 绩效排行                                  |
+| contact       | `modules/contact/`       | 联系人管理                                           |
+| customer-pool | `modules/customer-pool/` | 公海池                                               |
+| customer-tag  | `modules/customer-tag/`  | 标签 + 自动打标                                      |
+| custom-field  | `modules/custom-field/`  | 自定义字段                                           |
+| material      | `modules/material/`      | 素材 (OSS)                                           |
+| announcement  | `modules/announcement/`  | 公告管理                                             |
+| rbac          | `modules/rbac/`          | 角色权限表                                           |
+| route         | `modules/route/`         | 路由权限                                             |
+| quotation     | `modules/quotation/`     | 报价单                                               |
+| payment       | `modules/payment/`       | 回款记录                                             |
+| contract      | `modules/contract/`      | 合同管理                                             |
+| approval      | `modules/approval/`      | 审批流程                                             |
+| audit-log     | `modules/audit-log/`     | 审计日志 (全局)                                      |
+| health        | `modules/health/`        | 健康检查                                             |
 
 ## 通用基础设施
 

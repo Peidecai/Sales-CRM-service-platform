@@ -23,7 +23,7 @@
           <el-tree-select
             v-model="filters.categoryId"
             :data="categoryTree"
-            :props="{ label: 'name', value: 'id', children: 'children' }"
+            :props="{ label: 'name', value: 'id', children: 'children' } as any"
             placeholder="全部"
             clearable
             check-strictly
@@ -109,7 +109,7 @@
           <el-tree-select
             v-model="form.categoryId"
             :data="categoryTree"
-            :props="{ label: 'name', value: 'id', children: 'children' }"
+            :props="{ label: 'name', value: 'id', children: 'children' } as any"
             placeholder="选择分类"
             check-strictly
           />
@@ -140,8 +140,9 @@
                   content: '',
                 })
               "
-              >添加选项</el-button
             >
+              添加选项
+            </el-button>
           </el-form-item>
         </template>
 
@@ -149,9 +150,9 @@
         <el-form-item label="正确答案" required>
           <template v-if="form.type === 'single_choice'">
             <el-radio-group v-model="singleAnswer">
-              <el-radio v-for="opt in form.options" :key="opt.label" :value="opt.label">{{
-                opt.label
-              }}</el-radio>
+              <el-radio v-for="opt in form.options" :key="opt.label" :value="opt.label">
+                {{ opt.label }}
+              </el-radio>
             </el-radio-group>
           </template>
           <template v-else-if="form.type === 'multi_choice'">

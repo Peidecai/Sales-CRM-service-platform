@@ -4,11 +4,9 @@
       <template #header>
         <div class="card-header">
           <span>购买意向预测</span>
-          <el-button type="primary" :loading="predicting" @click="triggerBatchPredict"
-          >
+          <el-button type="primary" :loading="predicting" @click="triggerBatchPredict">
             批量重新预测
-          </el-button
-          >
+          </el-button>
         </div>
       </template>
 
@@ -44,11 +42,9 @@
         <el-table-column label="预测时间" prop="predictedAt" width="170" />
         <el-table-column label="操作" width="120" align="center">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="repredictOne(row.customerId)"
-            >
+            <el-button type="primary" link size="small" @click="repredictOne(row.customerId)">
               重新预测
-            </el-button
-            >
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -69,7 +65,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import request from '@/api/request'
+import {
+  getIntentPredictions,
+  refreshIntentPrediction,
+  batchRefreshIntentPredictions,
+} from '@/api/ai'
 
 interface PredictionVO {
   id: number
@@ -95,8 +95,9 @@ function getScoreColor(score: number) {
 async function loadPredictions() {
   loading.value = true
   try {
-    const res = (await request.get('/ai/intent-predictions', {
-      params: { page: page.value, pageSize: pageSize.value },
+    const res = (await getIntentPredictions({
+      page: page.value,
+      pageSize: pageSize.value,
     })) as unknown as { code: number; data: { list: PredictionVO[]; total: number } }
     if (res.code === 0 && res.data) {
       predictions.value = res.data.list
@@ -111,7 +112,7 @@ async function loadPredictions() {
 
 async function repredictOne(customerId: number) {
   try {
-    await request.post(`/ai/intent-predictions/${customerId}/refresh`)
+    await refreshIntentPrediction(customerId)
     ElMessage.success('已触发重新预测')
     loadPredictions()
   } catch {
@@ -122,7 +123,7 @@ async function repredictOne(customerId: number) {
 async function triggerBatchPredict() {
   predicting.value = true
   try {
-    await request.post('/ai/intent-predictions/batch-refresh')
+    await batchRefreshIntentPredictions()
     ElMessage.success('批量预测任务已提交')
     setTimeout(loadPredictions, 3000)
   } catch {

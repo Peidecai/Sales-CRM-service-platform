@@ -215,6 +215,9 @@
             <el-icon><MagicStick /></el-icon>
             <span>AI 智能</span>
           </template>
+          <el-menu-item index="/ai/communication-analysis">
+            <template #title> 沟通分析 </template>
+          </el-menu-item>
           <el-menu-item index="/ai/alerts">
             <template #title> 异常预警 </template>
           </el-menu-item>
@@ -506,6 +509,7 @@ const activeRoute = computed(() => {
   if (path.startsWith('/exam')) return '/exam/my'
   if (path.startsWith('/report')) return path
   if (path.startsWith('/screen')) return path
+  if (path.startsWith('/ai/communication-analysis')) return '/ai/communication-analysis'
   if (path.startsWith('/ai/alerts')) return '/ai/alerts'
   if (path.startsWith('/ai/reminders')) return '/ai/reminders'
   if (path.startsWith('/ai/employee-profile')) return '/ai/reports'
@@ -567,6 +571,7 @@ const breadcrumbRouteMap: Record<string, string> = {
   试卷管理: '/exam/papers',
   我的考试: '/exam/my',
   考试统计: '/exam/statistics',
+  沟通分析: '/ai/communication-analysis',
   异常预警: '/ai/alerts',
   'AI 助手': '/ai/reminders',
   报告中心: '/ai/reports',
@@ -624,10 +629,13 @@ async function handleCommand(command: string) {
   background-color: #001529;
   transition: width 0.3s;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .logo-area {
   height: 60px;
+  min-height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -644,6 +652,22 @@ async function handleCommand(command: string) {
 
 .sidebar-menu {
   border-right: none;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sidebar-menu::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-menu::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+.sidebar-menu::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .layout-header {

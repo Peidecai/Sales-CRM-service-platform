@@ -13,250 +13,297 @@
 
     <!-- Main content -->
     <template v-else-if="customer">
-      <!-- Basic Info Card -->
-      <el-card shadow="never" class="info-card">
-        <template #header>
-          <div class="card-header">
-            <span class="card-header-title">客户信息</span>
-            <div class="card-header-actions">
-              <el-button v-if="isAdminOrManager" type="primary" size="small" @click="handleEdit">
-                <el-icon><Edit /></el-icon>
-                编辑
-              </el-button>
-              <el-popconfirm
-                v-if="isAdminOrManager"
-                title="确定要删除该客户吗？"
-                confirm-button-text="确定"
-                cancel-button-text="取消"
-                @confirm="handleDelete"
-              >
-                <template #reference>
-                  <el-button type="danger" size="small" plain>
-                    <el-icon><Delete /></el-icon>
-                    删除
+      <el-row :gutter="16">
+        <!-- Left: Main content area -->
+        <el-col :span="16">
+          <!-- Basic Info Card -->
+          <el-card shadow="never" class="info-card">
+            <template #header>
+              <div class="card-header">
+                <span class="card-header-title">客户信息</span>
+                <div class="card-header-actions">
+                  <el-button
+                    v-if="isAdminOrManager"
+                    type="primary"
+                    size="small"
+                    @click="handleEdit"
+                  >
+                    <el-icon><Edit /></el-icon>
+                    编辑
+                  </el-button>
+                  <el-popconfirm
+                    v-if="isAdminOrManager"
+                    title="确定要删除该客户吗？"
+                    confirm-button-text="确定"
+                    cancel-button-text="取消"
+                    @confirm="handleDelete"
+                  >
+                    <template #reference>
+                      <el-button type="danger" size="small" plain>
+                        <el-icon><Delete /></el-icon>
+                        删除
+                      </el-button>
+                    </template>
+                  </el-popconfirm>
+                </div>
+              </div>
+            </template>
+            <el-descriptions :column="3" border>
+              <el-descriptions-item label="姓名">
+                {{ customer.name }}
+              </el-descriptions-item>
+              <el-descriptions-item label="公司">
+                {{ customer.company ?? '—' }}
+              </el-descriptions-item>
+              <el-descriptions-item label="状态">
+                <el-tag :type="getStatusTagType(customer.status)" size="small">
+                  {{ getStatusLabel(customer.status) }}
+                </el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="手机">
+                {{ customer.phone ?? '—' }}
+              </el-descriptions-item>
+              <el-descriptions-item label="邮箱">
+                {{ customer.email ?? '—' }}
+              </el-descriptions-item>
+              <el-descriptions-item label="行业">
+                {{ customer.industry ?? '—' }}
+              </el-descriptions-item>
+              <el-descriptions-item label="来源">
+                {{ customer.source ?? '—' }}
+              </el-descriptions-item>
+              <el-descriptions-item label="标签">
+                <template v-if="customer.tags && customer.tags.length > 0">
+                  <el-tag v-for="tag in customer.tags" :key="tag" size="small" class="tag-item">
+                    {{ tag }}
+                  </el-tag>
+                </template>
+                <span v-else>—</span>
+              </el-descriptions-item>
+              <el-descriptions-item label="创建时间">
+                {{ formatDate(customer.createdAt) }}
+              </el-descriptions-item>
+              <el-descriptions-item label="备注" :span="3">
+                {{ customer.notes ?? '—' }}
+              </el-descriptions-item>
+            </el-descriptions>
+          </el-card>
+
+          <!-- AI Customer Profile Tab -->
+          <el-card shadow="never" class="related-card">
+            <template #header>
+              <div class="card-header">
+                <span class="card-header-title">客户画像</span>
+              </div>
+            </template>
+            <CustomerProfileTab :customer-id="customerId" />
+          </el-card>
+
+          <!-- AI Communication Brief -->
+          <AiCommunicationBrief :customer-id="customerId" />
+
+          <!-- AI Call Review -->
+          <el-card shadow="never" class="related-card">
+            <template #header>
+              <div class="card-header">
+                <span class="card-header-title">AI 通话复盘</span>
+              </div>
+            </template>
+            <AiCallReviewTab :customer-id="customerId" :call-records="callRecords" />
+          </el-card>
+
+          <!-- Related Opportunities -->
+          <el-card shadow="never" class="related-card">
+            <template #header>
+              <div class="card-header">
+                <span class="card-header-title">
+                  关联商机
+                  <el-tag size="small" type="info" class="count-tag">{{
+                    opportunities.length
+                  }}</el-tag>
+                </span>
+                <el-button type="primary" size="small" plain @click="handleCreateOpportunity">
+                  <el-icon><Plus /></el-icon>
+                  新建商机
+                </el-button>
+              </div>
+            </template>
+            <el-table
+              v-if="opportunities.length > 0"
+              :data="opportunities"
+              stripe
+              style="width: 100%"
+              size="small"
+            >
+              <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip>
+                <template #default="{ row }">
+                  <el-button
+                    type="primary"
+                    link
+                    size="small"
+                    @click="$router.push(`/opportunity/${row.id}`)"
+                  >
+                    {{ row.title }}
                   </el-button>
                 </template>
-              </el-popconfirm>
-            </div>
-          </div>
-        </template>
-        <el-descriptions :column="3" border>
-          <el-descriptions-item label="姓名">
-            {{ customer.name }}
-          </el-descriptions-item>
-          <el-descriptions-item label="公司">
-            {{ customer.company ?? '—' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="状态">
-            <el-tag :type="getStatusTagType(customer.status)" size="small">
-              {{ getStatusLabel(customer.status) }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="手机">
-            {{ customer.phone ?? '—' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="邮箱">
-            {{ customer.email ?? '—' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="行业">
-            {{ customer.industry ?? '—' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="来源">
-            {{ customer.source ?? '—' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="标签">
-            <template v-if="customer.tags && customer.tags.length > 0">
-              <el-tag v-for="tag in customer.tags" :key="tag" size="small" class="tag-item">
-                {{ tag }}
-              </el-tag>
-            </template>
-            <span v-else>—</span>
-          </el-descriptions-item>
-          <el-descriptions-item label="创建时间">
-            {{ formatDate(customer.createdAt) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="备注" :span="3">
-            {{ customer.notes ?? '—' }}
-          </el-descriptions-item>
-        </el-descriptions>
-      </el-card>
-
-      <!-- AI Customer Profile Tab -->
-      <el-card shadow="never" class="related-card">
-        <template #header>
-          <div class="card-header">
-            <span class="card-header-title">客户画像</span>
-          </div>
-        </template>
-        <CustomerProfileTab :customer-id="customerId" />
-      </el-card>
-
-      <!-- Related Opportunities -->
-      <el-card shadow="never" class="related-card">
-        <template #header>
-          <div class="card-header">
-            <span class="card-header-title">
-              关联商机
-              <el-tag size="small" type="info" class="count-tag">{{ opportunities.length }}</el-tag>
-            </span>
-            <el-button type="primary" size="small" plain @click="handleCreateOpportunity">
-              <el-icon><Plus /></el-icon>
-              新建商机
-            </el-button>
-          </div>
-        </template>
-        <el-table
-          v-if="opportunities.length > 0"
-          :data="opportunities"
-          stripe
-          style="width: 100%"
-          size="small"
-        >
-          <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip>
-            <template #default="{ row }">
-              <el-button
-                type="primary"
-                link
-                size="small"
-                @click="$router.push(`/opportunity/${row.id}`)"
-              >
-                {{ row.title }}
-              </el-button>
-            </template>
-          </el-table-column>
-          <el-table-column prop="stage" label="阶段" min-width="100">
-            <template #default="{ row }">
-              <el-tag :type="getStageTagType(row.stage)" size="small">
-                {{ getStageLabel(row.stage) }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="amount" label="金额" min-width="120">
-            <template #default="{ row }">
-              {{ formatAmount(row.amount) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="probability" label="概率" width="100">
-            <template #default="{ row }">
-              <el-progress :percentage="row.probability" :stroke-width="6" />
-            </template>
-          </el-table-column>
-          <el-table-column prop="expectedCloseDate" label="预计成交" min-width="120">
-            <template #default="{ row }">
-              {{ row.expectedCloseDate ?? '—' }}
-            </template>
-          </el-table-column>
-        </el-table>
-        <el-empty v-else description="暂无关联商机" :image-size="80" />
-      </el-card>
-
-      <!-- Related Call Records -->
-      <el-card shadow="never" class="related-card">
-        <template #header>
-          <div class="card-header">
-            <span class="card-header-title">
-              通话记录
-              <el-tag size="small" type="info" class="count-tag">{{ callRecords.length }}</el-tag>
-            </span>
-            <el-button type="primary" size="small" plain @click="handleCreateCallRecord">
-              <el-icon><Plus /></el-icon>
-              记录通话
-            </el-button>
-          </div>
-        </template>
-        <el-table
-          v-if="callRecords.length > 0"
-          :data="callRecords"
-          stripe
-          style="width: 100%"
-          size="small"
-        >
-          <el-table-column prop="callAt" label="通话时间" min-width="160">
-            <template #default="{ row }">
-              {{ formatDate(row.callAt) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="duration" label="时长" min-width="90">
-            <template #default="{ row }">
-              {{ formatDuration(row.duration) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="notes" label="备注" min-width="200" show-overflow-tooltip />
-          <el-table-column label="AI摘要" width="100">
-            <template #default="{ row }">
-              <el-tag v-if="row.aiSummary" type="success" size="small"> 有摘要 </el-tag>
-            </template>
-          </el-table-column>
-        </el-table>
-        <el-empty v-else description="暂无通话记录" :image-size="80" />
-      </el-card>
-
-      <!-- Follow-up Records -->
-      <el-card shadow="never" class="related-card">
-        <template #header>
-          <div class="card-header">
-            <span class="card-header-title">
-              跟进记录
-              <el-tag size="small" type="info" class="count-tag">{{ followUpTotal }}</el-tag>
-            </span>
-            <el-button type="primary" size="small" plain @click="openFollowUpDialog()">
-              <el-icon><Plus /></el-icon>
-              新建跟进
-            </el-button>
-          </div>
-        </template>
-
-        <div v-if="followUps.length > 0" class="follow-up-timeline">
-          <el-timeline>
-            <el-timeline-item
-              v-for="item in followUps"
-              :key="item.id"
-              :timestamp="formatDate(item.createdAt)"
-              placement="top"
-            >
-              <el-card shadow="never" class="follow-up-item">
-                <div class="follow-up-header">
-                  <el-tag :type="getFollowUpTypeTag(item.type)" size="small">
-                    {{ getFollowUpTypeLabel(item.type) }}
+              </el-table-column>
+              <el-table-column prop="stage" label="阶段" min-width="100">
+                <template #default="{ row }">
+                  <el-tag :type="getStageTagType(row.stage)" size="small">
+                    {{ getStageLabel(row.stage) }}
                   </el-tag>
-                  <span class="follow-up-user">{{
-                    item.user?.realName || item.user?.username || `用户 ${item.userId}`
-                  }}</span>
-                  <div class="follow-up-actions">
-                    <el-button type="primary" link size="small" @click="openFollowUpDialog(item)">
-                      编辑
-                    </el-button>
-                    <el-popconfirm
-                      title="确定要删除该跟进记录吗？"
-                      confirm-button-text="确定"
-                      cancel-button-text="取消"
-                      @confirm="handleDeleteFollowUp(item.id)"
-                    >
-                      <template #reference>
-                        <el-button type="danger" link size="small">删除</el-button>
-                      </template>
-                    </el-popconfirm>
-                  </div>
-                </div>
-                <div class="follow-up-content">{{ item.content }}</div>
-                <div v-if="item.nextFollowUpDate" class="follow-up-next">
-                  <el-icon><Calendar /></el-icon>
-                  下次跟进：{{ item.nextFollowUpDate }}
-                  <span v-if="item.nextFollowUpNote" class="follow-up-next-note"
-                  >— {{ item.nextFollowUpNote }}</span
-                  >
-                </div>
-              </el-card>
-            </el-timeline-item>
-          </el-timeline>
-          <div v-if="followUpTotal > followUps.length" class="load-more">
-            <el-button text :loading="followUpLoading" @click="loadMoreFollowUps">
-              加载更多
-            </el-button>
-          </div>
-        </div>
-        <el-empty v-else description="暂无跟进记录" :image-size="80" />
-      </el-card>
+                </template>
+              </el-table-column>
+              <el-table-column prop="amount" label="金额" min-width="120">
+                <template #default="{ row }">
+                  {{ formatAmount(row.amount) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="probability" label="概率" width="100">
+                <template #default="{ row }">
+                  <el-progress :percentage="row.probability" :stroke-width="6" />
+                </template>
+              </el-table-column>
+              <el-table-column prop="expectedCloseDate" label="预计成交" min-width="120">
+                <template #default="{ row }">
+                  {{ row.expectedCloseDate ?? '—' }}
+                </template>
+              </el-table-column>
+            </el-table>
+            <el-empty v-else description="暂无关联商机" :image-size="80" />
+          </el-card>
+
+          <!-- Related Call Records -->
+          <el-card shadow="never" class="related-card">
+            <template #header>
+              <div class="card-header">
+                <span class="card-header-title">
+                  通话记录
+                  <el-tag size="small" type="info" class="count-tag">{{
+                    callRecords.length
+                  }}</el-tag>
+                </span>
+                <el-button type="primary" size="small" plain @click="handleCreateCallRecord">
+                  <el-icon><Plus /></el-icon>
+                  记录通话
+                </el-button>
+              </div>
+            </template>
+            <el-table
+              v-if="callRecords.length > 0"
+              :data="callRecords"
+              stripe
+              style="width: 100%"
+              size="small"
+            >
+              <el-table-column prop="callAt" label="通话时间" min-width="160">
+                <template #default="{ row }">
+                  {{ formatDate(row.callAt) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="duration" label="时长" min-width="90">
+                <template #default="{ row }">
+                  {{ formatDuration(row.duration) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="notes" label="备注" min-width="200" show-overflow-tooltip />
+              <el-table-column label="AI摘要" width="100">
+                <template #default="{ row }">
+                  <el-tag v-if="row.aiSummary" type="success" size="small"> 有摘要 </el-tag>
+                </template>
+              </el-table-column>
+            </el-table>
+            <el-empty v-else description="暂无通话记录" :image-size="80" />
+          </el-card>
+
+          <!-- Follow-up Records -->
+          <el-card shadow="never" class="related-card">
+            <template #header>
+              <div class="card-header">
+                <span class="card-header-title">
+                  跟进记录
+                  <el-tag size="small" type="info" class="count-tag">{{ followUpTotal }}</el-tag>
+                </span>
+                <el-button type="primary" size="small" plain @click="openFollowUpDialog()">
+                  <el-icon><Plus /></el-icon>
+                  新建跟进
+                </el-button>
+              </div>
+            </template>
+
+            <div v-if="followUps.length > 0" class="follow-up-timeline">
+              <el-timeline>
+                <el-timeline-item
+                  v-for="item in followUps"
+                  :key="item.id"
+                  :timestamp="formatDate(item.createdAt)"
+                  placement="top"
+                >
+                  <el-card shadow="never" class="follow-up-item">
+                    <div class="follow-up-header">
+                      <el-tag :type="getFollowUpTypeTag(item.type)" size="small">
+                        {{ getFollowUpTypeLabel(item.type) }}
+                      </el-tag>
+                      <span class="follow-up-user">{{
+                        item.user?.realName || item.user?.username || `用户 ${item.userId}`
+                      }}</span>
+                      <div class="follow-up-actions">
+                        <el-button
+                          type="primary"
+                          link
+                          size="small"
+                          @click="openFollowUpDialog(item)"
+                        >
+                          编辑
+                        </el-button>
+                        <el-popconfirm
+                          title="确定要删除该跟进记录吗？"
+                          confirm-button-text="确定"
+                          cancel-button-text="取消"
+                          @confirm="handleDeleteFollowUp(item.id)"
+                        >
+                          <template #reference>
+                            <el-button type="danger" link size="small">删除</el-button>
+                          </template>
+                        </el-popconfirm>
+                      </div>
+                    </div>
+                    <div class="follow-up-content">{{ item.content }}</div>
+                    <div v-if="item.nextFollowUpDate" class="follow-up-next">
+                      <el-icon><Calendar /></el-icon>
+                      下次跟进：{{ item.nextFollowUpDate }}
+                      <span v-if="item.nextFollowUpNote" class="follow-up-next-note"
+                        >— {{ item.nextFollowUpNote }}</span
+                      >
+                    </div>
+                  </el-card>
+                </el-timeline-item>
+              </el-timeline>
+              <div v-if="followUpTotal > followUps.length" class="load-more">
+                <el-button text :loading="followUpLoading" @click="loadMoreFollowUps">
+                  加载更多
+                </el-button>
+              </div>
+            </div>
+            <el-empty v-else description="暂无跟进记录" :image-size="80" />
+          </el-card>
+        </el-col>
+
+        <!-- Right: AI Side Panel -->
+        <el-col :span="8">
+          <el-card shadow="never" class="ai-panel-card">
+            <template #header>
+              <div class="card-header">
+                <span class="card-header-title">
+                  <el-icon><MagicStick /></el-icon>
+                  AI 智能分析
+                </span>
+              </div>
+            </template>
+            <AiSidePanel :customer-id="customerId" />
+          </el-card>
+        </el-col>
+      </el-row>
 
       <!-- Follow-up Dialog -->
       <el-dialog
@@ -408,8 +455,11 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules, type TagProps } from 'element-plus'
-import { ArrowLeft, Edit, Delete, Plus, Calendar } from '@element-plus/icons-vue'
+import { ArrowLeft, Edit, Delete, Plus, Calendar, MagicStick } from '@element-plus/icons-vue'
 import CustomerProfileTab from './components/CustomerProfileTab.vue'
+import AiSidePanel from './components/AiSidePanel.vue'
+import AiCommunicationBrief from './components/AiCommunicationBrief.vue'
+import AiCallReviewTab from './components/AiCallReviewTab.vue'
 import {
   customerApi,
   CustomerStatus,

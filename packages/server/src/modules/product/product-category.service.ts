@@ -5,7 +5,7 @@ import { ProductCategory } from './entities/product-category.entity'
 import { Product } from './entities/product.entity'
 import { CreateProductCategoryDto } from './dto/create-product-category.dto'
 
-interface CategoryTreeNode {
+export interface CategoryTreeNode {
   id: number
   name: string
   parentId: number | null

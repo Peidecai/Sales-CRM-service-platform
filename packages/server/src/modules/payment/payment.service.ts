@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { Repository, DataSource } from 'typeorm'
 import { Cron } from '@nestjs/schedule'
-import { PaymentStatus, UserRole } from '@crm/shared'
+import { PaymentStatus, ContractStatus, UserRole } from '@crm/shared'
 import type { PageResult } from '@crm/shared'
 import { Payment } from './entities/payment.entity'
+import { Contract } from '../contract/entities/contract.entity'
 import { CreatePaymentDto } from './dto/create-payment.dto'
 import { UpdatePaymentDto } from './dto/update-payment.dto'
 import { QueryPaymentDto } from './dto/query-payment.dto'
@@ -19,6 +20,9 @@ export class PaymentService {
   constructor(
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
+    @InjectRepository(Contract)
+    private readonly contractRepository: Repository<Contract>,
+    private readonly dataSource: DataSource,
     private readonly notificationService: NotificationService,
   ) {}
 
@@ -57,10 +61,15 @@ export class PaymentService {
     return this.paymentRepository.save(payment)
   }
 
-  async findAll(query: QueryPaymentDto): Promise<PageResult<Payment>> {
+  async findAll(query: QueryPaymentDto, user: AuthUser): Promise<PageResult<Payment>> {
     const { page = 1, pageSize = 20, contractId, customerId, ownerId, status, isOverdue } = query
 
     const qb = this.paymentRepository.createQueryBuilder('p')
+
+    // SALES users can only see their own payments
+    if (user.role === UserRole.SALES) {
+      qb.andWhere('p.ownerId = :currentUserId', { currentUserId: user.id })
+    }
 
     if (contractId) {
       qb.andWhere('p.contractId = :contractId', { contractId })
@@ -106,25 +115,51 @@ export class PaymentService {
     return this.paymentRepository.save(payment)
   }
 
-  async remove(id: number): Promise<void> {
-    const payment = await this.findOne(id)
+  async remove(id: number, user?: AuthUser): Promise<void> {
+    const payment = await this.findOne(id, user)
     await this.paymentRepository.softRemove(payment)
   }
 
   // ─── Confirm Payment Arrival ──────────────────────────────────────────
 
   async confirmPayment(id: number, dto: ConfirmPaymentDto, user: AuthUser): Promise<Payment> {
-    const payment = await this.findOne(id)
+    const payment = await this.findOne(id, user)
 
-    payment.actualAmount = dto.actualAmount
-    payment.actualDate = new Date(dto.actualDate)
-    payment.paymentMethod = dto.paymentMethod
-    payment.bankTransactionNo = dto.bankTransactionNo ?? payment.bankTransactionNo
-    payment.status = PaymentStatus.CONFIRMED
-    payment.confirmUserId = user.id
-    payment.confirmedAt = new Date()
+    const contract = await this.contractRepository.findOne({
+      where: { id: payment.contractId },
+    })
+    if (!contract) {
+      throw new NotFoundException(`Contract with ID ${payment.contractId} not found`)
+    }
 
-    return this.paymentRepository.save(payment)
+    return this.dataSource.transaction(async (manager) => {
+      payment.actualAmount = dto.actualAmount
+      payment.actualDate = new Date(dto.actualDate)
+      payment.paymentMethod = dto.paymentMethod
+      payment.bankTransactionNo = dto.bankTransactionNo ?? payment.bankTransactionNo
+      payment.status = PaymentStatus.CONFIRMED
+      payment.confirmUserId = user.id
+      payment.confirmedAt = new Date()
+
+      const savedPayment = await manager.save(Payment, payment)
+
+      // Update contract paidAmount
+      const newPaidAmount =
+        parseFloat(String(contract.paidAmount)) + parseFloat(String(dto.actualAmount))
+      contract.paidAmount = newPaidAmount
+
+      // Auto-complete contract if fully paid
+      if (
+        newPaidAmount >= parseFloat(String(contract.totalAmount)) &&
+        contract.status === ContractStatus.EXECUTING
+      ) {
+        contract.status = ContractStatus.COMPLETED
+      }
+
+      await manager.save(Contract, contract)
+
+      return savedPayment
+    })
   }
 
   // ─── Overdue Payments ─────────────────────────────────────────────────

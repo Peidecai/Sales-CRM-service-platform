@@ -80,8 +80,8 @@ export class PaymentController {
   @Get()
   @ApiOperation({ summary: '获取回款列表' })
   @ApiResponse({ status: 200, description: '分页回款列表' })
-  findAll(@Query() query: QueryPaymentDto) {
-    return this.paymentService.findAll(query)
+  findAll(@Query() query: QueryPaymentDto, @CurrentUser() user: AuthUser) {
+    return this.paymentService.findAll(query, user)
   }
 
   @Post()

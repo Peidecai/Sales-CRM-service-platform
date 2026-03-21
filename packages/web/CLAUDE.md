@@ -17,12 +17,14 @@ src/
 ├── utils/         # 工具函数 (format, tag-helpers)
 └── views/         # 页面
     ├── dashboard/     # 仪表盘
-    ├── customer/      # 客户管理
+    ├── customer/      # 客户管理 (components/: AiSidePanel, AiCommunicationBrief, DealAnalysisTab, AiCallReviewTab)
     ├── opportunity/   # 商机管理
-    ├── call-record/   # 通话记录
+    ├── call-record/   # 通话记录 (components/: LeaderReviewSection)
     ├── knowledge/     # 知识库
     ├── prospect/      # 互联网获客 (search.vue)
     ├── sales-target/  # 销售目标
+    ├── ai/            # AI 分析 (沟通分析/客户画像/员工画像/意向预测/报告)
+    ├── report/        # 报表 (ReportLayout + ai/: TagStats, AppointmentAbility, SpeechSkill, ScoreRanking, EmployeePortrait)
     ├── audit-log/     # 审计日志 (Admin)
     ├── user/          # 用户管理 (Admin)
     ├── settings/      # 系统设置 (Admin, 数据源+筛选配置)

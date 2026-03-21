@@ -81,7 +81,7 @@ export class TokenService {
 
     // Sign both tokens synchronously before any async Redis work
     const accessToken = this.jwtService.sign(
-      { sub: user.id, username: user.username, role: user.role, jti, familyId },
+      { sub: user.id, username: user.username, role: user.role, jti, familyId, type: 'access' },
       { ...signOptions, expiresIn: this.accessTtlSeconds },
     )
 

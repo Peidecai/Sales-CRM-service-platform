@@ -147,7 +147,7 @@
           <el-tree-select
             v-model="form.categoryId"
             :data="categoryTree"
-            :props="{ label: 'name', children: 'children', value: 'id' }"
+            :props="{ label: 'name', children: 'children', value: 'id' } as any"
             clearable
             placeholder="选择分类"
             check-strictly
@@ -197,7 +197,7 @@
           <el-tree-select
             v-model="categoryForm.parentId"
             :data="categoryTree"
-            :props="{ label: 'name', children: 'children', value: 'id' }"
+            :props="{ label: 'name', children: 'children', value: 'id' } as any"
             clearable
             placeholder="无（顶级分类）"
             check-strictly
@@ -210,9 +210,9 @@
       </el-form>
       <template #footer>
         <el-button @click="categoryDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleCategorySubmit"
-          >确定</el-button
-        >
+        <el-button type="primary" :loading="submitting" @click="handleCategorySubmit">
+          确定
+        </el-button>
       </template>
     </el-dialog>
   </div>

@@ -1,4 +1,4 @@
-## 10. 微信小程序详细设计
+## 10. 移动端 APP 详细设计
 
 ### 10.1 技术架构
 
@@ -6,7 +6,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    微信小程序客户端                        │
+│                    APP 客户端                              │
 ├─────────────────────────────────────────────────────────┤
 │  页面层 (Pages)                                          │
 │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌──────────┐      │
@@ -90,7 +90,7 @@ src/
 │   │   ├── client.ts
 │   │   ├── follow-up.ts
 │   │   └── types.ts
-│   ├── mini/                   # 小程序专有接口
+│   ├── mini/                   # APP 专有接口
 │   │   ├── wechat-auth.ts
 │   │   ├── check-in.ts
 │   │   └── voice.ts
@@ -113,7 +113,7 @@ src/
 共享层通过抽象请求适配器实现跨端复用：
 
 ```typescript
-// api/shared/types.ts — 共享类型定义（PC端与小程序端通用）
+// api/shared/types.ts — 共享类型定义（PC端与APP端通用）
 export interface ApiResponse<T = any> {
   code: number;
   message: string;
@@ -133,7 +133,7 @@ export interface PageResult<T> {
   pageSize: number;
 }
 
-// api/request.ts — 小程序端请求适配器
+// api/request.ts — APP端请求适配器
 import { useUserStore } from "@/stores/user";
 import { OfflineQueue } from "@/services/offline-queue";
 
@@ -197,7 +197,7 @@ export async function request<T>(
 }
 ```
 
-#### 10.1.4 小程序端特有能力封装
+#### 10.1.4 APP 端特有能力封装
 
 ```typescript
 // services/wx-bridge.ts
@@ -293,7 +293,7 @@ export class WxBridge {
 
 #### 10.2.2 工作台首页
 
-工作台作为小程序首页，聚合展示当日核心信息：
+工作台作为 APP 首页，聚合展示当日核心信息：
 
 ```typescript
 // stores/workbench.ts
@@ -951,7 +951,7 @@ X-Sync-Mode: offline              // 离线同步标记
 
 ### 10.5 接口设计
 
-#### 10.5.1 小程序专用API列表
+#### 10.5.1 APP 专用API列表
 
 | 序号 | 接口         | 方法 | 路径                              | 说明            | 离线 |
 | ---- | ------------ | ---- | --------------------------------- | --------------- | ---- |
@@ -1128,7 +1128,7 @@ Content-Type: application/json
 
 ```
 ┌──────────┐      ┌──────────┐      ┌──────────┐      ┌──────────┐
-│ 小程序端  │      │ CRM后端   │      │ 微信服务器 │      │ 数据库    │
+│ APP 端    │      │ CRM后端   │      │ 微信服务器 │      │ 数据库    │
 └────┬─────┘      └────┬─────┘      └─────┬────┘      └────┬─────┘
      │                  │                   │                │
      │  1.wx.login()    │                   │                │
@@ -1178,7 +1178,7 @@ Content-Type: application/json
 
 | 措施      | 说明                                                                                         |
 | --------- | -------------------------------------------------------------------------------------------- |
-| HTTPS强制 | 所有API请求强制使用HTTPS，小程序平台本身要求TLS 1.2+                                         |
+| HTTPS强制 | 所有API请求强制使用HTTPS，要求TLS 1.2+                                                       |
 | 请求签名  | 关键写操作(签到/审批)增加请求签名：`Sign = HMAC-SHA256(timestamp + nonce + body, secretKey)` |
 | 防重放    | 请求携带 `timestamp` + `nonce`，服务端校验时间窗口(±5分钟)并缓存nonce防重放                  |
 
@@ -1420,4 +1420,4 @@ function onScroll(e: any) {
 
 ---
 
-以上为微信小程序的完整详细设计，涵盖技术架构、功能模块、离线支持、页面布局、接口规范以及安全与性能方案。各模块设计均遵循 uni-app + Vue 3 + TypeScript + Pinia 技术栈规范，充分利用微信小程序原生能力，并通过离线队列与本地缓存机制保障弱网及无网环境下的基本可用性。
+以上为移动端 APP 的完整详细设计，涵盖技术架构、功能模块、离线支持、页面布局、接口规范以及安全与性能方案。各模块设计均遵循 uni-app + Vue 3 + TypeScript + Pinia 技术栈规范，充分利用 APP 原生能力（Push 推送、双卡拨号、GPS 签到、生物识别等），并通过离线队列与本地缓存机制保障弱网及无网环境下的基本可用性。

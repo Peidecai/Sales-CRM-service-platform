@@ -24,7 +24,7 @@ import {
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { Roles } from '../../common/decorators/roles.decorator'
-import { CurrentUser } from '../../common/decorators/current-user.decorator'
+import { CurrentUser, type AuthUser } from '../../common/decorators/current-user.decorator'
 import { UserRole } from '@crm/shared'
 import { AuditLogInterceptor } from '../../common/interceptors/audit-log.interceptor'
 import { ContractService } from './contract.service'
@@ -51,8 +51,8 @@ export class ContractController {
   @Get()
   @ApiOperation({ summary: '获取合同列表（分页）' })
   @ApiResponse({ status: 200, description: '分页合同列表' })
-  findAll(@Query() query: QueryContractDto) {
-    return this.contractService.findAll(query)
+  findAll(@Query() query: QueryContractDto, @CurrentUser() user: AuthUser) {
+    return this.contractService.findAll(query, user)
   }
 
   // ─── Static routes (MUST come before :id) ─────────────────────────────
@@ -115,13 +115,13 @@ export class ContractController {
       variables: Record<string, string>
       contractData: CreateContractDto
     },
-    @CurrentUser('id') userId: number,
+    @CurrentUser() user: AuthUser,
   ) {
     return this.contractService.createFromTemplate(
       body.templateId,
       body.variables,
       body.contractData,
-      userId,
+      user,
     )
   }
 
@@ -130,8 +130,8 @@ export class ContractController {
   @Post()
   @ApiOperation({ summary: '创建合同' })
   @ApiResponse({ status: 201, description: '合同创建成功' })
-  create(@Body() dto: CreateContractDto, @CurrentUser('id') userId: number) {
-    return this.contractService.create(dto, userId)
+  create(@Body() dto: CreateContractDto, @CurrentUser() user: AuthUser) {
+    return this.contractService.create(dto, user)
   }
 
   // ─── Parameterized routes ─────────────────────────────────────────────
@@ -141,24 +141,32 @@ export class ContractController {
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: '合同详情' })
   @ApiResponse({ status: 404, description: '合同不存在' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.contractService.findOne(id)
+  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.contractService.findOne(id, user)
   }
 
   @Put(':id')
   @ApiOperation({ summary: '更新合同' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: '合同更新成功' })
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateContractDto) {
-    return this.contractService.update(id, dto)
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateContractDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.contractService.update(id, dto, user)
   }
 
   @Put(':id/sign')
   @ApiOperation({ summary: '确认签署合同' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: '合同状态更新为已签署' })
-  confirmSign(@Param('id', ParseIntPipe) id: number, @Body('signFileUrl') signFileUrl?: string) {
-    return this.contractService.confirmSign(id, signFileUrl)
+  confirmSign(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthUser,
+    @Body('signFileUrl') signFileUrl?: string,
+  ) {
+    return this.contractService.confirmSign(id, user, signFileUrl)
   }
 
   @Post(':id/renew')
@@ -168,9 +176,9 @@ export class ContractController {
   renew(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { newEndDate: string; newAmount: number },
-    @CurrentUser('id') userId: number,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.contractService.renew(id, body.newEndDate, body.newAmount, userId)
+    return this.contractService.renew(id, body.newEndDate, body.newAmount, user)
   }
 
   @Post(':id/e-sign')
@@ -188,8 +196,8 @@ export class ContractController {
   @ApiOperation({ summary: '删除合同（仅管理员/经理）' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: '合同已删除' })
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    await this.contractService.remove(id)
+  async remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    await this.contractService.remove(id, user)
     return null
   }
 }

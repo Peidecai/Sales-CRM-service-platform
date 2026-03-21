@@ -8,7 +8,7 @@
 | ----------------- | ---------------------------------------------------- |
 | Backend           | NestJS 10 + TypeORM 0.3 + MySQL 8.0 + Redis 7 + Bull |
 | Frontend (PC)     | Vue 3.4 + Vite 5 + Element Plus 2 + Pinia            |
-| Frontend (Mobile) | uni-app 3.x + Vue 3 (微信小程序, `@crm/miniapp`)     |
+| Frontend (Mobile) | uni-app 3.x + Vue 3 (微信小程序+APP, `@crm/miniapp`) |
 | Language          | TypeScript 5.x (strict mode)                         |
 | Package Manager   | pnpm (workspace, prefix `@crm/*`)                    |
 
@@ -20,7 +20,7 @@ crm-sales-platform/
 │   ├── shared/       # @crm/shared — 共享类型、枚举
 │   ├── server/       # @crm/server — NestJS 后端 (见 server/CLAUDE.md)
 │   ├── web/          # @crm/web — Vue 3 PC 端 (见 web/CLAUDE.md)
-│   └── miniapp/      # @crm/miniapp — 微信小程序 (见 miniapp/CLAUDE.md)
+│   └── miniapp/      # @crm/miniapp — 微信小程序+APP (见 miniapp/CLAUDE.md)
 ├── docker/           # Docker 配置
 ├── docker-compose.yml
 └── CLAUDE.md         # 本文件
@@ -90,7 +90,7 @@ chore: 更新依赖
 pnpm install                    # 安装依赖
 pnpm dev:server                 # NestJS :3000
 pnpm dev:web                    # Vue :5173
-pnpm dev:miniapp                # 微信小程序
+pnpm dev:miniapp                # 微信小程序+APP
 
 cd packages/server
 DB_USERNAME=crm_migrator DB_PASSWORD=<pwd> pnpm migration:run
@@ -102,19 +102,20 @@ pnpm test:e2e                   # Playwright E2E
 
 ## 分层 CLAUDE.md 索引
 
-| 层级         | 文件                                        | 内容                         |
-| ------------ | ------------------------------------------- | ---------------------------- |
-| Server       | `packages/server/CLAUDE.md`                 | 后端架构、模块列表、缓存策略 |
-| Web          | `packages/web/CLAUDE.md`                    | 前端规范、组件约定、路由     |
-| Miniapp      | `packages/miniapp/CLAUDE.md`                | 小程序架构、离线队列         |
-| Customer     | `server/src/modules/customer/CLAUDE.md`     | 客户管理                     |
-| Opportunity  | `server/src/modules/opportunity/CLAUDE.md`  | 商机管理                     |
-| Call Record  | `server/src/modules/call-record/CLAUDE.md`  | 通话记录 + AI 摘要           |
-| Knowledge    | `server/src/modules/knowledge/CLAUDE.md`    | 知识��� + RAG                |
-| Prospect     | `server/src/modules/prospect/CLAUDE.md`     | 互联网获客 + 数据源管理      |
-| Audit Log    | `server/src/modules/audit-log/CLAUDE.md`    | 审计日志（全局模块）         |
-| Notification | `server/src/modules/notification/CLAUDE.md` | WebSocket 实时通知           |
-| Sales Target | `server/src/modules/sales-target/CLAUDE.md` | 销售目标 + 排行              |
+| 层级         | 文件                                        | 内容                          |
+| ------------ | ------------------------------------------- | ----------------------------- |
+| Server       | `packages/server/CLAUDE.md`                 | 后端架构、模块列表、缓存策略  |
+| Web          | `packages/web/CLAUDE.md`                    | 前端规范、组件约定、路由      |
+| Miniapp/APP  | `packages/miniapp/CLAUDE.md`                | 小程序+APP架构、离线队列      |
+| Customer     | `server/src/modules/customer/CLAUDE.md`     | 客户管理                      |
+| Opportunity  | `server/src/modules/opportunity/CLAUDE.md`  | 商机管理                      |
+| Call Record  | `server/src/modules/call-record/CLAUDE.md`  | 通话记录 + AI 摘要 + 领导点评 |
+| AI           | `server/src/modules/ai/CLAUDE.md`           | AI 通话分析/画像/意向预测     |
+| Knowledge    | `server/src/modules/knowledge/CLAUDE.md`    | 知识��� + RAG                 |
+| Prospect     | `server/src/modules/prospect/CLAUDE.md`     | 互联网获客 + 数据源管理       |
+| Audit Log    | `server/src/modules/audit-log/CLAUDE.md`    | 审计日志（全局模块）          |
+| Notification | `server/src/modules/notification/CLAUDE.md` | WebSocket 实时通知            |
+| Sales Target | `server/src/modules/sales-target/CLAUDE.md` | 销售目标 + 排行               |
 
 ## Skill 规范要求
 

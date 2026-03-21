@@ -63,4 +63,12 @@ export const materialApi = {
   stats(): Promise<ApiResponse<{ byType: Record<string, number>; total: number }>> {
     return request.get('/materials/stats')
   },
+
+  favorite(id: number): Promise<ApiResponse<null>> {
+    return request.post(`/materials/${id}/favorite`)
+  },
+
+  unfavorite(id: number): Promise<ApiResponse<null>> {
+    return request.delete(`/materials/${id}/favorite`)
+  },
 }

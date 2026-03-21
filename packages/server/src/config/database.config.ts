@@ -1,5 +1,6 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm'
 import { ConfigService } from '@nestjs/config'
+import { SnakeNamingStrategy } from './snake-naming.strategy'
 
 export const databaseConfig = (config: ConfigService): TypeOrmModuleOptions => {
   const nodeEnv = config.get<string>('NODE_ENV', 'development')
@@ -19,6 +20,7 @@ export const databaseConfig = (config: ConfigService): TypeOrmModuleOptions => {
     entities: [__dirname + '/../**/*.entity{.ts,.js}'],
     migrations: [__dirname + '/../../database/migrations/*{.ts,.js}'],
     synchronize: false,
+    namingStrategy: new SnakeNamingStrategy(),
     logging: nodeEnv === 'development',
     timezone: '+08:00',
     charset: 'utf8mb4',

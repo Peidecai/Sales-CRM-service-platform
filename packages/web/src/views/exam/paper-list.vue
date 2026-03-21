@@ -22,9 +22,9 @@
         </el-table-column>
         <el-table-column label="操作" width="120" fixed="right">
           <template #default="{ row }">
-            <el-button text type="primary" @click="router.push(`/exam/take/${row.id}?preview=1`)"
-              >预览</el-button
-            >
+            <el-button text type="primary" @click="router.push(`/exam/take/${row.id}?preview=1`)">
+              预览
+            </el-button>
             <el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)">
               <template #reference>
                 <el-button text type="danger">删除</el-button>
@@ -106,7 +106,7 @@
             <el-tree-select
               v-model="rule.categoryId"
               :data="categoryTree"
-              :props="{ label: 'name', value: 'id', children: 'children' }"
+              :props="{ label: 'name', value: 'id', children: 'children' } as any"
               placeholder="分类"
               check-strictly
               style="width: 150px"
@@ -130,8 +130,9 @@
                 scorePerQuestion: 2,
               })
             "
-            >添加规则</el-button
           >
+            添加规则
+          </el-button>
         </template>
       </el-form>
       <template #footer>

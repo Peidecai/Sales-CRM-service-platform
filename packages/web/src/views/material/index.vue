@@ -61,11 +61,9 @@
           <el-table-column label="操作" width="180" align="center">
             <template #default="{ row }">
               <el-button type="primary" link size="small" @click="previewFile(row)">预览</el-button>
-              <el-button type="primary" link size="small" @click="downloadFile(row)"
-              >
+              <el-button type="primary" link size="small" @click="downloadFile(row)">
                 下载
-              </el-button
-              >
+              </el-button>
               <el-button type="warning" link size="small" @click="toggleFavorite(row)">
                 {{ row.isFavorited ? '取消收藏' : '收藏' }}
               </el-button>
@@ -86,9 +84,7 @@
                 <p class="file-name" :title="item.fileName">{{ item.fileName }}</p>
                 <p class="file-meta">
                   <el-tag size="small" type="info">
-                    {{
-                      categoryLabels[item.category] || item.category
-                    }}
+                    {{ categoryLabels[item.category] || item.category }}
                   </el-tag>
                   <span>{{ formatSize(item.fileSize) }}</span>
                 </p>
@@ -118,7 +114,7 @@
 import { ref, onMounted } from 'vue'
 import { Document } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import request from '@/api/request'
+import { materialApi } from '@/api/material'
 import { useUserStore } from '@/stores/user'
 
 const categoryLabels: Record<string, string> = {
@@ -165,7 +161,7 @@ async function loadData() {
     const params: Record<string, unknown> = { page: page.value, pageSize: pageSize.value }
     if (keyword.value) params.keyword = keyword.value
     if (activeCategory.value !== 'all') params.category = activeCategory.value
-    const res = (await request.get('/materials', { params })) as unknown as {
+    const res = (await materialApi.list(params as Record<string, unknown>)) as unknown as {
       code: number
       data: { list: MaterialVO[]; total: number }
     }
@@ -199,11 +195,11 @@ function downloadFile(item: MaterialVO) {
 async function toggleFavorite(item: MaterialVO) {
   try {
     if (item.isFavorited) {
-      await request.delete(`/materials/${item.id}/favorite`)
+      await materialApi.unfavorite(item.id)
       item.isFavorited = false
       ElMessage.success('已取消收藏')
     } else {
-      await request.post(`/materials/${item.id}/favorite`)
+      await materialApi.favorite(item.id)
       item.isFavorited = true
       ElMessage.success('已收藏')
     }

@@ -247,4 +247,46 @@ export class AiReportService {
     await this.redis.set(cacheKey, JSON.stringify(result), this.CACHE_TTL)
     return result
   }
+
+  async getAppointmentAbility(filter: ReportFilterDto, user: AuthUser): Promise<unknown> {
+    const effectiveFilter = this.applyDataPermission(filter, user)
+    const cacheKey = `report:ai:appointment:${this.hashFilter(effectiveFilter)}`
+    const cached = await this.redis.safeGet(cacheKey)
+    if (cached) return JSON.parse(cached)
+
+    // Appointment conversion: calls where call_result = 'connected' and duration > 60s
+    // approximate "appointment" as high-duration connected calls
+    const qb = this.callRecordRepo
+      .createQueryBuilder('cr')
+      .select('cr.user_id', 'userId')
+      .addSelect('u.name', 'userName')
+      .addSelect('COUNT(*)', 'totalCalls')
+      .addSelect(
+        "SUM(CASE WHEN cr.duration > 60 AND cr.call_result = 'connected' THEN 1 ELSE 0 END)",
+        'appointmentCount',
+      )
+      .addSelect(
+        "ROUND(SUM(CASE WHEN cr.duration > 60 AND cr.call_result = 'connected' THEN 1 ELSE 0 END) * 100.0 / GREATEST(COUNT(*), 1), 2)",
+        'conversionRate',
+      )
+      .leftJoin(User, 'u', 'u.id = cr.user_id')
+      .where('cr.deletedAt IS NULL')
+      .groupBy('cr.user_id')
+      .addGroupBy('u.name')
+      .orderBy('conversionRate', 'DESC')
+
+    if (effectiveFilter.startDate) {
+      qb.andWhere('cr.call_at >= :startDate', { startDate: effectiveFilter.startDate })
+    }
+    if (effectiveFilter.endDate) {
+      qb.andWhere('cr.call_at <= :endDate', { endDate: effectiveFilter.endDate })
+    }
+    if (effectiveFilter.userId) {
+      qb.andWhere('cr.user_id = :userId', { userId: effectiveFilter.userId })
+    }
+
+    const result = await qb.getRawMany()
+    await this.redis.set(cacheKey, JSON.stringify(result), this.CACHE_TTL)
+    return result
+  }
 }

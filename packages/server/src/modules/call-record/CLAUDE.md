@@ -112,6 +112,22 @@ callResult: string  // 'connected' | 'no_answer' | 'busy' | 'power_off'
   - `asr` / `both` → CALL_ANALYSIS_PROMPT（双方对话分析）
   - `notes` → NOTES_SUMMARY_PROMPT（简版摘要）
 
+### 领导点评
+
+**实体**: `LeaderReview` (callRecordId, customerId, reviewerId, content)
+
+**DTO**: `CreateLeaderReviewDto` — content (@IsNotEmpty @MaxLength(2000)), customerId (@IsOptional @IsInt)
+
+**端点**:
+
+| 方法 | 路径                                              | 描述             | 权限          |
+| ---- | ------------------------------------------------- | ---------------- | ------------- |
+| GET  | /api/v1/call-records/customer/:customerId/reviews | 按客户查点评     | All           |
+| POST | /api/v1/call-records/:id/reviews                  | 创建点评         | Admin/Manager |
+| GET  | /api/v1/call-records/:id/reviews                  | 按通话记录查点评 | All           |
+
+**迁移**: `1709000098000-CreateLeaderReviewTable`
+
 ## 依赖关系
 
 - **依赖**: Customer 模块 (TM-A)、Opportunity 模块 (TM-B)

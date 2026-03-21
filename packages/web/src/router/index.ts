@@ -314,6 +314,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '异常预警', icon: 'Warning', breadcrumb: ['AI 智能', '异常预警'] },
       },
       {
+        path: 'ai/communication-analysis',
+        name: 'AiCommunicationAnalysis',
+        component: () => import('@/views/ai/communication-analysis.vue'),
+        meta: { title: '沟通分析', breadcrumb: ['AI 智能', '沟通分析'] },
+      },
+      {
         path: 'ai/reminders',
         name: 'AiReminders',
         component: () => import('@/views/ai-reminder/index.vue'),
@@ -608,6 +614,18 @@ const routes: RouteRecordRaw[] = [
             name: 'ReportAiEmployeePortrait',
             component: () => import('@/views/report/ai/EmployeePortrait.vue'),
             meta: { title: '员工画像', breadcrumb: ['智能报表', '员工画像'] },
+          },
+          {
+            path: 'ai/tag-stats',
+            name: 'ReportAiTagStats',
+            component: () => import('@/views/report/ai/TagStats.vue'),
+            meta: { title: '标签统计', breadcrumb: ['智能报表', '标签统计'] },
+          },
+          {
+            path: 'ai/appointment-ability',
+            name: 'ReportAiAppointmentAbility',
+            component: () => import('@/views/report/ai/AppointmentAbility.vue'),
+            meta: { title: '邀约能力', breadcrumb: ['智能报表', '邀约能力'] },
           },
           {
             path: 'funnel/sales',
