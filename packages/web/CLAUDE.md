@@ -80,17 +80,20 @@ export function getList(params: ListParams) {
 
 ```bash
 cd packages/web
-npx vitest run           # 单元测试 (71 tests)
+npx vitest run           # 单元测试 (84 tests)
 npx vue-tsc --noEmit     # 类型检查
 ```
 
-E2E: `pnpm test:e2e` (Playwright, 46 tests)
+E2E: `pnpm test:e2e` (Playwright, 46+ tests)
 
 ## Skill 规范
 
 操作前端代码时应遵循：
 
-- **frontend-patterns** — React/Vue 前端架构与最佳实践
+- **frontend-patterns** — Vue 3 组件设计、状态管理、性能优化
 - **coding-standards** — TypeScript 编码规范
-- **e2e-testing** — Playwright E2E 测试模式
-- **security-review** — 用户输入处理、XSS 防护
+- **e2e-testing** — Playwright E2E 测试（Page Object、CI 集成）
+- **security-review** — 用户输入处理、XSS 防护（v-safe-html）
+- **tdd-workflow** — 新组件/composable 需配套单元测试
+
+审查完成后运行 `/simplify` + `/verification-loop`

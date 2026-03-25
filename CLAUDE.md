@@ -121,7 +121,65 @@ pnpm test:e2e                   # Playwright E2E
 
 操作本项目时，应遵循以下 skill 的编码标准：
 
-- **coding-standards** — 通用 TypeScript/JS 编码规范
-- **security-review** — 处理认证、用户输入、API 端点时执行安全检查
-- **database-migrations** — 数据库迁移变更遵循最佳实践
-- **tdd-workflow** — 新功能/修复 bug 时遵循测试驱动开发
+### 编码与架构
+
+- **coding-standards** — TypeScript/JS 编码规范（命名、类型、错误处理）
+- **backend-patterns** — NestJS 分层架构、API 设计、数据库优化
+- **frontend-patterns** — Vue 3 组件设计、状态管理、性能优化
+- **api-design** — REST 资源命名、状态码、分页、错误响应
+
+### 安全
+
+- **security-review** — 认证、用户输入、API 端点安全检查
+- **security-scan** — Claude Code 配置安全扫描（CLAUDE.md、hooks）
+
+### 数据库
+
+- **database-migrations** — 迁移变更最佳实践（幂等、回滚）
+- **docker-patterns** — Docker/Compose 容器化与本地开发
+
+### 测试（开发时自动触发）
+
+- **tdd-workflow** — 新功能/修复 bug 时遵循测试驱动开发（80%+ 覆盖率）
+- **e2e-testing** — Playwright E2E 测试（Page Object、CI 集成）
+
+### 代码审查（完成功能后手动触发）
+
+- `/simplify` — 审查代码复用性、质量、效率，自动修复问题
+- `/verification-loop` — 6 阶段验证（Build→Types→Lint→Tests→Security→Diff）
+
+### 测试命令速查
+
+```bash
+# 后端 (Jest, 1249 tests)
+cd packages/server
+pnpm test                                  # 全量
+pnpm test -- --testPathPattern=customer    # 按模块
+pnpm test -- --coverage                   # 覆盖率
+
+# 前端 (Vitest, 84 tests)
+cd packages/web
+npx vitest run                             # 全量
+npx vue-tsc --noEmit                       # 类型检查
+
+# E2E (Playwright, 46+ tests)
+pnpm test:e2e                              # Chromium
+pnpm test:e2e:ui                           # 交互模式
+
+# Lint
+pnpm --filter @crm/server lint             # 后端
+pnpm --filter @crm/web lint                # 前端
+```
+
+### 审查检查清单
+
+代码审查时关注以下要点：
+
+1. **Guards** — Controller 类级别 `@UseGuards(JwtAuthGuard, RolesGuard)`
+2. **Audit** — 写操作 `@UseInterceptors(AuditLogInterceptor)`
+3. **权限** — 前端用 `UserRole` 枚举，禁止硬编码字符串
+4. **缓存** — Redis 读取用 `safeGet()`，写操作失效缓存
+5. **DTO** — 必须用 `class-validator` 装饰器验证
+6. **模块边界** — 跨模块访问通过 Module import，禁止直接注册外部 Entity
+7. **敏感字段** — 密码、API Key 不得出现在响应中
+8. **测试** — 新 Service 依赖必须在 test-utils 中有对应 Mock

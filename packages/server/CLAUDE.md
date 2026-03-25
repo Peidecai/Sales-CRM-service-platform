@@ -95,18 +95,24 @@ DB_USERNAME=crm_migrator DB_PASSWORD=<pwd> pnpm migration:run
 ## 测试
 
 ```bash
-pnpm test                                    # 全部
+pnpm test                                    # 全部 (1249 tests)
 pnpm test -- --testPathPattern=prospect      # 按模块
+pnpm test -- --coverage                      # 覆盖率
 ```
 
-156 后端 + 71 前端 + 46 E2E 测试
+Mock 工具: `test/test-utils.ts` — MockRepository, MockQueryBuilder,
+MockRedisService, MockDataSource, fixtures
 
 ## Skill 规范
 
 操作后端代码时应遵循：
 
-- **backend-patterns** — 后端架构、API 设计、数据库优化
+- **backend-patterns** — NestJS 分层架构、API 设计、数据库优化
+- **api-design** — REST 资源命名、状态码、分页、错误响应
 - **coding-standards** — TypeScript 编码规范
-- **database-migrations** — 迁移最佳实践
+- **database-migrations** — 迁移最佳实践（幂等、回滚）
 - **security-review** — 认证、输入验证、API 安全
 - **tdd-workflow** — 测试驱动开发 (80%+ 覆盖率)
+- **docker-patterns** — Dockerfile、Compose 配置
+
+审查完成后运行 `/simplify` + `/verification-loop`
