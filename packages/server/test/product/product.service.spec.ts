@@ -130,10 +130,10 @@ describe('ProductService', () => {
 
     it('should throw ConflictException when changing to existing code', async () => {
       productRepo.findOne
-        .mockResolvedValueOnce({ ...mockProduct }) // findOne for the product
-        .mockResolvedValueOnce({ ...mockProduct, id: 2 }) // findOne for code check
+        .mockResolvedValueOnce({ ...mockProduct }) // findOne for the product (code: P001)
+        .mockResolvedValueOnce({ ...mockProduct, id: 2, code: 'P002' }) // findOne for code check — existing product with code P002
 
-      await expect(service.update(1, { code: 'P001' })).rejects.toThrow(ConflictException)
+      await expect(service.update(1, { code: 'P002' })).rejects.toThrow(ConflictException)
     })
 
     it('should throw NotFoundException for non-existing product', async () => {

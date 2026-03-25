@@ -10,21 +10,36 @@ describe('PaymentPlanService', () => {
   let service: PaymentPlanService
   let planRepo: Record<string, jest.Mock>
   let itemRepo: Record<string, jest.Mock>
+  /** Single QB instance so assertions run on the same object the service used */
+  let planQbMock: {
+    andWhere: jest.Mock
+    orderBy: jest.Mock
+    skip: jest.Mock
+    take: jest.Mock
+    getManyAndCount: jest.Mock
+  }
   const admin = { id: 1, role: UserRole.ADMIN, name: 'Admin' } as any
   const sales = { id: 2, role: UserRole.SALES, name: 'Sales' } as any
 
   beforeEach(async () => {
+    planQbMock = {
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+    }
     planRepo = {
       create: jest.fn((d) => ({ id: 1, ...d })),
       save: jest.fn((e) => Promise.resolve({ id: 1, ...e })),
       findOne: jest.fn(),
-      createQueryBuilder: jest.fn(() => ({
-        andWhere: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        skip: jest.fn().mockReturnThis(),
-        take: jest.fn().mockReturnThis(),
-        getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
-      })),
+      createQueryBuilder: jest.fn(() => planQbMock),
+    }
+    const itemQbChain = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 1 }),
     }
     itemRepo = {
       create: jest.fn((d) => ({ id: 10, ...d })),
@@ -32,6 +47,7 @@ describe('PaymentPlanService', () => {
       findOne: jest.fn(),
       find: jest.fn().mockResolvedValue([]),
       findAndCount: jest.fn().mockResolvedValue([[], 0]),
+      createQueryBuilder: jest.fn(() => itemQbChain),
     }
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -66,8 +82,8 @@ describe('PaymentPlanService', () => {
 
   it('should filter SALES by own plans', async () => {
     await service.findAll(1, 20, sales)
-    const qb = planRepo.createQueryBuilder()
-    expect(qb.andWhere).toHaveBeenCalled()
+    expect(planRepo.createQueryBuilder).toHaveBeenCalledWith('pp')
+    expect(planQbMock.andWhere).toHaveBeenCalledWith('pp.salesUserId = :uid', { uid: sales.id })
   })
 
   it('should findOne with items', async () => {
@@ -87,14 +103,20 @@ describe('PaymentPlanService', () => {
   })
 
   it('should confirm payment - paid', async () => {
-    itemRepo.findOne.mockResolvedValue({ id: 10, amount: 1000, paidAmount: 0, status: 'pending' })
-    const result = await service.confirmPayment(10, { paidAmount: 1000 }, admin)
+    itemRepo.findOne
+      .mockResolvedValueOnce({ id: 10, amount: 1000, paidAmount: 0, status: 'pending' })
+      .mockResolvedValueOnce({ id: 10, amount: 1000, paidAmount: 1000, status: 'pending' })
+    await service.confirmPayment(10, { paidAmount: 1000 }, admin)
+    expect(itemRepo.createQueryBuilder).toHaveBeenCalled()
     expect(itemRepo.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'paid' }))
   })
 
   it('should confirm payment - partial', async () => {
-    itemRepo.findOne.mockResolvedValue({ id: 10, amount: 1000, paidAmount: 0, status: 'pending' })
+    itemRepo.findOne
+      .mockResolvedValueOnce({ id: 10, amount: 1000, paidAmount: 0, status: 'pending' })
+      .mockResolvedValueOnce({ id: 10, amount: 1000, paidAmount: 500, status: 'pending' })
     await service.confirmPayment(10, { paidAmount: 500 }, admin)
+    expect(itemRepo.createQueryBuilder).toHaveBeenCalled()
     expect(itemRepo.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'partial' }))
   })
 

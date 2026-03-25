@@ -8,20 +8,20 @@
         </el-button>
         <div v-if="isAdminOrManager" class="post-actions">
           <el-dropdown @command="handleModerate">
-            <el-button text
-              >管理操作 <el-icon><ArrowDown /></el-icon
-            ></el-button>
+            <el-button text>
+              管理操作 <el-icon><ArrowDown /></el-icon>
+            </el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="pin">{{
-                  post.isPinned ? '取消置顶' : '置顶'
-                }}</el-dropdown-item>
-                <el-dropdown-item command="feature">{{
-                  post.isFeatured ? '取消精华' : '精华'
-                }}</el-dropdown-item>
-                <el-dropdown-item command="lock">{{
-                  post.isLocked ? '解锁' : '锁定'
-                }}</el-dropdown-item>
+                <el-dropdown-item command="pin">
+                  {{ post.isPinned ? '取消置顶' : '置顶' }}
+                </el-dropdown-item>
+                <el-dropdown-item command="feature">
+                  {{ post.isFeatured ? '取消精华' : '精华' }}
+                </el-dropdown-item>
+                <el-dropdown-item command="lock">
+                  {{ post.isLocked ? '解锁' : '锁定' }}
+                </el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -43,6 +43,7 @@
             ><el-icon><View /></el-icon> {{ post.viewCount }}</span
           >
         </div>
+        <!-- eslint-disable-next-line vue/no-v-html -- content escaped via renderContent() which HTML-encodes all entities -->
         <div class="content-body" v-html="renderContent(post.content)" />
         <div class="post-toolbar">
           <el-button :type="post.isLiked ? 'primary' : 'default'" @click="handleToggleLike">

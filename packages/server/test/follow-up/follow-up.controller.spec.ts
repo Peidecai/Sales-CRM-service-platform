@@ -1,8 +1,8 @@
-import { BadRequestException } from '@nestjs/common'
 import { Test, TestingModule } from '@nestjs/testing'
 import { UserRole } from '@crm/shared'
 import { FollowUpController } from '../../src/modules/follow-up/follow-up.controller'
 import { FollowUpService } from '../../src/modules/follow-up/follow-up.service'
+import { FollowUpAiReminderService } from '../../src/modules/follow-up/follow-up-ai-reminder.service'
 import { AuditLogService } from '../../src/modules/audit-log/audit-log.service'
 import { FollowUpType } from '../../src/modules/follow-up/follow-up.entity'
 
@@ -10,6 +10,7 @@ describe('FollowUpController', () => {
   let controller: FollowUpController
   let followUpService: {
     create: jest.Mock
+    findAll: jest.Mock
     findByCustomer: jest.Mock
     update: jest.Mock
     remove: jest.Mock
@@ -24,6 +25,7 @@ describe('FollowUpController', () => {
   beforeEach(async () => {
     followUpService = {
       create: jest.fn(),
+      findAll: jest.fn(),
       findByCustomer: jest.fn(),
       update: jest.fn(),
       remove: jest.fn(),
@@ -33,6 +35,14 @@ describe('FollowUpController', () => {
       controllers: [FollowUpController],
       providers: [
         { provide: FollowUpService, useValue: followUpService },
+        {
+          provide: FollowUpAiReminderService,
+          useValue: {
+            getReminderSettings: jest.fn(),
+            updateReminderSettings: jest.fn(),
+            handleAiReminder: jest.fn(),
+          },
+        },
         { provide: AuditLogService, useValue: { log: jest.fn() } },
       ],
     }).compile()
@@ -50,9 +60,22 @@ describe('FollowUpController', () => {
     expect(result.id).toBe(5)
   })
 
-  it('findAll should throw when customerId is missing', async () => {
-    await expect(controller.findAll({} as never, adminUser)).rejects.toBeInstanceOf(BadRequestException)
+  it('findAll should call findAll when customerId is missing', async () => {
+    followUpService.findAll.mockResolvedValue({
+      list: [{ id: 1, content: 'A' }],
+      total: 1,
+    })
+
+    const result = await controller.findAll({} as never, adminUser)
+
+    expect(followUpService.findAll).toHaveBeenCalledWith({}, adminUser)
     expect(followUpService.findByCustomer).not.toHaveBeenCalled()
+    expect(result).toEqual({
+      list: [{ id: 1, content: 'A' }],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    })
   })
 
   it('findAll should return paginated response with defaults', async () => {

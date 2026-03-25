@@ -9,6 +9,7 @@
   >
     <div v-if="announcement">
       <h3>{{ announcement.title }}</h3>
+      <!-- eslint-disable-next-line vue/no-v-html -- trusted admin-authored announcement content -->
       <div style="margin: 16px 0; line-height: 1.8" v-html="announcement.content" />
     </div>
     <template #footer>

@@ -12,6 +12,7 @@ import {
   type MockQueryBuilder,
 } from '../test-utils'
 import { UserRole } from '@crm/shared'
+import { GroupBy } from '../../src/modules/report/dto/report-filter.dto'
 
 describe('CallReportService', () => {
   let service: CallReportService
@@ -73,7 +74,7 @@ describe('CallReportService', () => {
       qb.getRawMany.mockResolvedValue([])
       callRecordRepo.createQueryBuilder.mockReturnValue(qb)
 
-      await service.getStatistics({ ...baseFilter, groupBy: 'week' as 'day' | 'week' | 'month' }, adminUser)
+      await service.getStatistics({ ...baseFilter, groupBy: GroupBy.WEEK }, adminUser)
       expect(qb.select).toHaveBeenCalled()
     })
   })

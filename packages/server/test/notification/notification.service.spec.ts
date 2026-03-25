@@ -1,4 +1,5 @@
 import { NotificationService } from '../../src/modules/notification/notification.service'
+import { NotificationInboxService } from '../../src/modules/notification/notification-inbox.service'
 import { NotificationType } from '../../src/modules/notification/notification.types'
 
 describe('NotificationService', () => {
@@ -6,6 +7,10 @@ describe('NotificationService', () => {
   let gateway: {
     broadcast: jest.Mock
     sendToUser: jest.Mock
+    emitToUser: jest.Mock
+  }
+  let inboxService: {
+    create: jest.Mock
   }
 
   beforeEach(() => {
@@ -15,8 +20,12 @@ describe('NotificationService', () => {
     gateway = {
       broadcast: jest.fn(),
       sendToUser: jest.fn(),
+      emitToUser: jest.fn(),
     }
-    service = new NotificationService(gateway as never)
+    inboxService = {
+      create: jest.fn().mockResolvedValue({ id: 1 }),
+    }
+    service = new NotificationService(gateway as never, inboxService as never)
   })
 
   afterEach(() => {

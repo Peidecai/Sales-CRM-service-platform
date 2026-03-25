@@ -1,6 +1,7 @@
 <template>
   <div class="message-bubble" :class="[props.role]">
     <div class="bubble-content">
+      <!-- eslint-disable-next-line vue/no-v-html -- content sanitized via markdown-it with html:false -->
       <div v-if="props.role === 'assistant'" class="markdown-body" v-html="renderedContent" />
       <div v-else class="plain-text">{{ props.content }}</div>
     </div>

@@ -30,6 +30,7 @@ export type MockRepository<T = unknown> = Record<
   | 'save'
   | 'remove'
   | 'softRemove'
+  | 'softDelete'
   | 'delete'
   | 'update'
   | 'increment'
@@ -49,6 +50,7 @@ export function createMockRepository<T = unknown>(): MockRepository<T> {
     save: jest.fn(),
     remove: jest.fn(),
     softRemove: jest.fn(),
+    softDelete: jest.fn(),
     delete: jest.fn(),
     update: jest.fn(),
     increment: jest.fn(),
@@ -61,21 +63,25 @@ export function createMockRepository<T = unknown>(): MockRepository<T> {
 /* ---------- Mock DataSource ---------- */
 
 export function createMockDataSource() {
+  const mockManager = {
+      save: jest.fn().mockImplementation(async (first: unknown, second?: unknown) => second !== undefined ? second : first),
+      create: jest.fn().mockImplementation((_entityClass: unknown, data: unknown) => data),
+      findOne: jest.fn(),
+      update: jest.fn(),
+    }
   const mockQueryRunner = {
     connect: jest.fn(),
     startTransaction: jest.fn(),
     commitTransaction: jest.fn(),
     rollbackTransaction: jest.fn(),
     release: jest.fn(),
-    manager: {
-      save: jest.fn().mockImplementation(async (entity) => entity),
-      findOne: jest.fn(),
-      update: jest.fn(),
-    },
+    manager: mockManager,
   }
   return {
     createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
+    transaction: jest.fn().mockImplementation(async (cb: (manager: typeof mockManager) => Promise<unknown>) => cb(mockManager)),
     mockQueryRunner,
+    mockManager,
   }
 }
 
@@ -84,10 +90,12 @@ export function createMockDataSource() {
 export interface MockQueryBuilder {
   where: jest.Mock
   andWhere: jest.Mock
+  orWhere: jest.Mock
   orderBy: jest.Mock
   addOrderBy: jest.Mock
   skip: jest.Mock
   take: jest.Mock
+  limit: jest.Mock
   getManyAndCount: jest.Mock
   getMany: jest.Mock
   getOne: jest.Mock
@@ -100,17 +108,25 @@ export interface MockQueryBuilder {
   select: jest.Mock
   addSelect: jest.Mock
   groupBy: jest.Mock
+  addGroupBy: jest.Mock
+  having: jest.Mock
   setParameter: jest.Mock
+  subQuery: jest.Mock
+  execute: jest.Mock
+  clone: jest.Mock
+  setLock: jest.Mock
 }
 
 export function createMockQueryBuilder(data: unknown[] = [], total = 0): MockQueryBuilder {
   const qb: MockQueryBuilder = {
     where: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
+    orWhere: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
     addOrderBy: jest.fn().mockReturnThis(),
     skip: jest.fn().mockReturnThis(),
     take: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
     getManyAndCount: jest.fn().mockResolvedValue([data, total]),
     getMany: jest.fn().mockResolvedValue(data),
     getOne: jest.fn().mockResolvedValue(data[0] ?? null),
@@ -123,7 +139,13 @@ export function createMockQueryBuilder(data: unknown[] = [], total = 0): MockQue
     select: jest.fn().mockReturnThis(),
     addSelect: jest.fn().mockReturnThis(),
     groupBy: jest.fn().mockReturnThis(),
+    addGroupBy: jest.fn().mockReturnThis(),
+    having: jest.fn().mockReturnThis(),
     setParameter: jest.fn().mockReturnThis(),
+    subQuery: jest.fn().mockReturnThis(),
+    execute: jest.fn().mockResolvedValue(undefined),
+    clone: jest.fn().mockReturnThis(),
+    setLock: jest.fn().mockReturnThis(),
   }
   return qb
 }

@@ -1,10 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { getRepositoryToken } from '@nestjs/typeorm'
+import { DataSource } from 'typeorm'
 import { PaymentService } from '../../src/modules/payment/payment.service'
 import { Payment } from '../../src/modules/payment/entities/payment.entity'
+import { Contract } from '../../src/modules/contract/entities/contract.entity'
 import { NotificationService } from '../../src/modules/notification/notification.service'
 import { PaymentStatus } from '@crm/shared'
-import { createMockRepository, createMockQueryBuilder, type MockRepository, fixtures } from '../test-utils'
+import { createMockRepository, createMockQueryBuilder, createMockDataSource, type MockRepository, fixtures } from '../test-utils'
 
 describe('PaymentService — Overdue & Statistics', () => {
   let service: PaymentService
@@ -19,6 +21,8 @@ describe('PaymentService — Overdue & Statistics', () => {
       providers: [
         PaymentService,
         { provide: getRepositoryToken(Payment), useValue: repo },
+        { provide: getRepositoryToken(Contract), useValue: createMockRepository() },
+        { provide: DataSource, useValue: createMockDataSource() },
         { provide: NotificationService, useValue: notificationService },
       ],
     }).compile()
@@ -124,6 +128,7 @@ describe('PaymentService — Overdue & Statistics', () => {
     it('should not update if already has correct overdue days', async () => {
       const yesterday = new Date()
       yesterday.setDate(yesterday.getDate() - 1)
+      yesterday.setHours(0, 0, 0, 0)
 
       const payment = fixtures.payment({
         plannedDate: yesterday,
@@ -142,9 +147,14 @@ describe('PaymentService — Overdue & Statistics', () => {
 
   describe('checkOverduePayments (cron)', () => {
     it('should refresh overdue status and notify for first-day overdue', async () => {
+      const yesterday = new Date()
+      yesterday.setDate(yesterday.getDate() - 1)
+      yesterday.setHours(0, 0, 0, 0)
+
       const payment = fixtures.payment({
-        overdueDays: 1,
-        isOverdue: true,
+        plannedDate: yesterday,
+        overdueDays: 0,
+        isOverdue: false,
         ownerId: 10,
         status: PaymentStatus.PLANNED,
       })

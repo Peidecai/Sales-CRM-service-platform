@@ -3,13 +3,18 @@ import { getRepositoryToken } from '@nestjs/typeorm'
 import { NotFoundException } from '@nestjs/common'
 import { ContractService } from '../../src/modules/contract/contract.service'
 import { Contract } from '../../src/modules/contract/entities/contract.entity'
-import { ContractStatus, ContractType } from '@crm/shared'
+import { ContractTemplateService } from '../../src/modules/contract/contract-template.service'
+import { NotificationService } from '../../src/modules/notification/notification.service'
+import { ContractStatus, ContractType, UserRole } from '@crm/shared'
 import {
   createMockRepository,
   createMockQueryBuilder,
   fixtures,
   type MockRepository,
 } from '../test-utils'
+import type { AuthUser } from '../../src/common/decorators/current-user.decorator'
+
+const adminUser: AuthUser = { id: 2, username: 'admin', role: UserRole.ADMIN }
 
 describe('ContractService', () => {
   let service: ContractService
@@ -22,6 +27,8 @@ describe('ContractService', () => {
       providers: [
         ContractService,
         { provide: getRepositoryToken(Contract), useValue: repo },
+        { provide: ContractTemplateService, useValue: { findOne: jest.fn(), renderTemplate: jest.fn() } },
+        { provide: NotificationService, useValue: { notify: jest.fn(), notifyUser: jest.fn() } },
       ],
     }).compile()
 
@@ -52,14 +59,14 @@ describe('ContractService', () => {
       repo.create.mockReturnValue(contract)
       repo.save.mockResolvedValue(contract)
 
-      const result = await service.create(dto as never, 2)
+      const result = await service.create(dto as never, adminUser)
 
       expect(repo.createQueryBuilder).toHaveBeenCalledWith('c')
       expect(qb.getOne).toHaveBeenCalled()
       expect(repo.create).toHaveBeenCalled()
       const createArg = repo.create.mock.calls[0][0]
       expect(createArg.contractNo).toMatch(/^CON-\d{8}-0001$/)
-      expect(createArg.createdBy).toBe(2)
+      expect(createArg.createdBy).toBe(adminUser.id)
       expect(createArg.currency).toBe('CNY')
       expect(createArg.paidAmount).toBe(0)
       expect(repo.save).toHaveBeenCalledWith(contract)
@@ -79,10 +86,10 @@ describe('ContractService', () => {
         pageSize: 20,
         status: ContractStatus.DRAFT,
         customerId: 1,
-      } as never)
+      } as never, adminUser)
 
       expect(qb.andWhere).toHaveBeenCalledWith('c.status = :status', { status: ContractStatus.DRAFT })
-      expect(qb.andWhere).toHaveBeenCalledWith('c.customer_id = :customerId', { customerId: 1 })
+      expect(qb.andWhere).toHaveBeenCalledWith('c.customerId = :customerId', { customerId: 1 })
       expect(qb.skip).toHaveBeenCalledWith(0)
       expect(qb.take).toHaveBeenCalledWith(20)
       expect(result).toEqual({ list: contracts, total: 2, page: 1, pageSize: 20 })
@@ -92,10 +99,10 @@ describe('ContractService', () => {
       const qb = createMockQueryBuilder([], 0)
       repo.createQueryBuilder.mockReturnValue(qb)
 
-      await service.findAll({ page: 1, pageSize: 10, keyword: 'test' } as never)
+      await service.findAll({ page: 1, pageSize: 10, keyword: 'test' } as never, adminUser)
 
       expect(qb.andWhere).toHaveBeenCalledWith(
-        '(c.contract_no LIKE :kw OR c.title LIKE :kw)',
+        '(c.contractNo LIKE :kw OR c.title LIKE :kw)',
         { kw: '%test%' },
       )
     })
@@ -127,7 +134,7 @@ describe('ContractService', () => {
       repo.findOne.mockResolvedValue(existing)
       repo.save.mockResolvedValue(updated)
 
-      const result = await service.update(1, { title: 'Updated Title' } as never)
+      const result = await service.update(1, { title: 'Updated Title' } as never, adminUser)
 
       expect(repo.save).toHaveBeenCalled()
       expect(result.title).toBe('Updated Title')
@@ -141,7 +148,7 @@ describe('ContractService', () => {
       repo.findOne.mockResolvedValue(contract)
       repo.softRemove.mockResolvedValue(contract)
 
-      await service.remove(1)
+      await service.remove(1, adminUser)
 
       expect(repo.softRemove).toHaveBeenCalledWith(contract)
     })
@@ -154,7 +161,7 @@ describe('ContractService', () => {
       repo.findOne.mockResolvedValue(contract)
       repo.save.mockImplementation(async (c) => c)
 
-      const result = await service.confirmSign(1, 'https://oss.example.com/signed.pdf')
+      const result = await service.confirmSign(1, adminUser, 'https://oss.example.com/signed.pdf')
 
       expect(result.status).toBe(ContractStatus.SIGNED)
       expect(result.signDate).toMatch(/^\d{4}-\d{2}-\d{2}$/)
@@ -166,7 +173,7 @@ describe('ContractService', () => {
       repo.findOne.mockResolvedValue(contract)
       repo.save.mockImplementation(async (c) => c)
 
-      const result = await service.confirmSign(1)
+      const result = await service.confirmSign(1, adminUser)
 
       expect(result.status).toBe(ContractStatus.SIGNED)
       expect(result.signFileUrl).toBeNull()
@@ -187,7 +194,7 @@ describe('ContractService', () => {
       expect(qb.andWhere).toHaveBeenCalledWith('c.status IN (:...activeStatuses)', {
         activeStatuses: [ContractStatus.SIGNED, ContractStatus.EXECUTING],
       })
-      expect(qb.andWhere).toHaveBeenCalledWith('c.end_date <= :futureDate', expect.any(Object))
+      expect(qb.andWhere).toHaveBeenCalledWith('c.endDate <= :futureDate', expect.any(Object))
       expect(qb.getMany).toHaveBeenCalled()
       expect(result).toEqual(expiringContracts)
     })

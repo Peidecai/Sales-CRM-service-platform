@@ -184,14 +184,14 @@ describe('QuotationService', () => {
       quotationRepo.findOne.mockResolvedValue(quotation)
       quotationRepo.softRemove.mockResolvedValue(quotation)
 
-      await service.remove(1)
+      await service.remove(1, salesUser)
 
       expect(quotationRepo.softRemove).toHaveBeenCalledWith(quotation)
     })
 
     it('should throw NotFoundException when quotation not found', async () => {
       quotationRepo.findOne.mockResolvedValue(null)
-      await expect(service.remove(999)).rejects.toThrow(NotFoundException)
+      await expect(service.remove(999, salesUser)).rejects.toThrow(NotFoundException)
     })
   })
 })

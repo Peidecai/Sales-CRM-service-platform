@@ -62,7 +62,7 @@ describe('PostLoanService', () => {
       contractService.findOne.mockResolvedValue(fixtures.contract())
       postLoanRepo.create.mockImplementation((data) => data)
       postLoanRepo.save.mockImplementation(async (entity) => ({ ...entity, id: 1 }))
-      const savedPlans: unknown[] = []
+      const savedPlans: Record<string, unknown>[] = []
       repaymentPlanRepo.create.mockImplementation((data) => data)
       repaymentPlanRepo.save.mockImplementation(async (entity) => {
         savedPlans.push(entity)

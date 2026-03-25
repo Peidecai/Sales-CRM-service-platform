@@ -5,6 +5,7 @@ import { Logger, NotFoundException } from '@nestjs/common'
 import { DataSource } from 'typeorm'
 import { KnowledgeService } from '../../src/modules/knowledge/knowledge.service'
 import { KnowledgeArticle } from '../../src/modules/knowledge/entities/knowledge-article.entity'
+import { KnowledgeArticleVersion } from '../../src/modules/knowledge/entities/knowledge-article-version.entity'
 import { KnowledgeCategory } from '../../src/modules/knowledge/entities/knowledge-category.entity'
 import { ArticleLike } from '../../src/modules/knowledge/entities/article-like.entity'
 import { ArticleFavorite } from '../../src/modules/knowledge/entities/article-favorite.entity'
@@ -56,6 +57,7 @@ describe('KnowledgeService', () => {
         KnowledgeService,
         { provide: getRepositoryToken(KnowledgeArticle), useValue: articleRepo },
         { provide: getRepositoryToken(KnowledgeCategory), useValue: categoryRepo },
+        { provide: getRepositoryToken(KnowledgeArticleVersion), useValue: createMockRepository() },
         { provide: DataSource, useValue: { createQueryRunner: jest.fn() } },
         { provide: getRepositoryToken(ArticleLike), useValue: likeRepo },
         { provide: getRepositoryToken(ArticleFavorite), useValue: favoriteRepo },

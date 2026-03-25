@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { UserRole } from '@crm/shared'
 import { CallRecordController } from '../../src/modules/call-record/call-record.controller'
 import { CallRecordService } from '../../src/modules/call-record/call-record.service'
+import { LeaderReviewService } from '../../src/modules/call-record/leader-review.service'
 import { NotificationService } from '../../src/modules/notification/notification.service'
 import { AuditLogService } from '../../src/modules/audit-log/audit-log.service'
 
@@ -49,6 +50,7 @@ describe('CallRecordController', () => {
       providers: [
         { provide: CallRecordService, useValue: callRecordService },
         { provide: NotificationService, useValue: notificationService },
+        { provide: LeaderReviewService, useValue: { findByCustomer: jest.fn(), findByCallRecord: jest.fn(), create: jest.fn() } },
         { provide: AuditLogService, useValue: { log: jest.fn() } },
       ],
     }).compile()

@@ -72,7 +72,7 @@ describe('ExamSessionService', () => {
       sessionRepo.create.mockImplementation((d) => d)
       sessionRepo.save.mockImplementation(async (d) => ({ id: 1, ...d }))
 
-      const result = await service.start(1, 1) as Record<string, unknown>
+      const result = await service.start(1, 1) as unknown as Record<string, unknown>
       expect(result.status).toBe(ExamSessionStatus.IN_PROGRESS)
       expect(result.attemptNo).toBe(1)
     })
@@ -83,7 +83,7 @@ describe('ExamSessionService', () => {
       sessionRepo.create.mockImplementation((d) => d)
       sessionRepo.save.mockImplementation(async (d) => ({ id: 3, ...d }))
 
-      const result = await service.start(1, 1) as Record<string, unknown>
+      const result = await service.start(1, 1) as unknown as Record<string, unknown>
       expect(result.attemptNo).toBe(3)
     })
 

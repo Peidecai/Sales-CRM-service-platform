@@ -166,9 +166,9 @@ describe('KnowledgeController', () => {
     const dto = { title: 'updated title' }
     knowledgeService.updateArticle.mockResolvedValue({ id: 5, title: 'updated title' })
 
-    const result = await controller.updateArticle(5, dto as never)
+    const result = await controller.updateArticle(5, dto as never, 1)
 
-    expect(knowledgeService.updateArticle).toHaveBeenCalledWith(5, dto)
+    expect(knowledgeService.updateArticle).toHaveBeenCalledWith(5, dto, 1)
     expect(result).toEqual({ id: 5, title: 'updated title' })
   })
 

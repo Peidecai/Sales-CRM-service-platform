@@ -5,8 +5,11 @@ import { ContractService } from '../../src/modules/contract/contract.service'
 import { Contract } from '../../src/modules/contract/entities/contract.entity'
 import { ContractTemplateService } from '../../src/modules/contract/contract-template.service'
 import { NotificationService } from '../../src/modules/notification/notification.service'
-import { ContractStatus, ContractType } from '@crm/shared'
+import { ContractStatus, ContractType, UserRole } from '@crm/shared'
 import { createMockRepository, createMockQueryBuilder, type MockRepository, fixtures } from '../test-utils'
+import type { AuthUser } from '../../src/common/decorators/current-user.decorator'
+
+const adminUser: AuthUser = { id: 5, username: 'admin', role: UserRole.ADMIN }
 
 describe('ContractService — Renew', () => {
   let service: ContractService
@@ -45,7 +48,7 @@ describe('ContractService — Renew', () => {
       repo.create.mockImplementation((data) => data)
       repo.save.mockImplementation(async (entity) => ({ ...entity, id: 2 }))
 
-      const result = await service.renew(1, '2026-12-31', 200000, 5)
+      const result = await service.renew(1, '2026-12-31', 200000, adminUser)
 
       expect(repo.create).toHaveBeenCalled()
       expect(repo.save).toHaveBeenCalledTimes(2) // new contract + update original
@@ -56,14 +59,14 @@ describe('ContractService — Renew', () => {
       const draftContract = fixtures.contract({ status: ContractStatus.DRAFT })
       repo.findOne.mockResolvedValue(draftContract)
 
-      await expect(service.renew(1, '2026-12-31', 200000, 5)).rejects.toThrow(BadRequestException)
+      await expect(service.renew(1, '2026-12-31', 200000, adminUser)).rejects.toThrow(BadRequestException)
     })
 
     it('should reject renew for CANCELLED contracts', async () => {
       const cancelledContract = fixtures.contract({ status: ContractStatus.CANCELLED })
       repo.findOne.mockResolvedValue(cancelledContract)
 
-      await expect(service.renew(1, '2026-12-31', 200000, 5)).rejects.toThrow(BadRequestException)
+      await expect(service.renew(1, '2026-12-31', 200000, adminUser)).rejects.toThrow(BadRequestException)
     })
 
     it('should allow renew for COMPLETED contracts', async () => {
@@ -74,7 +77,7 @@ describe('ContractService — Renew', () => {
       repo.create.mockImplementation((data) => data)
       repo.save.mockImplementation(async (entity) => ({ ...entity, id: 2 }))
 
-      const result = await service.renew(1, '2026-12-31', 200000, 5)
+      const result = await service.renew(1, '2026-12-31', 200000, adminUser)
       expect(result).toBeDefined()
     })
 
@@ -86,7 +89,7 @@ describe('ContractService — Renew', () => {
       repo.create.mockImplementation((data) => data)
       repo.save.mockImplementation(async (entity) => ({ ...entity, id: 2 }))
 
-      const result = await service.renew(1, '2026-12-31', 200000, 5)
+      const result = await service.renew(1, '2026-12-31', 200000, adminUser)
       expect(result).toBeDefined()
     })
   })
@@ -118,7 +121,7 @@ describe('ContractService — Renew', () => {
           startDate: '2025-01-01',
           endDate: '2025-12-31',
         },
-        5,
+        adminUser,
       )
 
       expect(templateService.findOne).toHaveBeenCalledWith(1)

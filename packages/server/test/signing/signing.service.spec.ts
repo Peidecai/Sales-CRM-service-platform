@@ -151,9 +151,21 @@ describe('SigningService', () => {
     })
 
     it('should filter by status', async () => {
+      // Capture the QueryBuilder instance that findAll will use
+      let capturedQb: Record<string, jest.Mock> | undefined
+      signingRepo.createQueryBuilder.mockImplementation(() => {
+        capturedQb = {
+          leftJoinAndSelect: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          skip: jest.fn().mockReturnThis(),
+          take: jest.fn().mockReturnThis(),
+          getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+        }
+        return capturedQb
+      })
       await service.findAll({ status: 'draft', page: 1, pageSize: 20 }, admin)
-      const qb = signingRepo.createQueryBuilder()
-      expect(qb.andWhere).toHaveBeenCalled()
+      expect(capturedQb!.andWhere).toHaveBeenCalled()
     })
   })
 

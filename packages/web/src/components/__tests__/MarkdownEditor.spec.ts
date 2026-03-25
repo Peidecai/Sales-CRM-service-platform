@@ -2,9 +2,25 @@ import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import MarkdownEditor from '../MarkdownEditor.vue'
 
+/**
+ * The component uses `v-safe-html` (DOMPurify wrapper).
+ * In tests we stub it as a simple innerHTML setter.
+ */
+const vSafeHtml = {
+  mounted(el: HTMLElement, binding: { value: string }) {
+    el.innerHTML = binding.value ?? ''
+  },
+  updated(el: HTMLElement, binding: { value: string }) {
+    el.innerHTML = binding.value ?? ''
+  },
+}
+
 function mountEditor(modelValue = '') {
   return mount(MarkdownEditor, {
     props: { modelValue },
+    global: {
+      directives: { 'safe-html': vSafeHtml },
+    },
   })
 }
 

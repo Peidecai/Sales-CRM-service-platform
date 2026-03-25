@@ -36,7 +36,7 @@ describe('ResponseInterceptor', () => {
 
     const result = await lastValueFrom(interceptor.intercept(context, next))
 
-    expect(result).toBe(data)
+    expect(result).toEqual(data)
   })
 
   it('should still wrap null payloads with timestamp', async () => {

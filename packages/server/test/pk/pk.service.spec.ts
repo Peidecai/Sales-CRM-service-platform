@@ -18,6 +18,7 @@ import {
   type MockRepository,
   type MockRedisService,
 } from '../test-utils'
+import { RedisService } from '../../src/common/redis/redis.service'
 import { PkStatus, PkMetric, PkResult, PkType, OpportunityStage } from '@crm/shared'
 
 describe('PkService', () => {
@@ -56,7 +57,7 @@ describe('PkService', () => {
         { provide: getRepositoryToken(Customer), useValue: customerRepo },
         { provide: getRepositoryToken(CallRecord), useValue: callRecordRepo },
         { provide: getRepositoryToken(Payment), useValue: paymentRepo },
-        { provide: 'RedisService', useValue: redis },
+        { provide: RedisService, useValue: redis },
         { provide: PkBadgeService, useValue: badgeService },
       ],
     }).compile()

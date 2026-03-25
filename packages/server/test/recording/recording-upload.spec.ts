@@ -200,10 +200,22 @@ describe('RecordingService — Manual Upload', () => {
 
   describe('findRecordings with source filter', () => {
     it('should add source filter when provided', async () => {
-      const qb = recordingRepo.createQueryBuilder()
+      // Capture the QueryBuilder instance that findRecordings will use
+      let capturedQb: Record<string, jest.Mock> | undefined
+      recordingRepo.createQueryBuilder.mockImplementation(() => {
+        capturedQb = {
+          innerJoin: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          skip: jest.fn().mockReturnThis(),
+          take: jest.fn().mockReturnThis(),
+          getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+        }
+        return capturedQb
+      })
       await service.findRecordings(undefined, 1, 20, mockAdmin, RecordingSourceType.MANUAL_UPLOAD)
       // Verify andWhere was called (source filter)
-      expect(qb.andWhere).toHaveBeenCalled()
+      expect(capturedQb!.andWhere).toHaveBeenCalled()
     })
   })
 })

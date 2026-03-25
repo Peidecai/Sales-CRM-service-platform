@@ -1,12 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { getRepositoryToken } from '@nestjs/typeorm'
+import { DataSource } from 'typeorm'
 import { NotFoundException } from '@nestjs/common'
 import { PaymentService } from '../../src/modules/payment/payment.service'
 import { Payment } from '../../src/modules/payment/entities/payment.entity'
+import { Contract } from '../../src/modules/contract/entities/contract.entity'
+import { NotificationService } from '../../src/modules/notification/notification.service'
 import { PaymentStatus, PaymentMethod, UserRole } from '@crm/shared'
 import {
   createMockRepository,
   createMockQueryBuilder,
+  createMockDataSource,
   fixtures,
   type MockRepository,
   type MockQueryBuilder,
@@ -18,14 +22,21 @@ const adminUser: AuthUser = { id: 2, username: 'admin', role: UserRole.ADMIN }
 describe('PaymentService', () => {
   let service: PaymentService
   let repo: MockRepository<Payment>
+  let contractRepo: MockRepository<Contract>
+  let mockDataSource: ReturnType<typeof createMockDataSource>
 
   beforeEach(async () => {
     repo = createMockRepository<Payment>()
+    contractRepo = createMockRepository<Contract>()
+    mockDataSource = createMockDataSource()
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PaymentService,
         { provide: getRepositoryToken(Payment), useValue: repo },
+        { provide: getRepositoryToken(Contract), useValue: contractRepo },
+        { provide: DataSource, useValue: mockDataSource },
+        { provide: NotificationService, useValue: { notify: jest.fn(), notifyUser: jest.fn() } },
       ],
     }).compile()
 
@@ -78,7 +89,7 @@ describe('PaymentService', () => {
         pageSize: 20,
         contractId: 1,
         status: PaymentStatus.PLANNED,
-      } as never)
+      } as never, adminUser)
 
       expect(qb.andWhere).toHaveBeenCalledWith('p.contractId = :contractId', { contractId: 1 })
       expect(qb.andWhere).toHaveBeenCalledWith('p.status = :status', { status: PaymentStatus.PLANNED })
@@ -137,9 +148,11 @@ describe('PaymentService', () => {
   /* ---------- confirmPayment ---------- */
   describe('confirmPayment', () => {
     it('should confirm payment with actual amount and method', async () => {
-      const payment = fixtures.payment()
+      const payment = fixtures.payment({ contractId: 1 })
       repo.findOne.mockResolvedValue(payment)
-      repo.save.mockImplementation(async (p) => p)
+
+      const contract = fixtures.contract({ id: 1, paidAmount: 0, totalAmount: 50000, status: 'executing' })
+      contractRepo.findOne.mockResolvedValue(contract)
 
       const dto = {
         actualAmount: 9800,

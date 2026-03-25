@@ -99,7 +99,7 @@ describe('PkBadgeService', () => {
       badgeRepo.save.mockResolvedValue([])
 
       const result = await service.awardBadges(1)
-      const mvpBadge = result.find((b: Record<string, unknown>) => b.type === 'mvp')
+      const mvpBadge = result.find((b) => (b as unknown as Record<string, unknown>).type === 'mvp')
       expect(mvpBadge).toBeDefined()
     })
   })

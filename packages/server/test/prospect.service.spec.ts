@@ -5,6 +5,7 @@ import { NotFoundException, BadRequestException, ForbiddenException } from '@nes
 import { ProspectService } from '../src/modules/prospect/prospect.service'
 import { Prospect } from '../src/modules/prospect/prospect.entity'
 import { ProspectSearchLog } from '../src/modules/prospect/entities/prospect-search-log.entity'
+import { ProspectQueryHistory } from '../src/modules/prospect/entities/prospect-query-history.entity'
 import { Customer } from '../src/modules/customer/customer.entity'
 import { MockProspectAdapter } from '../src/modules/prospect/adapters/mock.adapter'
 import { TianyanchaAdapter } from '../src/modules/prospect/adapters/tianyancha.adapter'
@@ -84,6 +85,7 @@ describe('ProspectService', () => {
         ProspectService,
         { provide: getRepositoryToken(Prospect), useValue: prospectRepo },
         { provide: getRepositoryToken(ProspectSearchLog), useValue: searchLogRepo },
+        { provide: getRepositoryToken(ProspectQueryHistory), useValue: createMockRepository() },
         { provide: getRepositoryToken(Customer), useValue: customerRepo },
         { provide: DataSource, useValue: mockDataSource },
         { provide: RedisService, useValue: redisService },

@@ -7,6 +7,7 @@ import { AuthService } from '../../src/modules/auth/auth.service'
 import { UserService } from '../../src/modules/user/user.service'
 import { TokenService } from '../../src/modules/auth/token.service'
 import { CaptchaService } from '../../src/modules/auth/captcha.service'
+import { PermissionCacheService } from '../../src/modules/rbac/permission-cache.service'
 import { MiniappUser } from '../../src/modules/auth/miniapp-user.entity'
 import { RedisService } from '../../src/common/redis'
 import { UserRole } from '@crm/shared'
@@ -40,6 +41,7 @@ describe('AuthService', () => {
     revokeAllUserSessions: jest.Mock
   }
   let captchaService: { verify: jest.Mock }
+  let permissionCacheService: { getPermissionCodes: jest.Mock; invalidateUserPermissions: jest.Mock }
 
   beforeEach(async () => {
     userService = {
@@ -60,6 +62,10 @@ describe('AuthService', () => {
       revokeAllUserSessions: jest.fn(),
     }
     captchaService = { verify: jest.fn().mockResolvedValue(true) }
+    permissionCacheService = {
+      getPermissionCodes: jest.fn().mockResolvedValue([]),
+      invalidateUserPermissions: jest.fn().mockResolvedValue(undefined),
+    }
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -67,6 +73,7 @@ describe('AuthService', () => {
         { provide: UserService, useValue: userService },
         { provide: TokenService, useValue: tokenService },
         { provide: CaptchaService, useValue: captchaService },
+        { provide: PermissionCacheService, useValue: permissionCacheService },
         { provide: JwtService, useValue: jwtService },
         { provide: ConfigService, useValue: configService },
         { provide: RedisService, useValue: redisService },
