@@ -13,30 +13,30 @@
           <div class="card-header">
             <span>基本信息</span>
             <div class="header-actions">
-              <el-tag :type="statusTagType(record.status)" size="large">{{
-                statusLabel(record.status)
-              }}</el-tag>
-              <el-tag :type="priorityTagType(record.priority)" size="small" class="ml-8">{{
-                priorityLabel(record.priority)
-              }}</el-tag>
+              <el-tag :type="statusTagType(record.status)" size="large">
+                {{ statusLabel(record.status) }}
+              </el-tag>
+              <el-tag :type="priorityTagType(record.priority)" size="small" class="ml-8">
+                {{ priorityLabel(record.priority) }}
+              </el-tag>
             </div>
           </div>
         </template>
         <el-descriptions :column="2" border>
           <el-descriptions-item label="工单ID">{{ record.id }}</el-descriptions-item>
           <el-descriptions-item label="类型">{{ typeLabel(record.type) }}</el-descriptions-item>
-          <el-descriptions-item label="客户">{{
-            record.customer?.name ?? '-'
-          }}</el-descriptions-item>
-          <el-descriptions-item label="创建时间">{{
-            formatDate(record.createdAt)
-          }}</el-descriptions-item>
-          <el-descriptions-item label="描述" :span="2">{{
-            record.description
-          }}</el-descriptions-item>
-          <el-descriptions-item v-if="record.resolution" label="解决方案" :span="2">{{
-            record.resolution
-          }}</el-descriptions-item>
+          <el-descriptions-item label="客户">
+            {{ record.customer?.name ?? '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="创建时间">
+            {{ formatDate(record.createdAt) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="描述" :span="2">
+            {{ record.description }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="record.resolution" label="解决方案" :span="2">
+            {{ record.resolution }}
+          </el-descriptions-item>
         </el-descriptions>
       </el-card>
 
@@ -49,17 +49,17 @@
               {{ record.slaResponseDeadline ? formatDate(record.slaResponseDeadline) : '-' }}
             </span>
           </el-descriptions-item>
-          <el-descriptions-item label="已响应">{{
-            record.respondedAt ? formatDate(record.respondedAt) : '未响应'
-          }}</el-descriptions-item>
+          <el-descriptions-item label="已响应">
+            {{ record.respondedAt ? formatDate(record.respondedAt) : '未响应' }}
+          </el-descriptions-item>
           <el-descriptions-item label="解决期限">
             <span :class="slaClass(record.slaResolveDeadline, record.resolvedAt)">
               {{ record.slaResolveDeadline ? formatDate(record.slaResolveDeadline) : '-' }}
             </span>
           </el-descriptions-item>
-          <el-descriptions-item label="已解决">{{
-            record.resolvedAt ? formatDate(record.resolvedAt) : '未解决'
-          }}</el-descriptions-item>
+          <el-descriptions-item label="已解决">
+            {{ record.resolvedAt ? formatDate(record.resolvedAt) : '未解决' }}
+          </el-descriptions-item>
         </el-descriptions>
       </el-card>
 

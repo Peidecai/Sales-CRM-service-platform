@@ -49,11 +49,11 @@
             <div class="result-meta">
               <el-tag size="small">模型: {{ result.model }}</el-tag>
               <el-tag size="small" type="info">延迟: {{ result.latencyMs }}ms</el-tag>
-              <el-tag size="small" type="warning"
-                >Token: {{ result.totalTokens }} (P:{{ result.promptTokens }} C:{{
+              <el-tag size="small" type="warning">
+                Token: {{ result.totalTokens }} (P:{{ result.promptTokens }} C:{{
                   result.completionTokens
-                }})</el-tag
-              >
+                }})
+              </el-tag>
             </div>
             <el-divider />
             <div class="result-content">{{ result.response }}</div>

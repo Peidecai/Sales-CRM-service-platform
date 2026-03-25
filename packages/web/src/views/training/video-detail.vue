@@ -49,9 +49,9 @@
           <template #header>
             <div style="display: flex; justify-content: space-between; align-items: center">
               <span>书签</span>
-              <el-button type="primary" size="small" @click="addBookmark"
-                >添加当前位置书签</el-button
-              >
+              <el-button type="primary" size="small" @click="addBookmark">
+                添加当前位置书签
+              </el-button>
             </div>
           </template>
           <div
@@ -70,9 +70,9 @@
               <el-tag size="small">{{ formatDuration(bm.timestamp) }}</el-tag>
               <span style="margin-left: 8px">{{ bm.note || '(无备注)' }}</span>
             </div>
-            <el-button text type="danger" size="small" @click.stop="removeBookmark(bm.id)"
-              >删除</el-button
-            >
+            <el-button text type="danger" size="small" @click.stop="removeBookmark(bm.id)">
+              删除
+            </el-button>
           </div>
         </el-card>
       </el-col>

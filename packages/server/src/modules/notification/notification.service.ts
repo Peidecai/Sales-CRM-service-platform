@@ -1,17 +1,25 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, Logger } from '@nestjs/common'
 import { NotificationGateway } from './notification.gateway'
+import { NotificationInboxService } from './notification-inbox.service'
 import { NotificationType, NotificationPayload } from './notification.types'
 
 /**
  * Service layer for sending notifications.
  * Inject this into any business service that needs to push real-time events.
+ * Persists every notification to DB for the miniapp message center / REST inbox.
  */
 @Injectable()
 export class NotificationService {
-  constructor(private readonly gateway: NotificationGateway) {}
+  private readonly logger = new Logger(NotificationService.name)
+
+  constructor(
+    private readonly gateway: NotificationGateway,
+    private readonly inboxService: NotificationInboxService,
+  ) {}
 
   /**
    * Broadcast a business event to all connected clients.
+   * Also persists as a broadcast notification (userId=0).
    */
   notify(params: {
     type: NotificationType
@@ -27,10 +35,23 @@ export class NotificationService {
       timestamp: new Date().toISOString(),
     }
     this.gateway.broadcast(payload)
+
+    // Persist as broadcast (userId=0)
+    this.inboxService
+      .create({
+        userId: 0,
+        type: params.type,
+        title: params.resource,
+        content: params.message,
+        relatedId: params.resourceId,
+        relatedType: params.resource,
+      })
+      .catch((err: unknown) => this.logger.warn('Failed to persist broadcast notification', err))
   }
 
   /**
    * Send a notification to a specific user only.
+   * Also persists with the target userId.
    */
   notifyUser(
     userId: number,
@@ -49,6 +70,18 @@ export class NotificationService {
       timestamp: new Date().toISOString(),
     }
     this.gateway.sendToUser(userId, payload)
+
+    // Persist with specific userId
+    this.inboxService
+      .create({
+        userId,
+        type: params.type,
+        title: params.resource,
+        content: params.message,
+        relatedId: params.resourceId,
+        relatedType: params.resource,
+      })
+      .catch((err: unknown) => this.logger.warn('Failed to persist user notification', err))
   }
 
   /**

@@ -130,14 +130,9 @@
 <script setup lang="ts">
 import { ref, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { BASE_URL, TOKEN_KEY } from '@/api/request'
 import { callRecordApi, type CallAnalysisResultVO } from '@/api/call-record'
+import { recordingApi } from '@/api/recording'
 import { useUserStore } from '@/stores/user'
-
-function getAuthHeader(): Record<string, string> {
-  const token = uni.getStorageSync(TOKEN_KEY) as string
-  return token ? { Authorization: `Bearer ${token}` } : {}
-}
 
 // Call context params (passed from after-call page or customer detail)
 const callContext = ref(false)
@@ -298,28 +293,10 @@ async function handleUpload() {
       }
     } else {
       // Generic upload (no call context)
-      const uploadResult = await new Promise<UniApp.UploadFileSuccessCallbackResult>((resolve, reject) => {
-        uni.uploadFile({
-          url: `${BASE_URL}/recordings/upload`,
-          filePath: recordedFile.value,
-          name: 'file',
-          header: getAuthHeader(),
-          success: resolve,
-          fail: reject,
-        })
-      })
-
-      if (uploadResult.statusCode === 200 || uploadResult.statusCode === 201) {
+      const res = await recordingApi.upload(recordedFile.value)
+      if (res.code === 0) {
         uni.showToast({ title: '上传成功', icon: 'success' })
         uploadDone.value = true
-        try {
-          const data = JSON.parse(uploadResult.data as string)
-          if (data.data?.transcript) {
-            transcript.value = data.data.transcript
-          }
-        } catch {
-          // No transcript
-        }
       } else {
         uni.showToast({ title: '上传失败', icon: 'none' })
       }

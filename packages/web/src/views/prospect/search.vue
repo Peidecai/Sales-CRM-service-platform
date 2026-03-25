@@ -291,9 +291,9 @@
       </el-form>
       <template #footer>
         <el-button @click="saveTemplateVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saveTemplateLoading" @click="handleSaveTemplate"
-          >保存</el-button
-        >
+        <el-button type="primary" :loading="saveTemplateLoading" @click="handleSaveTemplate">
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

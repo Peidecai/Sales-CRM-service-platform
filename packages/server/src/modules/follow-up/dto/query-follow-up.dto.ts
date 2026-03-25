@@ -4,7 +4,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger'
 import { FollowUpType } from '../follow-up.entity'
 
 export class QueryFollowUpDto {
-  @ApiPropertyOptional({ description: '客户 ID（必填，用于查询该客户的跟进记录）' })
+  @ApiPropertyOptional({ description: '客户 ID（可选，传则查该客户跟进，不传则查全部）' })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

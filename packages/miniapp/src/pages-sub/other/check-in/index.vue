@@ -89,7 +89,7 @@
     <!-- Remark -->
     <view class="form-section">
       <view class="form-label">备注</view>
-      <input v-model="remark" class="form-input" placeholder="请输入打卡备注" />
+      <input v-model="notes" class="form-input" placeholder="请输入打卡备注" />
     </view>
 
     <!-- Submit -->
@@ -170,7 +170,7 @@ const customerSearch = ref('')
 const searchResults = ref<CustomerVO[]>([])
 const selectedCustomer = ref<(CustomerVO & { lat?: number; lng?: number }) | null>(null)
 const photoPath = ref('')
-const remark = ref('')
+const notes = ref('')
 const submitting = ref(false)
 const historyList = ref<CheckInVO[]>([])
 const stats = ref<CheckInStats | null>(null)
@@ -293,7 +293,8 @@ async function handleSubmit() {
     longitude: currentLocation.value.longitude,
     address: currentAddress.value,
     photoUrl: photoPath.value || undefined,
-    remark: remark.value || undefined,
+    accuracy: currentLocation.value.accuracy ?? 0,
+    notes: notes.value || undefined,
   }
 
   try {
@@ -301,7 +302,7 @@ async function handleSubmit() {
 
     if (res.code === 0) {
       uni.showToast({ title: '打卡成功', icon: 'success' })
-      remark.value = ''
+      notes.value = ''
       photoPath.value = ''
       loadHistory()
       loadStats()

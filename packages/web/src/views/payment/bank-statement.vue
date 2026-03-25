@@ -17,9 +17,9 @@
         <el-table-column prop="reference" label="备注" />
         <el-table-column prop="matchStatus" label="匹配状态" width="120">
           <template #default="{ row }">
-            <el-tag :type="row.matchStatus === 'unmatched' ? 'danger' : 'success'">{{
-              row.matchStatus
-            }}</el-tag>
+            <el-tag :type="row.matchStatus === 'unmatched' ? 'danger' : 'success'">
+              {{ row.matchStatus }}
+            </el-tag>
           </template>
         </el-table-column>
       </el-table>

@@ -44,7 +44,7 @@ export class CheckInController {
     @CurrentUser('role') role: string,
   ) {
     // SALES users can only see their own check-ins
-    if (role !== 'admin' && role !== 'manager') {
+    if (role !== UserRole.ADMIN && role !== UserRole.MANAGER) {
       query.userId = userId
     }
     const result = await this.checkInService.findAll(query)
@@ -67,7 +67,7 @@ export class CheckInController {
   ) {
     const checkIn = await this.checkInService.findOne(id)
     // SALES users can only see their own check-ins
-    if (role !== 'admin' && role !== 'manager' && checkIn.userId !== userId) {
+    if (role !== UserRole.ADMIN && role !== UserRole.MANAGER && checkIn.userId !== userId) {
       return { code: 40400, message: '签到记录不存在', data: null }
     }
     return { code: 0, message: 'success', data: checkIn }

@@ -19,9 +19,9 @@
       <div v-for="pk in pkList" :key="pk.id" class="pk-card" @click="$router.push(`/pk/${pk.id}`)">
         <div class="pk-card-header">
           <span class="pk-title">{{ pk.title }}</span>
-          <el-tag :type="statusTagType(pk.status)" size="small">{{
-            statusLabel(pk.status)
-          }}</el-tag>
+          <el-tag :type="statusTagType(pk.status)" size="small">
+            {{ statusLabel(pk.status) }}
+          </el-tag>
         </div>
         <div class="pk-card-metric">
           <el-tag type="info" size="small">{{ metricLabel(pk.metric) }}</el-tag>

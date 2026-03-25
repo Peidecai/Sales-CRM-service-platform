@@ -2,20 +2,22 @@
   <div class="signing-page">
     <h2>签约促成</h2>
     <el-row :gutter="16" style="margin-bottom: 20px">
-      <el-col :span="6"
-        ><el-card shadow="hover"><el-statistic title="总签约数" :value="stats.total" /></el-card
-      ></el-col>
-      <el-col :span="6"
-        ><el-card shadow="hover"><el-statistic title="已完成" :value="stats.completed" /></el-card
-      ></el-col>
-      <el-col :span="6"
-        ><el-card shadow="hover"
-          ><el-statistic title="转化率" :value="stats.conversionRate" suffix="%" /></el-card
-      ></el-col>
-      <el-col :span="6"
-        ><el-card shadow="hover"
-          ><el-statistic title="平均周期" :value="stats.avgCycleDays" suffix="天" /></el-card
-      ></el-col>
+      <el-col :span="6">
+        <el-card shadow="hover"><el-statistic title="总签约数" :value="stats.total" /></el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover"><el-statistic title="已完成" :value="stats.completed" /></el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover">
+          <el-statistic title="转化率" :value="stats.conversionRate" suffix="%" />
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover">
+          <el-statistic title="平均周期" :value="stats.avgCycleDays" suffix="天" />
+        </el-card>
+      </el-col>
     </el-row>
 
     <el-card>
@@ -41,9 +43,9 @@
         <el-table-column prop="createdAt" label="创建时间" width="180" />
         <el-table-column label="操作" width="120">
           <template #default="{ row }">
-            <el-button link type="primary" @click="$router.push(`/signing/${row.id}`)"
-              >详情</el-button
-            >
+            <el-button link type="primary" @click="$router.push(`/signing/${row.id}`)">
+              详情
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -58,12 +60,12 @@
 
     <el-dialog v-model="showCreate" title="创建签约流程" width="400px">
       <el-form :model="form" label-width="80px">
-        <el-form-item label="商机ID"
-          ><el-input-number v-model="form.opportunityId" :min="1"
-        /></el-form-item>
-        <el-form-item label="金额"
-          ><el-input-number v-model="form.amount" :min="0" :precision="2"
-        /></el-form-item>
+        <el-form-item label="商机ID">
+          <el-input-number v-model="form.opportunityId" :min="1" />
+        </el-form-item>
+        <el-form-item label="金额">
+          <el-input-number v-model="form.amount" :min="0" :precision="2" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="showCreate = false">取消</el-button>

@@ -16,9 +16,9 @@
         <el-table-column prop="duration" label="时长(分)" width="90" />
         <el-table-column label="操作" width="120">
           <template #default="{ row }">
-            <el-button type="primary" size="small" @click="router.push(`/exam/take/${row.id}`)"
-              >参加考试</el-button
-            >
+            <el-button type="primary" size="small" @click="router.push(`/exam/take/${row.id}`)">
+              参加考试
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -37,9 +37,9 @@
         </el-table-column>
         <el-table-column prop="attemptNo" label="第几次" width="80" />
         <el-table-column prop="submittedAt" label="提交时间" width="170">
-          <template #default="{ row }">{{
-            row.submittedAt ? new Date(row.submittedAt).toLocaleString() : '-'
-          }}</template>
+          <template #default="{ row }">
+            {{ row.submittedAt ? new Date(row.submittedAt).toLocaleString() : '-' }}
+          </template>
         </el-table-column>
         <el-table-column label="操作" width="100">
           <template #default="{ row }">
@@ -48,8 +48,9 @@
               text
               type="primary"
               @click="router.push(`/exam/result/${row.id}`)"
-              >查看</el-button
             >
+              查看
+            </el-button>
           </template>
         </el-table-column>
       </el-table>

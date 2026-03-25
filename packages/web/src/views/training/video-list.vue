@@ -20,9 +20,9 @@
             @clear="loadVideos"
             @keyup.enter="loadVideos"
           >
-            <template #prefix
-              ><el-icon><Search /></el-icon
-            ></template>
+            <template #prefix>
+              <el-icon><Search /></el-icon>
+            </template>
           </el-input>
           <el-select
             v-model="selectedCategory"
@@ -76,9 +76,9 @@
                 <el-icon :size="48"><VideoPlay /></el-icon>
               </div>
               <span class="video-duration">{{ formatDuration(video.duration) }}</span>
-              <el-tag v-if="!video.isPublished" type="info" size="small" class="video-draft-tag"
-                >未发布</el-tag
-              >
+              <el-tag v-if="!video.isPublished" type="info" size="small" class="video-draft-tag">
+                未发布
+              </el-tag>
             </div>
             <div style="padding: 12px">
               <div class="video-title">{{ video.title }}</div>

@@ -34,15 +34,16 @@ export class HmacSignatureGuard implements CanActivate {
       throw new ForbiddenException('Missing request signature')
     }
 
-    // Optional timestamp freshness (5 minute window)
+    // Timestamp freshness (5 minute replay window) — mandatory
     const timestampStr =
       this.extractHeader(request, 'x-timestamp') || this.extractBody(request, 'timestamp')
-    if (timestampStr) {
-      const ts = parseInt(String(timestampStr), 10)
-      const now = Math.floor(Date.now() / 1000)
-      if (Math.abs(now - ts) > 300) {
-        throw new ForbiddenException('Request timestamp expired')
-      }
+    if (!timestampStr) {
+      throw new ForbiddenException('Missing request timestamp')
+    }
+    const ts = parseInt(String(timestampStr), 10)
+    const now = Math.floor(Date.now() / 1000)
+    if (isNaN(ts) || Math.abs(now - ts) > 300) {
+      throw new ForbiddenException('Request timestamp expired')
     }
 
     // Compute expected signature

@@ -40,9 +40,9 @@
         >
           <div style="display: flex; justify-content: space-between; margin-bottom: 8px">
             <strong>第 {{ idx + 1 }} 题 ({{ pq.score }}分)</strong>
-            <el-tag v-if="getAnswer(pq.questionId)?.isCorrect" type="success" size="small"
-              >正确</el-tag
-            >
+            <el-tag v-if="getAnswer(pq.questionId)?.isCorrect" type="success" size="small">
+              正确
+            </el-tag>
             <el-tag v-else type="danger" size="small">
               得分: {{ getAnswer(pq.questionId)?.score ?? 0 }}
             </el-tag>

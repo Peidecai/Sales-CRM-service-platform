@@ -70,6 +70,39 @@ export class FollowUpService {
     return result
   }
 
+  async findAll(
+    query: QueryFollowUpDto,
+    user: AuthUser,
+  ): Promise<{ list: FollowUp[]; total: number }> {
+    const { page = 1, pageSize = 20, type } = query
+
+    const cacheKey = `${CACHE_KEYS.FOLLOW_UP_LIST}:all:${JSON.stringify({ page, pageSize, type, _role: user.role, _uid: user.role === UserRole.SALES ? user.id : 0 })}`
+    const cached = await this.redisService.safeGet(cacheKey)
+    if (cached) {
+      return JSON.parse(cached) as { list: FollowUp[]; total: number }
+    }
+
+    const where: Record<string, unknown> = {}
+    if (user.role === UserRole.SALES) {
+      where['userId'] = user.id
+    }
+    if (type) {
+      where['type'] = type
+    }
+
+    const [list, total] = await this.followUpRepo.findAndCount({
+      where,
+      relations: ['user', 'customer'],
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    })
+
+    const result = { list, total }
+    await this.redisService.set(cacheKey, JSON.stringify(result), CACHE_TTL.FOLLOW_UP_LIST)
+    return result
+  }
+
   async findOne(id: number): Promise<FollowUp> {
     const followUp = await this.followUpRepo.findOne({ where: { id } })
     if (!followUp) {

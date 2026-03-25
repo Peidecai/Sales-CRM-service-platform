@@ -6,8 +6,12 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { Request, Response } from 'express'
 import { BusinessException } from '../exceptions/business.exception'
+
+/** Generic message returned to clients in production for 5xx errors */
+const GENERIC_SERVER_ERROR = '服务器内部错误'
 
 /**
  * Error code mapping per CLAUDE.md conventions:
@@ -42,6 +46,11 @@ const UNAUTHORIZED_REFINEMENTS: Array<{ pattern: RegExp; code: number }> = [
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name)
+  private readonly isProduction: boolean
+
+  constructor(private readonly configService: ConfigService) {
+    this.isProduction = configService.get<string>('NODE_ENV', 'development') === 'production'
+  }
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp()
@@ -88,6 +97,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
       }
     } else if (exception instanceof Error) {
       this.logger.error(`Unhandled exception: ${exception.message}`, exception.stack)
+      // In production, never leak internal error details to clients
+      if (this.isProduction) {
+        message = GENERIC_SERVER_ERROR
+      } else {
+        message = exception.message
+      }
     }
 
     // Map HTTP status to business error code

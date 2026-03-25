@@ -118,9 +118,9 @@
 
             <div style="margin-top: 24px; display: flex; justify-content: space-between">
               <el-button :disabled="currentIdx === 0" @click="currentIdx--">上一题</el-button>
-              <el-button :disabled="currentIdx >= questions.length - 1" @click="currentIdx++"
-                >下一题</el-button
-              >
+              <el-button :disabled="currentIdx >= questions.length - 1" @click="currentIdx++">
+                下一题
+              </el-button>
             </div>
           </div>
         </div>

@@ -120,9 +120,9 @@
                 {{ detailGroup.type === 'dynamic' ? '动态' : '静态' }}
               </el-tag>
             </el-descriptions-item>
-            <el-descriptions-item label="成员数">{{
-              detailGroup.memberCount
-            }}</el-descriptions-item>
+            <el-descriptions-item label="成员数">
+              {{ detailGroup.memberCount }}
+            </el-descriptions-item>
             <el-descriptions-item label="描述" :span="2">
               {{ detailGroup.description || '-' }}
             </el-descriptions-item>

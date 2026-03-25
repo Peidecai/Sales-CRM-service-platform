@@ -124,9 +124,9 @@
           <div v-else>
             <el-input v-model="remarkText" type="textarea" :rows="4" placeholder="请输入备注" />
             <div style="margin-top: 12px; text-align: right">
-              <el-button type="primary" :loading="remarkSaving" @click="handleSaveRemark"
-                >保存</el-button
-              >
+              <el-button type="primary" :loading="remarkSaving" @click="handleSaveRemark">
+                保存
+              </el-button>
             </div>
           </div>
         </el-card>

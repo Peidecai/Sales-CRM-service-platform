@@ -5,6 +5,7 @@ import {
   HttpStatus,
   UnauthorizedException,
 } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { HttpExceptionFilter } from '../../../src/common/filters/http-exception.filter'
 
 describe('HttpExceptionFilter', () => {
@@ -28,8 +29,17 @@ describe('HttpExceptionFilter', () => {
     return { host, response }
   }
 
+  const createConfigService = (nodeEnv = 'development'): ConfigService => {
+    return {
+      get: jest.fn((key: string, defaultValue?: string) => {
+        if (key === 'NODE_ENV') return nodeEnv
+        return defaultValue
+      }),
+    } as unknown as ConfigService
+  }
+
   it('should map validation error array to business code 40001 and include errors', () => {
-    const filter = new HttpExceptionFilter()
+    const filter = new HttpExceptionFilter(createConfigService())
     const { host, response } = createHost()
     const ex = new BadRequestException({ message: ['name is required', 'email invalid'] })
 
@@ -43,7 +53,7 @@ describe('HttpExceptionFilter', () => {
   })
 
   it('should refine unauthorized "expired" message to code 40102', () => {
-    const filter = new HttpExceptionFilter()
+    const filter = new HttpExceptionFilter(createConfigService())
     const { host, response } = createHost()
     const ex = new UnauthorizedException('token expired')
 
@@ -55,7 +65,7 @@ describe('HttpExceptionFilter', () => {
   })
 
   it('should map forbidden to code 40301', () => {
-    const filter = new HttpExceptionFilter()
+    const filter = new HttpExceptionFilter(createConfigService())
     const { host, response } = createHost()
     const ex = new ForbiddenException('forbidden')
 
@@ -67,7 +77,7 @@ describe('HttpExceptionFilter', () => {
   })
 
   it('should handle string responses and fallback to status code for unmapped status', () => {
-    const filter = new HttpExceptionFilter()
+    const filter = new HttpExceptionFilter(createConfigService())
     const { host, response } = createHost()
     const ex = new HttpException('teapot error', 418)
 
@@ -80,7 +90,7 @@ describe('HttpExceptionFilter', () => {
   })
 
   it('should fallback to default message when object response has empty message', () => {
-    const filter = new HttpExceptionFilter()
+    const filter = new HttpExceptionFilter(createConfigService())
     const { host, response } = createHost()
     const ex = new HttpException({ message: '' }, HttpStatus.BAD_REQUEST)
 
@@ -92,16 +102,31 @@ describe('HttpExceptionFilter', () => {
     expect(payload.message).not.toBe('')
   })
 
-  it('should handle unexpected errors as 50001', () => {
-    const filter = new HttpExceptionFilter()
+  it('should expose error details in development for unexpected errors', () => {
+    const filter = new HttpExceptionFilter(createConfigService('development'))
     const { host, response } = createHost()
-    const ex = new Error('boom')
+    const ex = new Error('database connection failed')
 
     filter.catch(ex, host)
 
     expect(response.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR)
     const payload = response.json.mock.calls[0][0]
     expect(payload.code).toBe(50001)
+    expect(payload.message).toBe('database connection failed')
+    expect(payload.data).toBeNull()
+  })
+
+  it('should hide error details in production for unexpected errors', () => {
+    const filter = new HttpExceptionFilter(createConfigService('production'))
+    const { host, response } = createHost()
+    const ex = new Error('database connection failed')
+
+    filter.catch(ex, host)
+
+    expect(response.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR)
+    const payload = response.json.mock.calls[0][0]
+    expect(payload.code).toBe(50001)
+    expect(payload.message).toBe('服务器内部错误')
     expect(payload.data).toBeNull()
     expect(typeof payload.timestamp).toBe('string')
   })

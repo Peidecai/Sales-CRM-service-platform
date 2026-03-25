@@ -29,6 +29,16 @@ export class WebhookSignatureMiddleware implements NestMiddleware {
       throw new ForbiddenException('Missing webhook signature')
     }
 
+    // Replay-window: reject requests outside ±5 min tolerance
+    const timestampStr = req.headers['x-cloud-call-timestamp'] as string | undefined
+    if (timestampStr) {
+      const ts = parseInt(timestampStr, 10)
+      const now = Math.floor(Date.now() / 1000)
+      if (isNaN(ts) || Math.abs(now - ts) > 300) {
+        throw new ForbiddenException('Webhook request timestamp expired')
+      }
+    }
+
     const expectedSignature = crypto
       .createHmac('sha256', secret)
       .update(JSON.stringify(req.body))

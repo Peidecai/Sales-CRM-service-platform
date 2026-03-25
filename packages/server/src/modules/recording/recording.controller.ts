@@ -208,7 +208,7 @@ export class RecordingController {
     if (!user) throw new NotFoundException('Recording not found')
     const file = await this.recordingService.getRecording(id, user)
     const expiresSec = expires ? parseInt(expires, 10) : 3600
-    const url = this.recordingService.getPlayUrl(file.ossKey, expiresSec)
+    const url = await this.recordingService.getPlayUrl(file.ossKey, expiresSec)
     return { url, expiresIn: expiresSec }
   }
 

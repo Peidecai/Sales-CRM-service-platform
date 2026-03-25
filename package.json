@@ -13,9 +13,12 @@
     "test": "pnpm --recursive test",
     "test:e2e": "npx playwright test",
     "test:e2e:ui": "npx playwright test --ui",
+    "test:phase2": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-phase2-pipeline.ps1",
+    "test:phase2:newman": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-phase2-pipeline.ps1 -OnlyNewman",
     "prepare": "husky"
   },
   "devDependencies": {
+    "newman": "^6.2.0",
     "@commitlint/cli": "^19.0.0",
     "@commitlint/config-conventional": "^19.0.0",
     "@playwright/test": "^1.58.2",

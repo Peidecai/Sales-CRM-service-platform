@@ -8,9 +8,10 @@ export interface CheckInParams {
   customerId: number
   latitude: number
   longitude: number
-  address: string
+  accuracy: number
+  address?: string
   photoUrl?: string
-  remark?: string
+  notes?: string
 }
 
 export interface CheckInVO {
@@ -20,10 +21,12 @@ export interface CheckInVO {
   customerName?: string
   latitude: number
   longitude: number
-  address: string
+  address: string | null
   photoUrl: string | null
-  distance: number
-  remark: string | null
+  distance: number | null
+  notes: string | null
+  checkInTime: string
+  status: string
   createdAt: string
 }
 

@@ -5,9 +5,9 @@
         <div>
           <h2>{{ template.title }}</h2>
           <div class="meta">
-            <el-tag :type="statusTagType(template.status)" size="small">{{
-              statusLabel(template.status)
-            }}</el-tag>
+            <el-tag :type="statusTagType(template.status)" size="small">
+              {{ statusLabel(template.status) }}
+            </el-tag>
             <span class="meta-item">分类：{{ template.category?.name ?? '-' }}</span>
             <span v-if="template.scene" class="meta-item">场景：{{ template.scene }}</span>
             <span class="meta-item">使用次数：{{ template.usageCount }}</span>

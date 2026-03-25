@@ -45,16 +45,16 @@
         </el-table-column>
         <el-table-column prop="priority" label="优先级" width="100">
           <template #default="{ row }">
-            <el-tag :type="priorityType(row.priority)" size="small">{{
-              priorityLabel(row.priority)
-            }}</el-tag>
+            <el-tag :type="priorityType(row.priority)" size="small">
+              {{ priorityLabel(row.priority) }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="statusType(row.status)" size="small">{{
-              statusLabel(row.status)
-            }}</el-tag>
+            <el-tag :type="statusType(row.status)" size="small">
+              {{ statusLabel(row.status) }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="dueDate" label="截止时间" width="170">

@@ -116,28 +116,36 @@ export class CheckInService {
 
   async getStats(
     userId: number,
-  ): Promise<{ totalCount: number; monthCount: number; approvedCount: number }> {
+  ): Promise<{ todayCount: number; weekCount: number; monthCount: number }> {
     const now = new Date()
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const dayOfWeek = now.getDay() || 7 // Monday = 1, Sunday = 7
+    const weekStart = new Date(todayStart)
+    weekStart.setDate(weekStart.getDate() - (dayOfWeek - 1))
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
 
-    const [totalCount, monthCount, approvedCount] = await Promise.all([
-      this.checkInRepo.count({ where: { userId } }),
+    const [todayCount, weekCount, monthCount] = await Promise.all([
       this.checkInRepo.count({
         where: {
           userId,
-          checkInTime: Between(monthStart, now),
+          checkInTime: Between(todayStart, now),
         },
       }),
       this.checkInRepo.count({
         where: {
           userId,
-          status: CheckInStatus.APPROVED,
+          checkInTime: Between(weekStart, now),
+        },
+      }),
+      this.checkInRepo.count({
+        where: {
+          userId,
           checkInTime: Between(monthStart, now),
         },
       }),
     ])
 
-    return { totalCount, monthCount, approvedCount }
+    return { todayCount, weekCount, monthCount }
   }
 
   /**

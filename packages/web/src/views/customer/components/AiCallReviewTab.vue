@@ -69,9 +69,9 @@
                 </el-timeline-item>
               </el-timeline>
               <div v-if="reviewTotal > reviews.length" class="load-more">
-                <el-button text :loading="reviewLoading" @click="loadMoreReviews"
-                  >加载更多</el-button
-                >
+                <el-button text :loading="reviewLoading" @click="loadMoreReviews">
+                  加载更多
+                </el-button>
               </div>
             </div>
             <el-empty v-else description="暂无批注" :image-size="40" />

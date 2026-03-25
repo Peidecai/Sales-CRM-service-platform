@@ -11,11 +11,23 @@ import type { Request } from 'express'
 export class CallbackSignatureGuard implements CanActivate {
   constructor(private readonly configService: ConfigService) {}
 
+  private static readonly TIMESTAMP_WINDOW = 300 // 5 minutes
+
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>()
     const secret = this.configService.get<string>('ALIYUN_VOICE_APP_SECRET', '')
     if (!secret) {
       throw new ForbiddenException('Callback signature not configured')
+    }
+
+    // Replay-window: reject requests outside ±5 min tolerance
+    const timestampStr = this.extractField(request, 'timestamp')
+    if (timestampStr) {
+      const ts = parseInt(timestampStr, 10)
+      const now = Math.floor(Date.now() / 1000)
+      if (isNaN(ts) || Math.abs(now - ts) > CallbackSignatureGuard.TIMESTAMP_WINDOW) {
+        throw new ForbiddenException('Callback request timestamp expired')
+      }
     }
 
     const signature = this.getSignature(request)
@@ -39,6 +51,14 @@ export class CallbackSignatureGuard implements CanActivate {
     if (typeof fromHeader === 'string') return fromHeader
     const body = req.body as Record<string, unknown>
     if (body?.signature && typeof body.signature === 'string') return body.signature
+    return null
+  }
+
+  private extractField(req: Request, field: string): string | null {
+    const header = req.headers[`x-${field}`]
+    if (typeof header === 'string') return header
+    const body = req.body as Record<string, unknown> | undefined
+    if (body && typeof body[field] === 'string') return body[field] as string
     return null
   }
 

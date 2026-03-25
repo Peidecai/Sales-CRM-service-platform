@@ -67,6 +67,54 @@ services:
     networks:
       - crm-network
 
+  minio:
+    image: minio/minio:latest
+    container_name: crm-minio
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${OSS_ACCESS_KEY_ID:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${OSS_ACCESS_KEY_SECRET:-minioadmin123}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - crm-network
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: crm-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
+      mc mb --ignore-existing local/$${BUCKET};
+      mc anonymous set download local/$${BUCKET};
+      echo 'Bucket ready';
+      "
+    environment:
+      MINIO_ROOT_USER: ${OSS_ACCESS_KEY_ID:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${OSS_ACCESS_KEY_SECRET:-minioadmin123}
+      BUCKET: ${OSS_BUCKET:-crm-call-recordings}
+    networks:
+      - crm-network
+
   server:
     build:
       context: .
@@ -105,6 +153,13 @@ services:
       WX_MINIAPP_APPID: ${WX_MINIAPP_APPID:-}
       WX_MINIAPP_SECRET: ${WX_MINIAPP_SECRET:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
+      # OSS / S3-compatible storage (recordings, materials)
+      OSS_ENDPOINT: ${OSS_ENDPOINT:-http://minio:9000}
+      OSS_REGION: ${OSS_REGION:-us-east-1}
+      OSS_BUCKET: ${OSS_BUCKET:-crm-call-recordings}
+      OSS_ACCESS_KEY_ID: ${OSS_ACCESS_KEY_ID:-minioadmin}
+      OSS_ACCESS_KEY_SECRET: ${OSS_ACCESS_KEY_SECRET:-minioadmin123}
+      OSS_FORCE_PATH_STYLE: ${OSS_FORCE_PATH_STYLE:-true}
     ports:
       - "${SERVER_PORT:-3000}:3000"
     volumes:
@@ -114,6 +169,8 @@ services:
       mysql:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     healthcheck:
       test:
@@ -160,6 +217,8 @@ volumes:
   mysql_data:
     driver: local
   redis_data:
+    driver: local
+  minio_data:
     driver: local
   server_data:
     driver: local

@@ -76,11 +76,39 @@ fix-logs/
 # Test reports (generated)
 TEST_REPORT*.md
 
-# Automation scripts logs
+# Phase 2 engineering pipeline / AI follow-up logs (local)
+phase2-engineering-output/
+ai-phase2-output/
+ai-test-output/
+
+# Automation scripts & task files (local dev)
 claude-*.ps1
 claude-*.txt
 fix-runner.ps1
 fix-tasks.txt
+fix-tasks-v2.txt
+review-runner.ps1
+review-tasks.txt
+run-fix-*.ps1
+run-fix-*.cmd
+run-phase2*.ps1
+run-phase2*.cmd
+ai-fix-*-tasks.txt
+ai-phase2*-tasks.txt
+ai-test-*-tasks.txt
+ai-test-*.ps1
+ai-test-*.cmd
+
+# Session/debug artifacts
+archives/
+review-reports/
+testing/
+*.jsonl
+cookies.txt
+verify*.txt
+verify*.json
+api-resp.json
+st-check.txt
 
 # K8s secrets (use secret.example.yaml as template)
 k8s/secret.yaml

@@ -85,7 +85,7 @@ export class RecordingService {
     return file
   }
 
-  getPlayUrl(ossKey: string, expires = 3600): string {
+  async getPlayUrl(ossKey: string, expires = 3600): Promise<string> {
     return this.ossRecording.getSignedUrl(ossKey, expires)
   }
 
@@ -126,7 +126,7 @@ export class RecordingService {
       provider: 'xunfei',
     })
     task = await this.asrTaskRepository.save(task)
-    const recordingUrl = this.ossRecording.getSignedUrl(file.ossKey, 7200)
+    const recordingUrl = await this.ossRecording.getSignedUrl(file.ossKey, 7200)
     await this.asrQueue.add(
       { recordingFileId: recordingId, recordingUrl },
       { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },

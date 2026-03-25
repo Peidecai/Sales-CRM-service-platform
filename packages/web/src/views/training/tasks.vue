@@ -15,9 +15,9 @@
             <el-radio-button value="my">我的任务</el-radio-button>
             <el-radio-button v-if="isAdminOrManager" value="all">全部任务</el-radio-button>
           </el-radio-group>
-          <el-button v-if="isAdminOrManager" type="primary" @click="showCreateDialog = true"
-            >创建任务</el-button
-          >
+          <el-button v-if="isAdminOrManager" type="primary" @click="showCreateDialog = true">
+            创建任务
+          </el-button>
         </div>
       </div>
 

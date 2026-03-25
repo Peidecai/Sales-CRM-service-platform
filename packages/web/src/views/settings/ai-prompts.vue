@@ -92,10 +92,10 @@
         >
           <el-card shadow="never">
             <p v-if="h.changeNote" class="change-note">{{ h.changeNote }}</p>
-            <el-text type="info" size="small"
-              >系统提示词: {{ h.systemPrompt.substring(0, 200)
-              }}{{ h.systemPrompt.length > 200 ? '...' : '' }}</el-text
-            >
+            <el-text type="info" size="small">
+              系统提示词: {{ h.systemPrompt.substring(0, 200)
+              }}{{ h.systemPrompt.length > 200 ? '...' : '' }}
+            </el-text>
             <div style="margin-top: 8px">
               <el-button type="warning" size="small" @click="handleRollback(h.version)">
                 回滚到此版本

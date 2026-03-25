@@ -28,9 +28,9 @@
         @keyup.enter="loadPosts"
         @clear="loadPosts"
       >
-        <template #prefix
-          ><el-icon><Search /></el-icon
-        ></template>
+        <template #prefix>
+          <el-icon><Search /></el-icon>
+        </template>
       </el-input>
       <el-radio-group v-model="sortBy" @change="loadPosts">
         <el-radio-button value="latest">最新</el-radio-button>

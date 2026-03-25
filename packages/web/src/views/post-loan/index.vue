@@ -66,9 +66,9 @@
         </el-table-column>
         <el-table-column label="状态" width="100" align="center">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" size="small">{{
-              statusLabels[row.status]
-            }}</el-tag>
+            <el-tag :type="getStatusType(row.status)" size="small">
+              {{ statusLabels[row.status] }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="信用评级" prop="creditRating" width="100" align="center">
@@ -76,12 +76,12 @@
         </el-table-column>
         <el-table-column label="操作" width="200" align="center">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="showRepaymentPlans(row.id)"
-              >还款计划</el-button
-            >
-            <el-button type="warning" link size="small" @click="openRatingDialog(row)"
-              >评级</el-button
-            >
+            <el-button type="primary" link size="small" @click="showRepaymentPlans(row.id)">
+              还款计划
+            </el-button>
+            <el-button type="warning" link size="small" @click="openRatingDialog(row)">
+              评级
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -142,9 +142,9 @@
         </el-table-column>
         <el-table-column label="状态" width="100" align="center">
           <template #default="{ row }">
-            <el-tag :type="getPlanStatusType(row.status)" size="small">{{
-              planStatusLabels[row.status]
-            }}</el-tag>
+            <el-tag :type="getPlanStatusType(row.status)" size="small">
+              {{ planStatusLabels[row.status] }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="120" align="center">
@@ -188,9 +188,9 @@
       </el-form>
       <template #footer>
         <el-button @click="confirmRepaymentVisible = false">取消</el-button>
-        <el-button type="primary" :loading="confirmingRepayment" @click="handleConfirmRepayment"
-          >确认</el-button
-        >
+        <el-button type="primary" :loading="confirmingRepayment" @click="handleConfirmRepayment">
+          确认
+        </el-button>
       </template>
     </el-dialog>
 

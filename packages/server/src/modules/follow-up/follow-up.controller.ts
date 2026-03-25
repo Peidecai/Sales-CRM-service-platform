@@ -12,7 +12,6 @@
   UseInterceptors,
   HttpCode,
   HttpStatus,
-  BadRequestException,
 } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
@@ -45,14 +44,13 @@ export class FollowUpController {
   }
 
   @Get()
-  @ApiOperation({ summary: '查询某客户的跟进记录列表（必须传 customerId）' })
+  @ApiOperation({ summary: '查询跟进记录列表（传 customerId 查某客户，不传则查全部）' })
   @ApiResponse({ status: 200, description: '返回分页跟进记录列表' })
   async findAll(@Query() query: QueryFollowUpDto, @CurrentUser() user: AuthUser) {
-    if (!query.customerId) {
-      throw new BadRequestException('customerId 为必填参数')
-    }
+    const { list, total } = query.customerId
+      ? await this.followUpService.findByCustomer(query.customerId, query, user)
+      : await this.followUpService.findAll(query, user)
 
-    const { list, total } = await this.followUpService.findByCustomer(query.customerId, query, user)
     return {
       list,
       total,

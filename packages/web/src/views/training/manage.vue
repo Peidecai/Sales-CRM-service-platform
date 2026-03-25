@@ -43,9 +43,9 @@
             >
               {{ row.isPublished ? '下架' : '发布' }}
             </el-button>
-            <el-button text type="danger" size="small" @click="handleDelete(row.id)"
-              >删除</el-button
-            >
+            <el-button text type="danger" size="small" @click="handleDelete(row.id)">
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -128,9 +128,9 @@
         <el-table-column prop="type" label="类型" width="100" />
         <el-table-column label="操作" width="80">
           <template #default="{ row }">
-            <el-button text type="danger" size="small" @click="handleDeleteCategory(row.id)"
-              >删除</el-button
-            >
+            <el-button text type="danger" size="small" @click="handleDeleteCategory(row.id)">
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>

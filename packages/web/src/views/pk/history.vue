@@ -49,15 +49,15 @@
           </el-table-column>
           <el-table-column label="结果" min-width="100">
             <template #default="{ row }">
-              <el-tag :type="row.result === 'draw' ? 'info' : 'success'">{{
-                resultLabel(row.result)
-              }}</el-tag>
+              <el-tag :type="row.result === 'draw' ? 'info' : 'success'">
+                {{ resultLabel(row.result) }}
+              </el-tag>
             </template>
           </el-table-column>
           <el-table-column label="时间" min-width="160">
-            <template #default="{ row }">{{
-              new Date(row.endDate).toLocaleDateString('zh-CN')
-            }}</template>
+            <template #default="{ row }">
+              {{ new Date(row.endDate).toLocaleDateString('zh-CN') }}
+            </template>
           </el-table-column>
           <el-table-column label="操作" width="100">
             <template #default="{ row }">

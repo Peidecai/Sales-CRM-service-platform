@@ -13,12 +13,12 @@
       <el-descriptions v-if="product" :column="2" border>
         <el-descriptions-item label="产品编码">{{ product.code }}</el-descriptions-item>
         <el-descriptions-item label="产品名称">{{ product.name }}</el-descriptions-item>
-        <el-descriptions-item label="分类">{{
-          product.category?.name ?? '-'
-        }}</el-descriptions-item>
-        <el-descriptions-item label="单价">{{
-          Number(product.price).toFixed(2)
-        }}</el-descriptions-item>
+        <el-descriptions-item label="分类">
+          {{ product.category?.name ?? '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="单价">
+          {{ Number(product.price).toFixed(2) }}
+        </el-descriptions-item>
         <el-descriptions-item label="单位">{{ product.unit }}</el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="statusTagType(product.status)" size="small">

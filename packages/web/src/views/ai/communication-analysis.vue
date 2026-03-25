@@ -60,9 +60,9 @@
         <el-form-item>
           <el-button type="primary" @click="handleSearch">查询</el-button>
           <el-button @click="handleReset">重置</el-button>
-          <el-button v-if="isAdminOrManager" type="success" plain @click="handleExport"
-            >导出CSV</el-button
-          >
+          <el-button v-if="isAdminOrManager" type="success" plain @click="handleExport">
+            导出CSV
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>

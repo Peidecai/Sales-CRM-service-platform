@@ -513,3 +513,90 @@ export async function injectAuthState(page: Page, user = ADMIN_USER) {
     localStorage.setItem('crm-user', JSON.stringify(state))
   }, user)
 }
+
+/* ------------------------------------------------------------------ */
+/*  Security test helpers                                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Mock APIs where ALL authenticated endpoints return 401
+ * (simulates expired/revoked token, refresh also fails).
+ */
+export async function mockExpiredSession(page: Page) {
+  // Auth endpoints — refresh fails too
+  await page.route('**/api/v1/auth/refresh', async (route) => {
+    await route.fulfill({
+      status: 401,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 40101, message: '刷新令牌已过期', data: null }),
+    })
+  })
+
+  await page.route('**/api/v1/auth/logout', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(apiOk(null)),
+    })
+  })
+
+  // All other API calls return 401
+  await page.route('**/api/v1/**', async (route) => {
+    const url = route.request().url()
+    // Skip already-handled auth routes
+    if (url.includes('/auth/refresh') || url.includes('/auth/logout')) {
+      return route.fallback()
+    }
+    await route.fulfill({
+      status: 401,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 40100, message: '未授权', data: null }),
+    })
+  })
+}
+
+/**
+ * Mock APIs where role-restricted endpoints return 403.
+ */
+export async function mockForbiddenApis(page: Page) {
+  const forbiddenEndpoints = [
+    '**/api/v1/audit-logs**',
+    '**/api/v1/users?**',
+    '**/api/v1/users',
+    '**/api/v1/settings**',
+  ]
+
+  for (const pattern of forbiddenEndpoints) {
+    await page.route(pattern, async (route) => {
+      await route.fulfill({
+        status: 403,
+        contentType: 'application/json',
+        body: JSON.stringify({ code: 40300, message: '没有权限执行此操作', data: null }),
+      })
+    })
+  }
+}
+
+/** Customer data with full (unmasked) PII for masking assertions. */
+export const MOCK_CUSTOMER_WITH_PII = {
+  id: 10,
+  name: 'PII Test User',
+  company: 'Sensitive Corp',
+  phone: '13912345678',
+  email: 'secret@sensitive.com',
+  status: 'potential',
+  assignedUserId: 1,
+  notes: 'Contains sensitive info',
+  tags: [],
+  industry: 'Finance',
+  source: 'website',
+  deleted: false,
+  createdAt: '2025-03-01T08:00:00Z',
+  updatedAt: '2025-03-01T08:00:00Z',
+}
+
+/** User list with PII fields visible to admin. */
+export const MOCK_USERS_WITH_PII = [
+  { id: 1, username: 'admin', name: 'Admin User', email: 'admin@company.com', phone: '13800138000', role: 'admin', isActive: true, createdAt: '2025-01-01', updatedAt: '2025-01-01' },
+  { id: 2, username: 'sales01', name: 'Sales Rep', email: 'sales@company.com', phone: '13900139000', role: 'sales', isActive: true, createdAt: '2025-01-01', updatedAt: '2025-01-01' },
+]

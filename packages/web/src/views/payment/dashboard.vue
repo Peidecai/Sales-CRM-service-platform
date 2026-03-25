@@ -2,34 +2,26 @@
   <div class="payment-dashboard">
     <h2>回款仪表盘</h2>
     <el-row :gutter="16" style="margin-bottom: 20px">
-      <el-col :span="6"
-        ><el-card shadow="hover"
-          ><el-statistic
-            title="应收总额"
-            :value="data.totalDue"
-            :precision="2"
-            prefix="¥" /></el-card
-      ></el-col>
-      <el-col :span="6"
-        ><el-card shadow="hover"
-          ><el-statistic
-            title="已收总额"
-            :value="data.totalPaid"
-            :precision="2"
-            prefix="¥" /></el-card
-      ></el-col>
-      <el-col :span="6"
-        ><el-card shadow="hover"
-          ><el-statistic
-            title="逾期金额"
-            :value="data.overdueAmount"
-            :precision="2"
-            prefix="¥" /></el-card
-      ></el-col>
-      <el-col :span="6"
-        ><el-card shadow="hover"
-          ><el-statistic title="回款率" :value="data.collectionRate" suffix="%" /></el-card
-      ></el-col>
+      <el-col :span="6">
+        <el-card shadow="hover">
+          <el-statistic title="应收总额" :value="data.totalDue" :precision="2" prefix="¥" />
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover">
+          <el-statistic title="已收总额" :value="data.totalPaid" :precision="2" prefix="¥" />
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover">
+          <el-statistic title="逾期金额" :value="data.overdueAmount" :precision="2" prefix="¥" />
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover">
+          <el-statistic title="回款率" :value="data.collectionRate" suffix="%" />
+        </el-card>
+      </el-col>
     </el-row>
     <el-card><AgingChart :data="aging" /></el-card>
   </div>

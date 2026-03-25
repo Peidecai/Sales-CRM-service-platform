@@ -87,25 +87,25 @@
         </el-table-column>
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="statusTagType(row.status)" size="small">{{
-              statusLabel(row.status)
-            }}</el-tag>
+            <el-tag :type="statusTagType(row.status)" size="small">
+              {{ statusLabel(row.status) }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="优先级" width="90">
           <template #default="{ row }">
-            <el-tag :type="priorityTagType(row.priority)" size="small">{{
-              priorityLabel(row.priority)
-            }}</el-tag>
+            <el-tag :type="priorityTagType(row.priority)" size="small">
+              {{ priorityLabel(row.priority) }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="客户" width="140">
           <template #default="{ row }">{{ row.customer?.name ?? '-' }}</template>
         </el-table-column>
         <el-table-column label="满意度" width="80">
-          <template #default="{ row }">{{
-            row.satisfactionScore ? row.satisfactionScore + '星' : '-'
-          }}</template>
+          <template #default="{ row }">
+            {{ row.satisfactionScore ? row.satisfactionScore + '星' : '-' }}
+          </template>
         </el-table-column>
         <el-table-column label="创建时间" width="170">
           <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>

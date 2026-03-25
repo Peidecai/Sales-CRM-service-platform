@@ -8,22 +8,22 @@
         <el-descriptions-item label="状态">
           <el-tag :type="statusType" size="small">{{ statusLabel }}</el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="商机">{{
-          detail.opportunity?.name ?? '-'
-        }}</el-descriptions-item>
-        <el-descriptions-item label="金额"
-          >¥{{ Number(detail.amount ?? 0).toLocaleString() }}</el-descriptions-item
-        >
+        <el-descriptions-item label="商机">
+          {{ detail.opportunity?.name ?? '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="金额">
+          ¥{{ Number(detail.amount ?? 0).toLocaleString() }}
+        </el-descriptions-item>
         <el-descriptions-item label="销售">{{ detail.salesUserId }}</el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ detail.createdAt }}</el-descriptions-item>
         <el-descriptions-item label="发送时间">{{ detail.sentAt ?? '-' }}</el-descriptions-item>
         <el-descriptions-item label="签署时间">{{ detail.signedAt ?? '-' }}</el-descriptions-item>
-        <el-descriptions-item label="完成时间">{{
-          detail.completedAt ?? '-'
-        }}</el-descriptions-item>
-        <el-descriptions-item label="外部签署ID">{{
-          detail.externalSignId ?? '-'
-        }}</el-descriptions-item>
+        <el-descriptions-item label="完成时间">
+          {{ detail.completedAt ?? '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="外部签署ID">
+          {{ detail.externalSignId ?? '-' }}
+        </el-descriptions-item>
       </el-descriptions>
 
       <div v-if="detail.contract" class="section">

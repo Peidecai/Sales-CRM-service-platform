@@ -5,9 +5,9 @@
         <div class="card-header">
           <span>合同管理</span>
           <div>
-            <el-button v-if="isAdminOrManager" @click="$router.push('/contract/templates')"
-              >合同模板</el-button
-            >
+            <el-button v-if="isAdminOrManager" @click="$router.push('/contract/templates')">
+              合同模板
+            </el-button>
             <el-button type="primary" @click="goDetail(0)">新建合同</el-button>
           </div>
         </div>

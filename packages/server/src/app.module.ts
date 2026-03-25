@@ -62,6 +62,7 @@ import { PaymentTrackingModule } from './modules/payment-tracking/payment-tracki
 import { SimModule } from './modules/sim/sim.module'
 import { TodoModule } from './modules/todo/todo.module'
 import { AnnotationModule } from './modules/annotation/annotation.module'
+import { DashboardModule } from './modules/dashboard/dashboard.module'
 
 @Module({
   imports: [
@@ -157,6 +158,7 @@ import { AnnotationModule } from './modules/annotation/annotation.module'
     SimModule,
     TodoModule,
     AnnotationModule,
+    DashboardModule,
   ],
   providers: [
     {

@@ -106,8 +106,8 @@ async function bootstrap() {
     new SanitizeHtmlPipe(),
   )
 
-  // Global filters
-  app.useGlobalFilters(new HttpExceptionFilter())
+  // Global filters (reuse configService from bootstrap start)
+  app.useGlobalFilters(new HttpExceptionFilter(configService))
 
   // Global interceptors — includes data masking (#163)
   app.useGlobalInterceptors(

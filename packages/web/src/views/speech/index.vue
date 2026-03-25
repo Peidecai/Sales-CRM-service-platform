@@ -100,25 +100,32 @@
           </el-table-column>
           <el-table-column label="操作" width="180" fixed="right">
             <template #default="{ row }">
-              <el-button text type="primary" size="small" @click="$router.push(`/speech/${row.id}`)"
-                >查看</el-button
+              <el-button
+                text
+                type="primary"
+                size="small"
+                @click="$router.push(`/speech/${row.id}`)"
               >
+                查看
+              </el-button>
               <el-button
                 v-if="isAdminOrManager"
                 text
                 type="primary"
                 size="small"
                 @click="openEditDialog(row)"
-                >编辑</el-button
               >
+                编辑
+              </el-button>
               <el-button
                 v-if="isAdminOrManager"
                 text
                 type="danger"
                 size="small"
                 @click="handleDelete(row)"
-                >删除</el-button
               >
+                删除
+              </el-button>
             </template>
           </el-table-column>
         </el-table>

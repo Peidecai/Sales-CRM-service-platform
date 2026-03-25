@@ -73,12 +73,12 @@
 
         <!-- Admin actions -->
         <div v-if="isAdmin" class="admin-actions">
-          <el-button v-if="pk.status === 'pending'" type="primary" @click="handleStart"
-            >开始PK</el-button
-          >
-          <el-button v-if="pk.status === 'active'" type="success" @click="handleSettle"
-            >手动结算</el-button
-          >
+          <el-button v-if="pk.status === 'pending'" type="primary" @click="handleStart">
+            开始PK
+          </el-button>
+          <el-button v-if="pk.status === 'active'" type="success" @click="handleSettle">
+            手动结算
+          </el-button>
           <el-button type="danger" @click="handleDelete">删除</el-button>
         </div>
       </template>
