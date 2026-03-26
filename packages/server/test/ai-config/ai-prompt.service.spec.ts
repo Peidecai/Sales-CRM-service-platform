@@ -3,7 +3,8 @@ import { getRepositoryToken } from '@nestjs/typeorm'
 import { AiPromptService } from '../../src/modules/ai-config/ai-prompt.service'
 import { AiPromptTemplate } from '../../src/modules/ai-config/ai-prompt-template.entity'
 import { AiPromptHistory } from '../../src/modules/ai-config/ai-prompt-history.entity'
-import { createMockRepository, type MockRepository } from '../test-utils'
+import { createMockRepository } from '../test-utils'
+import type { MockRepository } from '../test-utils'
 
 describe('AiPromptService', () => {
   let service: AiPromptService

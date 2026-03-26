@@ -7,7 +7,8 @@ import { ForumPost } from '../../src/modules/forum/entities/forum-post.entity'
 import { ForumLike } from '../../src/modules/forum/entities/forum-like.entity'
 import { ForumFavorite } from '../../src/modules/forum/entities/forum-favorite.entity'
 import { ForumCategory } from '../../src/modules/forum/entities/forum-category.entity'
-import { createMockRepository, createMockQueryBuilder, type MockRepository } from '../test-utils'
+import { createMockRepository, createMockQueryBuilder } from '../test-utils'
+import type { MockRepository } from '../test-utils'
 
 describe('ForumPostService', () => {
   let service: ForumPostService

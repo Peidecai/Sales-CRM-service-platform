@@ -6,7 +6,8 @@ import { Payment } from '../../src/modules/payment/entities/payment.entity'
 import { Contract } from '../../src/modules/contract/entities/contract.entity'
 import { NotificationService } from '../../src/modules/notification/notification.service'
 import { PaymentStatus } from '@crm/shared'
-import { createMockRepository, createMockQueryBuilder, createMockDataSource, type MockRepository, fixtures } from '../test-utils'
+import { createMockRepository, createMockQueryBuilder, createMockDataSource, fixtures } from '../test-utils'
+import type { MockRepository } from '../test-utils'
 
 describe('PaymentService — Overdue & Statistics', () => {
   let service: PaymentService

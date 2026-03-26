@@ -3,7 +3,8 @@ import { getRepositoryToken } from '@nestjs/typeorm'
 import { VideoProgressService } from '../../src/modules/training/video-progress.service'
 import { VideoProgress } from '../../src/modules/training/entities/video-progress.entity'
 import { TrainingVideo } from '../../src/modules/training/entities/training-video.entity'
-import { createMockRepository, type MockRepository } from '../test-utils'
+import { createMockRepository } from '../test-utils'
+import type { MockRepository } from '../test-utils'
 
 describe('VideoProgressService', () => {
   let service: VideoProgressService

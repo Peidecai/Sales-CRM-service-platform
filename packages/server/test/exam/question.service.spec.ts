@@ -2,7 +2,8 @@ import { Test } from '@nestjs/testing'
 import { getRepositoryToken } from '@nestjs/typeorm'
 import { QuestionService } from '../../src/modules/exam/question.service'
 import { Question } from '../../src/modules/exam/entities/question.entity'
-import { createMockRepository, createMockQueryBuilder, type MockRepository } from '../test-utils'
+import { createMockRepository, createMockQueryBuilder } from '../test-utils'
+import type { MockRepository } from '../test-utils'
 import { QuestionType } from '@crm/shared'
 
 describe('QuestionService', () => {

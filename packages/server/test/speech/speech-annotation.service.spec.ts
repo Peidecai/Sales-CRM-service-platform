@@ -3,7 +3,8 @@ import { getRepositoryToken } from '@nestjs/typeorm'
 import { SpeechAnnotationService } from '../../src/modules/speech/speech-annotation.service'
 import { SpeechAnnotation } from '../../src/modules/speech/entities/speech-annotation.entity'
 import { SpeechTemplateService } from '../../src/modules/speech/speech-template.service'
-import { createMockRepository, type MockRepository } from '../test-utils'
+import { createMockRepository } from '../test-utils'
+import type { MockRepository } from '../test-utils'
 
 describe('SpeechAnnotationService', () => {
   let service: SpeechAnnotationService

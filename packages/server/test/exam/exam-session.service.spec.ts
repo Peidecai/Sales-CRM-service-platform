@@ -7,7 +7,8 @@ import { ExamPaper } from '../../src/modules/exam/entities/exam-paper.entity'
 import { ExamPaperQuestion } from '../../src/modules/exam/entities/exam-paper-question.entity'
 import { Question } from '../../src/modules/exam/entities/question.entity'
 import { QuestionService } from '../../src/modules/exam/question.service'
-import { createMockRepository, createMockQueryBuilder, type MockRepository } from '../test-utils'
+import { createMockRepository, createMockQueryBuilder } from '../test-utils'
+import type { MockRepository } from '../test-utils'
 import { ExamSessionStatus, QuestionType } from '@crm/shared'
 
 describe('ExamSessionService', () => {

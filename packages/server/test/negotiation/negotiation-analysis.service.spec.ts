@@ -7,7 +7,8 @@ import { NegotiationAnalysis } from '../../src/modules/negotiation/entities/nego
 import { CallRecordService } from '../../src/modules/call-record/call-record.service'
 import { AiService } from '../../src/modules/ai/ai.service'
 import { NegotiationStatus } from '@crm/shared'
-import { createMockRepository, createMockQueryBuilder, fixtures, type MockRepository } from '../test-utils'
+import { createMockRepository, createMockQueryBuilder, fixtures } from '../test-utils'
+import type { MockRepository } from '../test-utils'
 
 describe('NegotiationAnalysisService', () => {
   let service: NegotiationAnalysisService

@@ -3,7 +3,8 @@ import { getRepositoryToken } from '@nestjs/typeorm'
 import { ExamPaperService } from '../../src/modules/exam/exam-paper.service'
 import { ExamPaper } from '../../src/modules/exam/entities/exam-paper.entity'
 import { ExamPaperQuestion } from '../../src/modules/exam/entities/exam-paper-question.entity'
-import { createMockRepository, createMockQueryBuilder, type MockRepository } from '../test-utils'
+import { createMockRepository, createMockQueryBuilder } from '../test-utils'
+import type { MockRepository } from '../test-utils'
 
 describe('ExamPaperService', () => {
   let service: ExamPaperService

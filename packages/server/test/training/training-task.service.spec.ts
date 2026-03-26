@@ -4,7 +4,8 @@ import { DataSource } from 'typeorm'
 import { TrainingTaskService } from '../../src/modules/training/training-task.service'
 import { TrainingTask } from '../../src/modules/training/entities/training-task.entity'
 import { TrainingTaskAssignee } from '../../src/modules/training/entities/training-task-assignee.entity'
-import { createMockRepository, createMockQueryBuilder, createMockDataSource, type MockRepository } from '../test-utils'
+import { createMockRepository, createMockQueryBuilder, createMockDataSource } from '../test-utils'
+import type { MockRepository } from '../test-utils'
 import { NotFoundException } from '@nestjs/common'
 
 describe('TrainingTaskService', () => {

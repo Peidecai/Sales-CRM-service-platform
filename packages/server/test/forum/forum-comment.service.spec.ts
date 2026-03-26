@@ -6,7 +6,8 @@ import { ForumCommentService } from '../../src/modules/forum/forum-comment.servi
 import { ForumComment } from '../../src/modules/forum/entities/forum-comment.entity'
 import { ForumPost } from '../../src/modules/forum/entities/forum-post.entity'
 import { ForumLike } from '../../src/modules/forum/entities/forum-like.entity'
-import { createMockRepository, type MockRepository } from '../test-utils'
+import { createMockRepository } from '../test-utils'
+import type { MockRepository } from '../test-utils'
 
 describe('ForumCommentService', () => {
   let service: ForumCommentService

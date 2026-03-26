@@ -6,7 +6,8 @@ import { PostLoan } from '../../src/modules/post-loan/entities/post-loan.entity'
 import { RepaymentPlan } from '../../src/modules/post-loan/entities/repayment-plan.entity'
 import { ContractService } from '../../src/modules/contract/contract.service'
 import { PostLoanStatus, RepaymentStatus } from '@crm/shared'
-import { createMockRepository, createMockQueryBuilder, type MockRepository, fixtures } from '../test-utils'
+import { createMockRepository, createMockQueryBuilder, fixtures } from '../test-utils'
+import type { MockRepository } from '../test-utils'
 
 describe('PostLoanService', () => {
   let service: PostLoanService

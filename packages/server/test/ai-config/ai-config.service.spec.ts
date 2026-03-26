@@ -3,7 +3,8 @@ import { getRepositoryToken } from '@nestjs/typeorm'
 import { RedisService } from '../../src/common/redis'
 import { AiConfigService } from '../../src/modules/ai-config/ai-config.service'
 import { AiConfig } from '../../src/modules/ai-config/ai-config.entity'
-import { createMockRepository, createMockRedisService, type MockRepository, type MockRedisService } from '../test-utils'
+import { createMockRepository, createMockRedisService } from '../test-utils'
+import type { MockRepository, MockRedisService } from '../test-utils'
 
 describe('AiConfigService', () => {
   let service: AiConfigService

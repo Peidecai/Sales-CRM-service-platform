@@ -5,7 +5,8 @@ import { ProductService } from '../../src/modules/product/product.service'
 import { Product } from '../../src/modules/product/entities/product.entity'
 import { OpportunityProduct } from '../../src/modules/product/entities/opportunity-product.entity'
 import { ProductStatus } from '@crm/shared'
-import { createMockRepository, createMockQueryBuilder, type MockRepository } from '../test-utils'
+import { createMockRepository, createMockQueryBuilder } from '../test-utils'
+import type { MockRepository } from '../test-utils'
 
 describe('ProductService', () => {
   let service: ProductService

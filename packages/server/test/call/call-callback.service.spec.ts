@@ -4,7 +4,8 @@ import { Logger } from '@nestjs/common'
 import { CallCallbackService } from '../../src/modules/call/call-callback.service'
 import { CallRecord } from '../../src/modules/call-record/call-record.entity'
 import { CallStatus } from '@crm/shared'
-import { createMockRepository, fixtures, type MockRepository } from '../test-utils'
+import { createMockRepository, fixtures } from '../test-utils'
+import type { MockRepository } from '../test-utils'
 
 describe('CallCallbackService', () => {
   let service: CallCallbackService

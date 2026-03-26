@@ -2,7 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { getRepositoryToken } from '@nestjs/typeorm'
 import { ContractTemplateService } from '../../src/modules/contract/contract-template.service'
 import { ContractTemplate } from '../../src/modules/contract/entities/contract-template.entity'
-import { createMockRepository, createMockQueryBuilder, type MockRepository } from '../test-utils'
+import { createMockRepository, createMockQueryBuilder } from '../test-utils'
+import type { MockRepository } from '../test-utils'
 import { NotFoundException } from '@nestjs/common'
 
 describe('ContractTemplateService', () => {

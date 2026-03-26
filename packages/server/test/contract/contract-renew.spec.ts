@@ -6,7 +6,8 @@ import { Contract } from '../../src/modules/contract/entities/contract.entity'
 import { ContractTemplateService } from '../../src/modules/contract/contract-template.service'
 import { NotificationService } from '../../src/modules/notification/notification.service'
 import { ContractStatus, ContractType, UserRole } from '@crm/shared'
-import { createMockRepository, createMockQueryBuilder, type MockRepository, fixtures } from '../test-utils'
+import { createMockRepository, createMockQueryBuilder, fixtures } from '../test-utils'
+import type { MockRepository } from '../test-utils'
 import type { AuthUser } from '../../src/common/decorators/current-user.decorator'
 
 const adminUser: AuthUser = { id: 5, username: 'admin', role: UserRole.ADMIN }

@@ -5,7 +5,8 @@ import { PkBadge } from '../../src/modules/pk/pk-badge.entity'
 import { Pk } from '../../src/modules/pk/pk.entity'
 import { PkTeam } from '../../src/modules/pk/pk-team.entity'
 import { PkMember } from '../../src/modules/pk/pk-member.entity'
-import { createMockRepository, createMockQueryBuilder, type MockRepository } from '../test-utils'
+import { createMockRepository, createMockQueryBuilder } from '../test-utils'
+import type { MockRepository } from '../test-utils'
 import { PkStatus } from '@crm/shared'
 
 describe('PkBadgeService', () => {

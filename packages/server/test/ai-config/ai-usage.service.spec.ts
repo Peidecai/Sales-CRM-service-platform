@@ -2,7 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { getRepositoryToken } from '@nestjs/typeorm'
 import { AiUsageService } from '../../src/modules/ai-config/ai-usage.service'
 import { AiUsageLog } from '../../src/modules/ai-config/ai-usage-log.entity'
-import { createMockRepository, createMockQueryBuilder, type MockRepository, type MockQueryBuilder } from '../test-utils'
+import { createMockRepository, createMockQueryBuilder } from '../test-utils'
+import type { MockRepository, MockQueryBuilder } from '../test-utils'
 
 describe('AiUsageService', () => {
   let service: AiUsageService

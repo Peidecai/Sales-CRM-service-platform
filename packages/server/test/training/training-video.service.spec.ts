@@ -3,7 +3,8 @@ import { getRepositoryToken } from '@nestjs/typeorm'
 import { TrainingVideoService } from '../../src/modules/training/training-video.service'
 import { TrainingVideo } from '../../src/modules/training/entities/training-video.entity'
 import { VideoChapter } from '../../src/modules/training/entities/video-chapter.entity'
-import { createMockRepository, createMockQueryBuilder, type MockRepository } from '../test-utils'
+import { createMockRepository, createMockQueryBuilder } from '../test-utils'
+import type { MockRepository } from '../test-utils'
 import { NotFoundException } from '@nestjs/common'
 
 describe('TrainingVideoService', () => {

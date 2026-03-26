@@ -3,7 +3,8 @@ import { getRepositoryToken } from '@nestjs/typeorm'
 import { PermissionService } from '../../src/modules/rbac/permission.service'
 import { SysPermission } from '../../src/modules/rbac/entities/sys-permission.entity'
 import { PermissionCacheService } from '../../src/modules/rbac/permission-cache.service'
-import { createMockRepository, type MockRepository } from '../test-utils'
+import { createMockRepository } from '../test-utils'
+import type { MockRepository } from '../test-utils'
 
 describe('PermissionService', () => {
   let service: PermissionService

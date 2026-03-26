@@ -3,7 +3,8 @@ import { getRepositoryToken } from '@nestjs/typeorm'
 import { SpeechTemplateService } from '../../src/modules/speech/speech-template.service'
 import { SpeechTemplate } from '../../src/modules/speech/entities/speech-template.entity'
 import { SpeechCategory } from '../../src/modules/speech/entities/speech-category.entity'
-import { createMockRepository, createMockQueryBuilder, type MockRepository } from '../test-utils'
+import { createMockRepository, createMockQueryBuilder } from '../test-utils'
+import type { MockRepository } from '../test-utils'
 import { SpeechTemplateStatus } from '@crm/shared'
 
 describe('SpeechTemplateService', () => {

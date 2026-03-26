@@ -6,7 +6,8 @@ import { SysRole } from '../../src/modules/rbac/entities/sys-role.entity'
 import { SysPermission } from '../../src/modules/rbac/entities/sys-permission.entity'
 import { SysUserRole } from '../../src/modules/rbac/entities/sys-user-role.entity'
 import { PermissionCacheService } from '../../src/modules/rbac/permission-cache.service'
-import { createMockRepository, type MockRepository } from '../test-utils'
+import { createMockRepository } from '../test-utils'
+import type { MockRepository } from '../test-utils'
 
 describe('RoleService', () => {
   let service: RoleService
