@@ -109,24 +109,6 @@
           <el-icon><Histogram /></el-icon>
           <template #title> 谈判分析 </template>
         </el-menu-item>
-        <el-sub-menu index="/training">
-          <template #title>
-            <el-icon><VideoPlay /></el-icon>
-            <span>学习培训</span>
-          </template>
-          <el-menu-item index="/training/videos">
-            <template #title> 视频课程 </template>
-          </el-menu-item>
-          <el-menu-item index="/training/tasks">
-            <template #title> 学习任务 </template>
-          </el-menu-item>
-          <el-menu-item v-if="isAdminOrManager" index="/training/manage">
-            <template #title> 视频管理 </template>
-          </el-menu-item>
-          <el-menu-item v-if="isAdminOrManager" index="/training/statistics">
-            <template #title> 培训统计 </template>
-          </el-menu-item>
-        </el-sub-menu>
         <el-sub-menu index="/prospect">
           <template #title>
             <el-icon><Magnet /></el-icon>
@@ -147,24 +129,6 @@
           <el-icon><Trophy /></el-icon>
           <template #title> 销售PK </template>
         </el-menu-item>
-        <el-sub-menu index="/exam">
-          <template #title>
-            <el-icon><Reading /></el-icon>
-            <span>在线考试</span>
-          </template>
-          <el-menu-item v-if="isAdminOrManager" index="/exam/questions">
-            <template #title> 题库管理 </template>
-          </el-menu-item>
-          <el-menu-item v-if="isAdminOrManager" index="/exam/papers">
-            <template #title> 试卷管理 </template>
-          </el-menu-item>
-          <el-menu-item index="/exam/my">
-            <template #title> 我的考试 </template>
-          </el-menu-item>
-          <el-menu-item v-if="isAdminOrManager" index="/exam/statistics">
-            <template #title> 考试统计 </template>
-          </el-menu-item>
-        </el-sub-menu>
         <el-sub-menu index="/report">
           <template #title>
             <el-icon><DataLine /></el-icon>
@@ -419,9 +383,7 @@ import {
   Histogram,
   Service,
   Cpu,
-  Reading,
   Trophy,
-  VideoPlay,
   Stamp,
   List,
 } from '@element-plus/icons-vue'
@@ -494,7 +456,6 @@ const activeRoute = computed(() => {
   if (path.startsWith('/forum')) return '/forum'
   if (path.startsWith('/speech')) return '/speech'
   if (path.startsWith('/negotiation')) return '/negotiation'
-  if (path.startsWith('/training')) return path.replace(/\/\d+$/, '')
   if (path.startsWith('/prospect/search')) return '/prospect/search'
   if (path.startsWith('/prospect')) return '/prospect'
   if (path.startsWith('/sales-target')) return '/sales-target'
@@ -503,10 +464,6 @@ const activeRoute = computed(() => {
   if (path.startsWith('/annotation')) return '/annotation'
   if (path.startsWith('/notification/settings')) return '/notification/settings'
   if (path.startsWith('/pk')) return '/pk'
-  if (path.startsWith('/exam/questions')) return '/exam/questions'
-  if (path.startsWith('/exam/papers')) return '/exam/papers'
-  if (path.startsWith('/exam/statistics')) return '/exam/statistics'
-  if (path.startsWith('/exam')) return '/exam/my'
   if (path.startsWith('/report')) return path
   if (path.startsWith('/screen')) return path
   if (path.startsWith('/ai/communication-analysis')) return '/ai/communication-analysis'
@@ -556,21 +513,11 @@ const breadcrumbRouteMap: Record<string, string> = {
   企业论坛: '/forum',
   话术管理: '/speech',
   谈判分析: '/negotiation',
-  学习培训: '/training/videos',
-  视频课程: '/training/videos',
-  视频管理: '/training/manage',
-  学习任务: '/training/tasks',
-  培训统计: '/training/statistics',
   获客管理: '/prospect',
   线索池: '/prospect',
   搜索获客: '/prospect/search',
   目标业绩: '/sales-target',
   销售PK: '/pk',
-  在线考试: '/exam/my',
-  题库管理: '/exam/questions',
-  试卷管理: '/exam/papers',
-  我的考试: '/exam/my',
-  考试统计: '/exam/statistics',
   沟通分析: '/ai/communication-analysis',
   异常预警: '/ai/alerts',
   'AI 助手': '/ai/reminders',

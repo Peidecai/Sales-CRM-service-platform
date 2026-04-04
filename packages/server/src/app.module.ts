@@ -53,10 +53,8 @@ import { CustomerGroupModule } from './modules/customer-group/customer-group.mod
 import { ServiceRecordModule } from './modules/service-record/service-record.module'
 import { ForumModule } from './modules/forum/forum.module'
 import { AiBusinessReminderModule } from './modules/ai-reminder/ai-business-reminder.module'
-import { ExamModule } from './modules/exam/exam.module'
 import { AiConfigModule } from './modules/ai-config/ai-config.module'
 import { PkModule } from './modules/pk/pk.module'
-import { TrainingModule } from './modules/training/training.module'
 import { SigningModule } from './modules/signing/signing.module'
 import { PaymentTrackingModule } from './modules/payment-tracking/payment-tracking.module'
 import { SimModule } from './modules/sim/sim.module'
@@ -149,10 +147,8 @@ import { DashboardModule } from './modules/dashboard/dashboard.module'
     ServiceRecordModule,
     ForumModule,
     AiBusinessReminderModule,
-    ExamModule,
     AiConfigModule,
     PkModule,
-    TrainingModule,
     SigningModule,
     PaymentTrackingModule,
     SimModule,

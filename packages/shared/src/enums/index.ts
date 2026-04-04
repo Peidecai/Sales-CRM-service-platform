@@ -185,7 +185,6 @@ export enum KnowledgeCategoryType {
   SALES_TECHNIQUE = "sales_technique",
   INDUSTRY = "industry",
   FAQ = "faq",
-  TRAINING = "training",
 }
 
 /**
@@ -520,26 +519,6 @@ export enum ServicePriority {
   MEDIUM = "medium",
   HIGH = "high",
   URGENT = "urgent",
-}
-
-/**
- * 题目类型
- */
-export enum QuestionType {
-  SINGLE_CHOICE = "single_choice",
-  MULTI_CHOICE = "multi_choice",
-  TRUE_FALSE = "true_false",
-  FILL_BLANK = "fill_blank",
-}
-
-/**
- * 考试会话状态
- */
-export enum ExamSessionStatus {
-  NOT_STARTED = "not_started",
-  IN_PROGRESS = "in_progress",
-  SUBMITTED = "submitted",
-  GRADED = "graded",
 }
 
 /**

@@ -500,45 +500,6 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/forum/post-detail.vue'),
         meta: { title: '帖子详情', breadcrumb: ['企业论坛', '帖子详情'] },
       },
-      // ─── Training Routes ──────────────────────────────────────────
-      {
-        path: 'training/videos',
-        name: 'TrainingVideos',
-        component: () => import('@/views/training/video-list.vue'),
-        meta: { title: '学习培训', icon: 'VideoPlay', breadcrumb: ['学习培训', '视频课程'] },
-      },
-      {
-        path: 'training/videos/:id',
-        name: 'TrainingVideoDetail',
-        component: () => import('@/views/training/video-detail.vue'),
-        meta: { title: '视频详情', breadcrumb: ['学习培训', '视频详情'] },
-      },
-      {
-        path: 'training/manage',
-        name: 'TrainingManage',
-        component: () => import('@/views/training/manage.vue'),
-        meta: {
-          title: '视频管理',
-          breadcrumb: ['学习培训', '视频管理'],
-          roles: [UserRole.ADMIN, UserRole.MANAGER],
-        },
-      },
-      {
-        path: 'training/tasks',
-        name: 'TrainingTasks',
-        component: () => import('@/views/training/tasks.vue'),
-        meta: { title: '学习任务', breadcrumb: ['学习培训', '学习任务'] },
-      },
-      {
-        path: 'training/statistics',
-        name: 'TrainingStatistics',
-        component: () => import('@/views/training/statistics.vue'),
-        meta: {
-          title: '培训统计',
-          breadcrumb: ['学习培训', '培训统计'],
-          roles: [UserRole.ADMIN, UserRole.MANAGER],
-        },
-      },
       // ─── Report Routes ────────────────────────────────────────────
       {
         path: 'report',
@@ -634,55 +595,6 @@ const routes: RouteRecordRaw[] = [
             meta: { title: '销售漏斗', breadcrumb: ['智能报表', '销售漏斗'] },
           },
         ],
-      },
-      // ─── Exam Routes ────────────────────────────────────────────
-      {
-        path: 'exam/questions',
-        name: 'ExamQuestionBank',
-        component: () => import('@/views/exam/question-bank.vue'),
-        meta: {
-          title: '题库管理',
-          breadcrumb: ['在线考试', '题库管理'],
-          roles: [UserRole.ADMIN, UserRole.MANAGER],
-        },
-      },
-      {
-        path: 'exam/papers',
-        name: 'ExamPaperList',
-        component: () => import('@/views/exam/paper-list.vue'),
-        meta: {
-          title: '试卷管理',
-          breadcrumb: ['在线考试', '试卷管理'],
-          roles: [UserRole.ADMIN, UserRole.MANAGER],
-        },
-      },
-      {
-        path: 'exam/my',
-        name: 'ExamMyExams',
-        component: () => import('@/views/exam/my-exams.vue'),
-        meta: { title: '我的考试', breadcrumb: ['在线考试', '我的考试'] },
-      },
-      {
-        path: 'exam/statistics',
-        name: 'ExamStatistics',
-        component: () => import('@/views/exam/statistics.vue'),
-        meta: {
-          title: '考试统计',
-          breadcrumb: ['在线考试', '考试统计'],
-          roles: [UserRole.ADMIN, UserRole.MANAGER],
-        },
-      },
-      {
-        path: 'exam/take/:sessionId',
-        name: 'ExamTake',
-        component: () => import('@/views/exam/take-exam.vue'),
-        meta: { title: '考试中', breadcrumb: ['在线考试', '考试中'] },
-      },
-      {
-        path: 'exam/result/:sessionId',
-        name: 'ExamResult',
-        component: () => import('@/views/exam/result.vue'),
-        meta: { title: '考试结果', breadcrumb: ['在线考试', '考试结果'] },
       },
       // ─── Sales Assistant Routes ──────────────────────────────────
       {
