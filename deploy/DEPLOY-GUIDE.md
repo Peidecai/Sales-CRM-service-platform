@@ -1,7 +1,6 @@
 # CRM Sales Platform — Alibaba Cloud ECS Deployment Guide
 
-> Actual deployment steps tested on 2026-04-04.
-> ECS: ecs.u1-c1m2.xlarge (4vCPU/8GB), Ubuntu 22.04, 40GB ESSD, Hangzhou
+> Tested on 2026-04-04. ECS: ecs.u1-c1m2.xlarge (4vCPU/8GB), Ubuntu 22.04, 40GB ESSD, Hangzhou
 
 ## Prerequisites
 
@@ -13,8 +12,9 @@
 
 ## Step 1: Clone Repository
 
+GitHub direct access is unreliable in China, use proxy:
+
 ```bash
-# Use GitHub proxy (direct access unreliable in China)
 git clone https://ghproxy.net/https://github.com/<your-org>/crm-sales-platform.git /opt/crm-sales-platform
 cd /opt/crm-sales-platform
 
@@ -25,29 +25,27 @@ git remote set-url origin https://ghproxy.net/https://github.com/<your-org>/crm-
 git config --global http.version HTTP/1.1
 ```
 
-## Step 2: Install Docker
+## Step 2: Install Docker (Alibaba Cloud Mirror)
 
-China cannot directly use `get.docker.com`. Use Alibaba Cloud mirror:
+China cannot directly use `get.docker.com`, use Alibaba Cloud mirror:
 
 ```bash
-# Install dependencies
 apt-get update
 apt-get install -y ca-certificates curl gnupg
 
-# Add Docker GPG key (Alibaba mirror)
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 chmod a+r /etc/apt/keyrings/docker.gpg
 
-# Add Docker apt source (Alibaba mirror, hardcode amd64 + jammy)
+# Use printf to avoid shell expansion issues (hardcode amd64 + jammy)
 printf 'deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://mirrors.aliyun.com/docker-ce/linux/ubuntu jammy stable\n' > /etc/apt/sources.list.d/docker.list
 
-# Install Docker
 apt-get update
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-# Enable Docker
 systemctl enable --now docker
+docker --version
+docker compose version
 ```
 
 ## Step 3: Configure Docker Registry Mirrors
@@ -73,13 +71,12 @@ EOF
 systemctl restart docker
 ```
 
-> Note: Mirror availability changes frequently. If builds fail with timeout,
-> search "docker mirror 2026" for latest working mirrors.
+> Note: Mirror availability changes frequently. If builds fail with timeout, search "docker mirror 2026" for latest working mirrors.
 
 ## Step 4: Server Initialization
 
 ```bash
-# Run the setup script (firewall, swap, timezone, cron)
+cd /opt/crm-sales-platform
 bash deploy/aliyun-setup.sh
 ```
 
@@ -91,46 +88,53 @@ This configures:
 - Weekly Docker prune cron job
 - Docker log rotation
 
+> Note: `aliyun-setup.sh` uses `download.docker.com` for Docker install, which may fail in China. If Docker is already installed from Step 2, the script will skip this step automatically.
+
 ## Step 5: Configure Environment
 
 ```bash
 cd /opt/crm-sales-platform
-
-# Auto-generate .env with random secrets
-# (deploy.sh does this automatically, but you can do it manually)
 cp deploy/.env.production.template .env
 ```
 
-deploy.sh will auto-replace all `CHANGE_ME_*` placeholders with random secrets via `openssl rand`.
+`deploy.sh` will auto-replace all `CHANGE_ME_*` placeholders with random secrets via `openssl rand`.
 
 **Important**: Review `.env` after generation:
 
 - `CORS_ORIGINS` should match your domain/IP
 - AI keys (optional) for AI features
 
-## Step 6: Build & Deploy
+## Step 6: Build & Start Services
 
 ```bash
 bash deploy/deploy.sh
 ```
 
-This runs: preflight checks -> build images -> start services -> wait healthy -> migrate -> status.
+This runs: preflight checks → build images → start services → wait healthy.
+
+> **Note**: The migration step in `deploy.sh` may fail due to shell escaping issues. If so, use the manual migration method in Step 7.
 
 ### Known Issues During Build
 
-**pnpm install timeout**: Both Dockerfiles already use `registry.npmmirror.com`. If you see timeout errors, the mirror may be temporarily slow — just retry.
+- **pnpm install timeout**: Both Dockerfiles use `registry.npmmirror.com`. If timeout, retry.
+- **Image pull timeout**: If `node:20-alpine` or `nginx:1.25-alpine` pull fails, verify registry mirrors in Step 3.
 
-**Image pull timeout**: If `node:20-alpine` or `nginx:1.25-alpine` pull fails, verify registry mirrors in Step 3 are still working.
+## Step 7: Database Migration (Manual)
 
-## Step 7: Database Migration (if deploy.sh migration fails)
-
-The deploy.sh migration step may fail due to shell escaping. Use this manual approach:
+Run migration using env-file approach (avoids shell escaping issues):
 
 ```bash
-# Load env vars
 source .env
 
-# Create migration script
+cat > /tmp/migrate.env << EOF
+DB_HOST=mysql
+DB_PORT=3306
+DB_USERNAME=root
+DB_PASSWORD=$DB_ROOT_PASSWORD
+DB_DATABASE=crm_sales
+NODE_ENV=production
+EOF
+
 cat > /tmp/migrate.js << 'MIGEOF'
 const { AppDataSource } = require('./dist/database/data-source');
 AppDataSource.initialize()
@@ -139,26 +143,20 @@ AppDataSource.initialize()
   .catch(e => { console.error('Migration failed:', e); process.exit(1); });
 MIGEOF
 
-# Run migration with root credentials (crm_migrator password may mismatch)
-docker run --rm \
-  --network crm-network \
-  -v /tmp/migrate.js:/app/packages/server/migrate.js \
-  -e DB_HOST=mysql \
-  -e DB_PORT=3306 \
-  -e DB_USERNAME=root \
-  -e DB_PASSWORD="$DB_ROOT_PASSWORD" \
-  -e DB_DATABASE=crm_sales \
-  -e NODE_ENV=production \
-  -w /app/packages/server \
-  crm-sales-platform-server \
-  node migrate.js
+docker run --rm --network crm-sales-platform_crm-network -v /tmp/migrate.js:/app/packages/server/migrate.js --env-file /tmp/migrate.env -w /app/packages/server crm-sales-platform-server node migrate.js
 ```
 
-> **Why root?** The auto-generated .env password for crm_migrator doesn't match
-> the password set in `docker/mysql/init/00-init.sql`. Fix: after first deploy,
-> manually set crm_migrator password in MySQL to match .env, or always use root for migrations.
+Expected output: `Migrations OK`
 
-## Step 8: Verify
+> **Why use root?** The auto-generated .env password for `crm_migrator` doesn't match the password set in `docker/mysql/init/00-init.sql`. Use root for migrations, or manually sync the password after first deploy.
+
+## Step 8: Restart Server
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml restart server
+```
+
+## Step 9: Verify
 
 ```bash
 # All 5 services should be healthy
@@ -167,15 +165,13 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 # Health check
 curl http://localhost/api/v1/health
 # Expected: {"code":0,"message":"success","data":{"status":"ok","info":{"database":{"status":"up"},"redis":{"status":"up","message":"PONG"}}}}
-
-# Browser access
-# http://<ECS_IP>
-# Login: admin / admin123
 ```
 
-## Step 9: Security Group (Alibaba Cloud Console)
+Browser access: `http://<ECS_IP>`, login: `admin` / `admin123`
 
-In ECS console -> Security Group -> Inbound Rules, ensure:
+## Step 10: Security Group (Alibaba Cloud Console)
+
+In ECS console → Security Group → Inbound Rules, ensure:
 
 | Port | Protocol | Source    | Description |
 | ---- | -------- | --------- | ----------- |
@@ -208,15 +204,25 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml restart server
 ```bash
 cd /opt/crm-sales-platform
 git pull
-bash deploy/deploy.sh --build
+
+# Rebuild
+docker compose -f docker-compose.yml -f docker-compose.prod.yml build server
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d server
+
+# Run migration if needed (repeat Step 7)
+
+# Restart
+docker compose -f docker-compose.yml -f docker-compose.prod.yml restart server
 ```
 
 ### Backup
 
 ```bash
 bash deploy/backup.sh
+
 # Cron (daily 3AM):
-# 0 3 * * * cd /opt/crm-sales-platform && bash deploy/backup.sh >> /var/log/crm-backup.log 2>&1
+crontab -e
+# Add: 0 3 * * * cd /opt/crm-sales-platform && bash deploy/backup.sh >> /var/log/crm-backup.log 2>&1
 ```
 
 ### Check disk usage
@@ -242,7 +248,6 @@ docker pull node:20-alpine
 ### git pull fails
 
 ```bash
-# Use proxy
 git remote set-url origin https://ghproxy.net/https://github.com/<org>/repo.git
 git config --global http.version HTTP/1.1
 git pull
@@ -253,8 +258,9 @@ git pull
 ```bash
 # Check logs
 docker compose -f docker-compose.yml -f docker-compose.prod.yml logs server --tail=50
-# Common cause: missing migrations (Table doesn't exist)
-# Fix: run Step 7 manual migration
+
+# Common cause: missing migration (Table/column doesn't exist)
+# Fix: run Step 7 manual migration, then restart server
 ```
 
 ### Cannot access from browser
@@ -267,8 +273,19 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml logs server --ta
 ### Login returns "Internal Server Error"
 
 ```bash
-# Check server logs for the error
+# Check server logs
 docker compose -f docker-compose.yml -f docker-compose.prod.yml logs server --tail=100
+
+# Common cause: missing column (entity has field but no migration)
+# Fix: create migration, rebuild server image, run Step 7
+```
+
+### Docker network name for manual commands
+
+```bash
+# Find the actual network name
+docker network ls | grep crm
+# Usually: crm-sales-platform_crm-network
 ```
 
 ---
@@ -276,12 +293,12 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml logs server --ta
 ## Architecture
 
 ```
-Internet -> :80 (Nginx/Web container)
-                 |-- /          -> Vue SPA (static)
-                 |-- /api/      -> NestJS :3000 (reverse proxy)
-                 |-- /ws/       -> WebSocket (upgrade)
+Internet → :80 (Nginx/Web container)
+              ├── /          → Vue SPA (static)
+              ├── /api/      → NestJS :3000 (reverse proxy)
+              └── /ws/       → WebSocket (upgrade)
 
-Internal (crm-network):
+Internal (crm-sales-platform_crm-network):
   MySQL  :3306  (512MB limit, utf8mb4)
   Redis  :6379  (256MB limit, AOF + password)
   MinIO  :9000  (S3-compatible file storage)
