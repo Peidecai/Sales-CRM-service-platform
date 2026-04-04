@@ -11,7 +11,7 @@ export class AddAnnouncementChannelsColumns1709000110000 implements MigrationInt
     )
     if (hasChannels.length === 0) {
       await queryRunner.query(
-        `ALTER TABLE \`announcements\` ADD COLUMN \`channels\` text NOT NULL DEFAULT 'WEB' COMMENT 'Delivery channels (simple-array)'`,
+        `ALTER TABLE \`announcements\` ADD COLUMN \`channels\` varchar(255) NOT NULL DEFAULT 'WEB' COMMENT 'Delivery channels (simple-array)'`,
       )
     }
 
@@ -24,7 +24,7 @@ export class AddAnnouncementChannelsColumns1709000110000 implements MigrationInt
     )
     if (hasTargetRoles.length === 0) {
       await queryRunner.query(
-        `ALTER TABLE \`announcements\` ADD COLUMN \`target_roles\` text NULL COMMENT 'Target roles (simple-array, null=all)'`,
+        `ALTER TABLE \`announcements\` ADD COLUMN \`target_roles\` varchar(255) NULL COMMENT 'Target roles (simple-array, null=all)'`,
       )
     }
 
