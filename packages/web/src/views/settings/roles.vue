@@ -181,6 +181,8 @@ async function fetchRoles() {
       roleList.value = res.data.list
       total.value = res.data.total
     }
+  } catch {
+    // handled by interceptor
   } finally {
     loading.value = false
   }
@@ -232,6 +234,8 @@ async function handleSubmit() {
     }
     dialogVisible.value = false
     fetchRoles()
+  } catch {
+    // handled by interceptor
   } finally {
     submitting.value = false
   }
@@ -263,6 +267,8 @@ async function openPermissionDialog(role: SysRole) {
         })),
       }))
     }
+  } catch {
+    // handled by interceptor
   } finally {
     permLoading.value = false
   }
@@ -277,6 +283,8 @@ async function handleAssignPermissions() {
     ElMessage.success('权限分配成功')
     permDialogVisible.value = false
     fetchRoles()
+  } catch {
+    // handled by interceptor
   } finally {
     permSubmitting.value = false
   }

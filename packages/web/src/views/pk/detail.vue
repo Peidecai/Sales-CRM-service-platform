@@ -173,6 +173,8 @@ async function fetchData() {
   try {
     pk.value = (await getPkDetail(pkId.value)) as unknown as PkItem
     ranking.value = (await getPkRanking(pkId.value)) as unknown as PkTeamMember[]
+  } catch {
+    // handled by interceptor
   } finally {
     loading.value = false
   }

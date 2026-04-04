@@ -124,11 +124,12 @@ async function fetchList() {
       page: page.value,
       pageSize,
     })) as unknown as {
-      list: PkItem[]
-      total: number
+      data: { list: PkItem[]; total: number }
     }
-    pkList.value = res.list
-    total.value = res.total
+    pkList.value = res.data?.list ?? []
+    total.value = res.data?.total ?? 0
+  } catch {
+    // handled by axios interceptor
   } finally {
     loading.value = false
   }

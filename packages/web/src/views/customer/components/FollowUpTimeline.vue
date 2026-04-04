@@ -39,6 +39,8 @@ onMounted(async () => {
       | Record<string, unknown>
       | undefined
     followUps.value = data ? (data.list as Record<string, unknown>[]) : []
+  } catch {
+    // handled by interceptor
   } finally {
     loading.value = false
   }

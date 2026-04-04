@@ -70,7 +70,7 @@ export class AuditLogService {
 
     const qb = this.auditLogRepo
       .createQueryBuilder('log')
-      .orderBy('log.created_at', 'DESC')
+      .orderBy('log.createdAt', 'DESC')
       .skip((page - 1) * pageSize)
       .take(pageSize)
 

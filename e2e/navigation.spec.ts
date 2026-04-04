@@ -43,8 +43,9 @@ test.describe('Navigation & Layout', () => {
   test('should navigate to each section via sidebar', async ({ page }) => {
     await page.goto('/')
 
-    // Customer
+    // Customer — "客户管理" is a sub-menu; expand it then click "客户列表"
     await page.locator('.sidebar-menu').getByText('客户管理').click()
+    await page.locator('.sidebar-menu').getByText('客户列表').click()
     await expect(page).toHaveURL('/customer')
 
     // Opportunity

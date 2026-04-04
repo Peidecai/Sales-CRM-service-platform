@@ -58,13 +58,13 @@ export const callRecordApi = {
   }) {
     return http.get<{ list: CallRecordVO[]; total: number; page: number; pageSize: number }>(
       '/call-records',
-      params as Record<string, unknown>,
+      params as unknown as Record<string, unknown>,
     )
   },
 
   /** 创建通话记录 */
   create(data: CreateCallRecordParams) {
-    return http.post<CallRecordVO>('/call-records', data as Record<string, unknown>)
+    return http.post<CallRecordVO>('/call-records', data as unknown as Record<string, unknown>)
   },
 
   /** 获取通话记录详情 */

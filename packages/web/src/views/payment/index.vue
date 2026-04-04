@@ -29,11 +29,9 @@
       <el-table v-loading="loading" :data="list" stripe :row-class-name="rowClassName">
         <el-table-column label="回款编号" prop="paymentNo" width="180" />
         <el-table-column label="计划金额" width="130" align="right">
-          <template #default="{ row }"
-          >
+          <template #default="{ row }">
             ¥{{ Number(row.plannedAmount || 0).toLocaleString() }}
-          </template
-          >
+          </template>
         </el-table-column>
         <el-table-column label="实际到账" width="130" align="right">
           <template #default="{ row }">
@@ -49,9 +47,7 @@
         <el-table-column label="状态" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)" size="small">
-              {{
-                statusLabels[row.status]
-              }}
+              {{ statusLabels[row.status] }}
             </el-tag>
           </template>
         </el-table-column>
@@ -181,7 +177,12 @@ const confirmForm = reactive({
 async function loadData() {
   loading.value = true
   try {
-    const params: Record<string, unknown> = { ...query }
+    const params: Record<string, unknown> = {
+      page: query.page,
+      pageSize: query.pageSize,
+    }
+    if (query.status) params.status = query.status
+    if (query.contractId) params.contractId = query.contractId
     if (onlyOverdue.value) params.isOverdue = true
     const res = await paymentApi.getList(params as Parameters<typeof paymentApi.getList>[0])
     if (res.code === 0 && res.data) {

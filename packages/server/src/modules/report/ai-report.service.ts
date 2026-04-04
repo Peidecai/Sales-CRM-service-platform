@@ -132,11 +132,11 @@ export class AiReportService {
           WHEN cr.duration < 300 THEN '180-300'
           ELSE '300+'
         END`,
-        'range',
+        'duration_range',
       )
       .addSelect('COUNT(*)', 'count')
       .where('cr.deletedAt IS NULL')
-      .groupBy('range')
+      .groupBy('duration_range')
 
     if (effectiveFilter.startDate) {
       distQb.andWhere('cr.call_at >= :startDate', { startDate: effectiveFilter.startDate })
@@ -148,7 +148,12 @@ export class AiReportService {
       distQb.andWhere('cr.user_id = :userId', { userId: effectiveFilter.userId })
     }
 
-    const distribution = await distQb.getRawMany()
+    const rawDistribution = await distQb.getRawMany()
+    // Map 'duration_range' back to 'range' for frontend compatibility
+    const distribution = rawDistribution.map((row: { duration_range: string; count: string }) => ({
+      range: row.duration_range,
+      count: row.count,
+    }))
 
     const result = { ranking, distribution }
     await this.redis.set(cacheKey, JSON.stringify(result), this.CACHE_TTL)

@@ -52,7 +52,7 @@ export class AiReminderService {
       qb.andWhere('r.is_read = :isRead', { isRead: query.isRead })
     }
 
-    qb.orderBy('r.created_at', 'DESC')
+    qb.orderBy('r.createdAt', 'DESC')
       .skip((page - 1) * pageSize)
       .take(pageSize)
 

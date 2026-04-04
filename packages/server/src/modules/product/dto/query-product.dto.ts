@@ -1,5 +1,5 @@
 import { IsOptional, IsString, IsEnum, IsInt, Min, Max } from 'class-validator'
-import { Type } from 'class-transformer'
+import { Type, Transform } from 'class-transformer'
 import { ApiPropertyOptional } from '@nestjs/swagger'
 import { ProductStatus } from '@crm/shared'
 
@@ -32,6 +32,7 @@ export class QueryProductDto {
 
   @ApiPropertyOptional({ description: '状态', enum: ProductStatus })
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsEnum(ProductStatus)
   status?: ProductStatus
 }

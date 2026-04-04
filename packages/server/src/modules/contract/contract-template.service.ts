@@ -22,7 +22,7 @@ export class ContractTemplateService {
       qb.andWhere('t.category = :category', { category })
     }
 
-    qb.orderBy('t.created_at', 'DESC')
+    qb.orderBy('t.createdAt', 'DESC')
       .skip((page - 1) * pageSize)
       .take(pageSize)
 

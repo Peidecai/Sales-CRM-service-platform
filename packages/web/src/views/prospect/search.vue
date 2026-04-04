@@ -600,6 +600,8 @@ watch(historyVisible, async (visible) => {
     try {
       const res = await prospectApi.getSearchHistory()
       searchHistory.value = (res.data ?? []) as ProspectSearchLogVO[]
+    } catch {
+      // handled by interceptor
     } finally {
       historyLoading.value = false
     }

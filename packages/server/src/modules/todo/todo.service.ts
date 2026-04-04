@@ -43,7 +43,8 @@ export class TodoService {
     if (priority) qb.andWhere('t.priority = :priority', { priority })
     if (category) qb.andWhere('t.category = :category', { category })
 
-    qb.orderBy('t.dueDate', 'ASC', 'NULLS LAST')
+    qb.orderBy('CASE WHEN t.due_date IS NULL THEN 1 ELSE 0 END', 'ASC')
+      .addOrderBy('t.dueDate', 'ASC')
       .addOrderBy('t.createdAt', 'DESC')
       .skip((page - 1) * pageSize)
       .take(pageSize)

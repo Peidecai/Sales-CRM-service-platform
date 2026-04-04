@@ -36,6 +36,8 @@ const fetchList = async () => {
     const data = res.data as Record<string, unknown>
     tableData.value = (data.list as Record<string, unknown>[]) || []
     total.value = (data.total as number) || 0
+  } catch {
+    // handled by interceptor
   } finally {
     loading.value = false
   }
@@ -165,8 +167,7 @@ const handlePageChange = (page: number) => {
             @click="openAssign(row.id)"
           >
             分配
-          </el-button
-          >
+          </el-button>
         </template>
       </el-table-column>
     </el-table>

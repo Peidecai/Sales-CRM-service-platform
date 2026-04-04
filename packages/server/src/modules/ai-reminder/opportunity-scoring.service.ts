@@ -116,7 +116,7 @@ Description: ${opportunity.description ?? 'None'}`
       qb.andWhere('s.opportunity_id = :oppId', { oppId: query.opportunityId })
     }
 
-    qb.orderBy('s.scored_at', 'DESC')
+    qb.orderBy('s.scoredAt', 'DESC')
       .skip((page - 1) * pageSize)
       .take(pageSize)
 

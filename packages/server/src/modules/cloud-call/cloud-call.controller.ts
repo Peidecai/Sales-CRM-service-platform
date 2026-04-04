@@ -45,6 +45,26 @@ export class CloudCallController {
     return { code: 0, message: 'success' }
   }
 
+  @Get('line-status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '获取线路状态（Admin only）' })
+  async getLineStatus() {
+    const status = await this.cloudCallService.getLineStatus()
+    return { code: 0, message: 'success', data: status }
+  }
+
+  @Get('stats')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '获取通话统计（Admin only）' })
+  async getCallStats() {
+    const stats = await this.cloudCallService.getCallStats()
+    return { code: 0, message: 'success', data: stats }
+  }
+
   @Get(':id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiBearerAuth()

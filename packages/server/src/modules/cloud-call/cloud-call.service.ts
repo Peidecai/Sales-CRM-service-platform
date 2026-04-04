@@ -142,6 +142,74 @@ export class CloudCallService {
     return this.getSettings()
   }
 
+  async getLineStatus(): Promise<{
+    balance: number
+    currency: string
+    phoneNumbers: string[]
+    concurrentLines: number
+  }> {
+    // Return line status from config; in production, query the provider API
+    const phoneNumbers = this.configService
+      .get<string>('CLOUD_CALL_PHONE_NUMBERS', '')
+      .split(',')
+      .filter(Boolean)
+    const concurrentLines = this.configService.get<number>('CLOUD_CALL_CONCURRENT_LINES', 10)
+
+    return {
+      balance: 0,
+      currency: 'CNY',
+      phoneNumbers,
+      concurrentLines,
+    }
+  }
+
+  async getCallStats(): Promise<{
+    today: number
+    week: number
+    month: number
+    todayDuration: number
+    weekDuration: number
+    monthDuration: number
+    dailyCosts: Array<{ date: string; cost: number }>
+  }> {
+    const now = new Date()
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const weekStart = new Date(todayStart)
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay())
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+
+    const [todayStats, weekStats, monthStats] = await Promise.all([
+      this.cloudCallRecordRepo
+        .createQueryBuilder('r')
+        .select('COUNT(*)', 'count')
+        .addSelect('COALESCE(SUM(r.duration), 0)', 'totalDuration')
+        .where('r.createdAt >= :start', { start: todayStart })
+        .getRawOne(),
+      this.cloudCallRecordRepo
+        .createQueryBuilder('r')
+        .select('COUNT(*)', 'count')
+        .addSelect('COALESCE(SUM(r.duration), 0)', 'totalDuration')
+        .where('r.createdAt >= :start', { start: weekStart })
+        .getRawOne(),
+      this.cloudCallRecordRepo
+        .createQueryBuilder('r')
+        .select('COUNT(*)', 'count')
+        .addSelect('COALESCE(SUM(r.duration), 0)', 'totalDuration')
+        .where('r.createdAt >= :start', { start: monthStart })
+        .getRawOne(),
+    ])
+
+    return {
+      today: Number(todayStats?.count ?? 0),
+      week: Number(weekStats?.count ?? 0),
+      month: Number(monthStats?.count ?? 0),
+      todayDuration: Number(todayStats?.totalDuration ?? 0),
+      weekDuration: Number(weekStats?.totalDuration ?? 0),
+      monthDuration: Number(monthStats?.totalDuration ?? 0),
+      dailyCosts: [],
+    }
+  }
+
   private async findRecordOrFail(
     id: number,
     userId?: number,

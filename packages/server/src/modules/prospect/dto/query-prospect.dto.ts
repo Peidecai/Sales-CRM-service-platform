@@ -1,5 +1,5 @@
 import { IsOptional, IsString, IsEnum, IsInt, IsIn, Min, Max } from 'class-validator'
-import { Type } from 'class-transformer'
+import { Type, Transform } from 'class-transformer'
 import { ApiPropertyOptional } from '@nestjs/swagger'
 import { ProspectStatus, ProspectChannel } from '@crm/shared'
 
@@ -26,11 +26,13 @@ export class QueryProspectDto {
 
   @ApiPropertyOptional({ description: '线索状态', enum: ProspectStatus })
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsEnum(ProspectStatus)
   status?: ProspectStatus
 
   @ApiPropertyOptional({ description: '来源渠道', enum: ProspectChannel })
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsEnum(ProspectChannel)
   channel?: ProspectChannel
 

@@ -1,5 +1,5 @@
 import { IsOptional, IsInt, IsString, IsEnum, Min, Max } from 'class-validator'
-import { Type } from 'class-transformer'
+import { Type, Transform } from 'class-transformer'
 import { ApiPropertyOptional } from '@nestjs/swagger'
 import { SpeechTemplateStatus } from '@crm/shared'
 
@@ -32,6 +32,7 @@ export class QuerySpeechTemplateDto {
 
   @ApiPropertyOptional({ description: '状态', enum: SpeechTemplateStatus })
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsEnum(SpeechTemplateStatus)
   status?: SpeechTemplateStatus
 }

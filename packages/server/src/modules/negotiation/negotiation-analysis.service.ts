@@ -89,7 +89,7 @@ export class NegotiationAnalysisService {
       qb.andWhere('na.created_at <= :endDate', { endDate })
     }
 
-    qb.orderBy('na.created_at', 'DESC')
+    qb.orderBy('na.createdAt', 'DESC')
       .skip((page - 1) * pageSize)
       .take(pageSize)
 
@@ -263,7 +263,7 @@ Provide actionable advice for re-negotiation in Chinese. Focus on:
     if (filter.endDate) qb.andWhere('na.created_at <= :endDate', { endDate: filter.endDate })
     if (filter.userId) qb.andWhere('na.user_id = :userId', { userId: filter.userId })
 
-    const records = await qb.orderBy('na.created_at', 'DESC').getMany()
+    const records = await qb.orderBy('na.createdAt', 'DESC').getMany()
 
     const header = 'ID,通话记录ID,客户ID,销售ID,状态,评分,策略,结果,摘要,创建时间\n'
     const rows = records.map((r) =>

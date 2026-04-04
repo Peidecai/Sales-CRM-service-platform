@@ -39,6 +39,7 @@ export class QueryPaymentDto {
 
   @ApiPropertyOptional({ description: '回款状态', enum: PaymentStatus })
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsEnum(PaymentStatus)
   status?: PaymentStatus
 

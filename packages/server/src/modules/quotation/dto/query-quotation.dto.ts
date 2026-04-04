@@ -1,6 +1,6 @@
 import { IsOptional, IsEnum, IsInt, IsString } from 'class-validator'
 import { ApiPropertyOptional } from '@nestjs/swagger'
-import { Type } from 'class-transformer'
+import { Type, Transform } from 'class-transformer'
 import { QuotationStatus } from '@crm/shared'
 
 export class QueryQuotationDto {
@@ -23,6 +23,7 @@ export class QueryQuotationDto {
 
   @ApiPropertyOptional({ enum: QuotationStatus })
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsEnum(QuotationStatus)
   status?: QuotationStatus
 

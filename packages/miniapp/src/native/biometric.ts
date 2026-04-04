@@ -76,9 +76,9 @@ export function authenticate(reason?: string): Promise<BiometricAuthResult> {
         () => {
           resolve({ success: true })
         },
-        (err: { code: number; message?: string }) => {
+        (err: { code?: number; message?: string }) => {
           let error: string
-          switch (err.code) {
+          switch (err.code ?? -1) {
             case 1:
               error = '验证失败，请重试'
               break

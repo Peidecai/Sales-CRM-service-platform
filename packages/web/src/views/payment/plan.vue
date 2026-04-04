@@ -68,6 +68,8 @@ const load = async () => {
       data: { list: Record<string, unknown>[] }
     }
     list.value = r.data?.list || []
+  } catch {
+    // handled by interceptor
   } finally {
     loading.value = false
   }

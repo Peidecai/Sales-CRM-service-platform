@@ -220,6 +220,8 @@ async function loadRules() {
     }
     rules.value = res.data.list
     total.value = res.data.total
+  } catch {
+    // handled by interceptor
   } finally {
     loading.value = false
   }
@@ -274,6 +276,8 @@ async function handleSave() {
     }
     dialogVisible.value = false
     loadRules()
+  } catch {
+    // handled by interceptor
   } finally {
     saving.value = false
   }

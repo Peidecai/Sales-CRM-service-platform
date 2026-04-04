@@ -32,6 +32,7 @@ export class QueryArticleDto {
 
   @ApiPropertyOptional({ description: 'Article status filter', enum: ArticleStatus })
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsEnum(ArticleStatus)
   status?: ArticleStatus
 

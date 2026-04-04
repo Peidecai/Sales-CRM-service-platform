@@ -73,7 +73,7 @@ export class PostLoanService {
       qb.andWhere('pl.status = :status', { status })
     }
 
-    qb.orderBy('pl.created_at', 'DESC')
+    qb.orderBy('pl.createdAt', 'DESC')
       .skip((page - 1) * pageSize)
       .take(pageSize)
 
@@ -134,7 +134,7 @@ export class PostLoanService {
         statuses: [RepaymentStatus.PENDING, RepaymentStatus.PARTIAL],
       })
       .andWhere('rp.due_date < :today', { today })
-      .orderBy('rp.due_date', 'ASC')
+      .orderBy('rp.dueDate', 'ASC')
       .skip((page - 1) * pageSize)
       .take(pageSize)
 

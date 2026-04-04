@@ -88,6 +88,8 @@ async function loadSettings() {
     settings.value.quietHoursEnd = (data.quietHoursEnd as string) ?? null
     quietStart.value = parseTime(settings.value.quietHoursStart)
     quietEnd.value = parseTime(settings.value.quietHoursEnd)
+  } catch {
+    // handled by interceptor
   } finally {
     loading.value = false
   }
@@ -105,6 +107,8 @@ async function handleSave() {
       quietHoursEnd: formatTime(quietEnd.value),
     })
     ElMessage.success('保存成功')
+  } catch {
+    // handled by interceptor
   } finally {
     saving.value = false
   }

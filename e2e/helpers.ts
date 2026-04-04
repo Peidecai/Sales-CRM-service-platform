@@ -342,6 +342,14 @@ export async function mockAllApis(page: Page, user = ADMIN_USER) {
     })
   })
 
+  await page.route('**/api/v1/opportunities/funnel', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(apiOk({ stages: [], total: 0 })),
+    })
+  })
+
   await page.route('**/api/v1/opportunities/export', async (route) => {
     await route.fulfill({
       status: 200,
@@ -577,6 +585,172 @@ export async function mockForbiddenApis(page: Page) {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/*  Request capture helper                                             */
+/* ------------------------------------------------------------------ */
+
+interface CapturedRequest {
+  url: string
+  method: string
+  authorization: string | null
+}
+
+/**
+ * Start capturing all `/api/v1/**` requests with their URL, method,
+ * and Authorization header. Call `stop()` to detach the listener.
+ */
+export function captureApiRequests(page: Page) {
+  const requests: CapturedRequest[] = []
+
+  const handler = (request: { url(): string; method(): string; headerValue(name: string): string | null }) => {
+    const url = request.url()
+    if (url.includes('/api/v1/')) {
+      requests.push({
+        url,
+        method: request.method(),
+        authorization: request.headerValue('authorization'),
+      })
+    }
+  }
+
+  page.on('request', handler)
+
+  return {
+    requests,
+    stop: () => page.removeListener('request', handler),
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Token refresh test helpers                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Mock a single token-refresh cycle: first `/customers` call returns 401,
+ * refresh succeeds, then the retried `/customers` call returns data.
+ * Other API routes remain handled by `mockAllApis`.
+ */
+export async function mockTokenRefreshOnce(page: Page, user = ADMIN_USER) {
+  let callCount = 0
+
+  await page.route('**/api/v1/auth/refresh', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(apiOk({
+        accessToken: 'refreshed-token-xxx',
+        refreshToken: 'refreshed-refresh-xxx',
+        user,
+      })),
+    })
+  })
+
+  await page.route('**/api/v1/customers**', async (route) => {
+    callCount++
+    if (callCount === 1) {
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ code: 40100, message: '未授权', data: null }),
+      })
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(apiPage(MOCK_CUSTOMERS, MOCK_CUSTOMERS.length)),
+      })
+    }
+  })
+}
+
+/**
+ * Mock a scenario where the refresh token is also expired —
+ * all API calls return 401 and logout succeeds.
+ */
+export async function mockTokenRefreshFail(page: Page) {
+  await page.route('**/api/v1/auth/refresh', async (route) => {
+    await route.fulfill({
+      status: 401,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 40101, message: '刷新令牌已过期', data: null }),
+    })
+  })
+
+  await page.route('**/api/v1/auth/logout', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(apiOk(null)),
+    })
+  })
+
+  await page.route('**/api/v1/**', async (route) => {
+    const url = route.request().url()
+    if (url.includes('/auth/refresh') || url.includes('/auth/logout')) {
+      return route.fallback()
+    }
+    await route.fulfill({
+      status: 401,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 40100, message: '未授权', data: null }),
+    })
+  })
+}
+
+/**
+ * Mock concurrent 401 recovery: multiple endpoints fail on the first
+ * call, a single refresh happens, then retries succeed.
+ * Returns `getRefreshCount()` to assert that only one refresh occurred.
+ */
+export async function mockConcurrentWith401(page: Page, user = ADMIN_USER) {
+  let refreshCount = 0
+  const firstCallDone: Record<string, boolean> = {}
+
+  await page.route('**/api/v1/auth/refresh', async (route) => {
+    refreshCount++
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(apiOk({
+        accessToken: 'refreshed-token-xxx',
+        refreshToken: 'refreshed-refresh-xxx',
+        user,
+      })),
+    })
+  })
+
+  const endpointsToFail = [
+    { pattern: '**/api/v1/customers**', key: 'customers', data: apiPage(MOCK_CUSTOMERS, MOCK_CUSTOMERS.length) },
+    { pattern: '**/api/v1/opportunities**', key: 'opportunities', data: apiPage(MOCK_OPPORTUNITIES, MOCK_OPPORTUNITIES.length) },
+    { pattern: '**/api/v1/call-records/stats', key: 'callStats', data: apiOk(MOCK_CALL_STATS) },
+  ]
+
+  for (const ep of endpointsToFail) {
+    await page.route(ep.pattern, async (route) => {
+      if (!firstCallDone[ep.key]) {
+        firstCallDone[ep.key] = true
+        await route.fulfill({
+          status: 401,
+          contentType: 'application/json',
+          body: JSON.stringify({ code: 40100, message: '未授权', data: null }),
+        })
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(ep.data),
+        })
+      }
+    })
+  }
+
+  return { getRefreshCount: () => refreshCount }
+}
+
+/* ------------------------------------------------------------------ */
+/*  PII / masking helpers                                              */
+/* ------------------------------------------------------------------ */
+
 /** Customer data with full (unmasked) PII for masking assertions. */
 export const MOCK_CUSTOMER_WITH_PII = {
   id: 10,
@@ -600,3 +774,177 @@ export const MOCK_USERS_WITH_PII = [
   { id: 1, username: 'admin', name: 'Admin User', email: 'admin@company.com', phone: '13800138000', role: 'admin', isActive: true, createdAt: '2025-01-01', updatedAt: '2025-01-01' },
   { id: 2, username: 'sales01', name: 'Sales Rep', email: 'sales@company.com', phone: '13900139000', role: 'sales', isActive: true, createdAt: '2025-01-01', updatedAt: '2025-01-01' },
 ]
+
+/* ------------------------------------------------------------------ */
+/*  Generic mock helpers                                               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Mock a specific endpoint to return an empty paginated list.
+ */
+export async function mockEmptyList(page: Page, endpoint: string) {
+  await page.route(`**/api/v1/${endpoint}**`, async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(apiPage([], 0)),
+      })
+    } else {
+      await route.fallback()
+    }
+  })
+}
+
+/**
+ * Mock a specific endpoint to return an HTTP error.
+ */
+export async function mockHttpError(
+  page: Page,
+  endpoint: string,
+  status: number,
+  message?: string,
+) {
+  const defaultMessages: Record<number, string> = {
+    400: '请求参数错误',
+    404: '资源不存在',
+    429: '请求过于频繁',
+    500: '服务器内部错误',
+    502: '网关错误',
+  }
+  await page.route(`**/api/v1/${endpoint}**`, async (route) => {
+    await route.fulfill({
+      status,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        code: status * 100,
+        message: message || defaultMessages[status] || 'Error',
+        data: null,
+      }),
+    })
+  })
+}
+
+/**
+ * Collect JS page errors during a test. Call `stop()` to detach.
+ */
+export function collectPageErrors(page: Page): {
+  errors: Error[]
+  stop: () => void
+} {
+  const errors: Error[] = []
+  const handler = (error: Error) => errors.push(error)
+  page.on('pageerror', handler)
+  return { errors, stop: () => page.off('pageerror', handler) }
+}
+
+/* ------------------------------------------------------------------ */
+/*  AI API mock helpers                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Mock all AI-related API endpoints (call analysis, customer portrait, AI chat/RAG).
+ * Call after `mockAllApis` or standalone when testing AI features.
+ */
+export async function mockAiApis(page: Page) {
+  // Call analysis endpoints
+  await page.route('**/api/v1/call-analysis/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(apiOk({
+        id: 1,
+        callRecordId: 1,
+        customerId: 1,
+        analysisType: 'call_analysis',
+        inputSource: 'recording',
+        customerClassify: 'high-value',
+        classifyConfidence: 0.85,
+        suggestedStatus: 'following',
+        suggestedTags: ['VIP', 'high-intent'],
+        speechScore: 78,
+        summary: 'Customer shows strong interest in ERP upgrade.',
+        keyPoints: ['Budget approved', 'Timeline Q2'],
+        sentiment: 'positive',
+        status: 'completed',
+      })),
+    })
+  })
+
+  // Customer portrait
+  await page.route('**/api/v1/ai/customer-portrait/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(apiOk({
+        customerId: 1,
+        portrait: 'Technology company decision maker with strong purchase intent',
+        tags: ['tech', 'high-value'],
+        riskLevel: 'low',
+        intentScore: 85,
+        lastUpdated: '2025-03-01T00:00:00Z',
+      })),
+    })
+  })
+
+  // AI chat / RAG
+  await page.route('**/api/v1/ai/chat**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(apiOk({
+        answer: 'Based on our knowledge base...',
+        sources: [],
+      })),
+    })
+  })
+}
+
+/* ------------------------------------------------------------------ */
+/*  Nth-request token expiry simulation                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Simulate token expiry on the Nth non-auth API request.
+ * The refresh endpoint always succeeds, and subsequent requests fall through
+ * to other registered route handlers (e.g. `mockAllApis`).
+ */
+export async function simulateTokenExpireOnNthRequest(
+  page: Page,
+  n: number,
+  user = ADMIN_USER,
+) {
+  let requestCount = 0
+  let refreshed = false
+
+  // Refresh always succeeds
+  await page.route('**/api/v1/auth/refresh', async (route) => {
+    refreshed = true
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(apiOk({
+        accessToken: 'refreshed-token',
+        refreshToken: 'refreshed-refresh',
+        user,
+      })),
+    })
+  })
+
+  // Non-auth API: return 401 on the Nth call, fallback otherwise
+  await page.route('**/api/v1/**', async (route) => {
+    const url = route.request().url()
+    if (url.includes('/auth/')) return route.fallback()
+
+    requestCount++
+    if (requestCount === n && !refreshed) {
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ code: 40100, message: '未授权', data: null }),
+      })
+    } else {
+      await route.fallback()
+    }
+  })
+}

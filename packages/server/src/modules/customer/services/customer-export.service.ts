@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, SelectQueryBuilder } from 'typeorm'
-import ExcelJS from 'exceljs'
+import * as ExcelJS from 'exceljs'
 import { Customer } from '../customer.entity'
 import { UserRole } from '@crm/shared'
 import type { AuthUser } from '../../../common/decorators/current-user.decorator'

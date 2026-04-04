@@ -83,7 +83,7 @@ export class CheckInService {
       qb.andWhere('ci.check_in_time <= :end', { end: query.endDate })
     }
 
-    qb.orderBy('ci.check_in_time', 'DESC')
+    qb.orderBy('ci.checkInTime', 'DESC')
       .skip((page - 1) * pageSize)
       .take(pageSize)
 

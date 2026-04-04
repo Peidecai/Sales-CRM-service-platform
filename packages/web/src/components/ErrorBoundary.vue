@@ -24,12 +24,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onErrorCaptured } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onErrorCaptured, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
+const route = useRoute()
 const router = useRouter()
 const hasError = ref(false)
 const errorInfo = ref('')
+
+// Reset error state on route change so navigation clears stale errors
+watch(
+  () => route.fullPath,
+  () => {
+    hasError.value = false
+    errorInfo.value = ''
+  },
+)
 // Show error details in non-production builds; Vite replaces __DEV__ is not
 // available, so we leave debugging on — it's behind a collapse anyway.
 const showDebug = true

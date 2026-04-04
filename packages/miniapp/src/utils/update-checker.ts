@@ -37,8 +37,8 @@ export async function checkUpdate(): Promise<VersionCheckResult> {
       data: { platform, currentVersion },
     })
 
-    if (res && res.hasUpdate) {
-      return res
+    if (res?.data?.hasUpdate) {
+      return res.data
     }
 
     return { hasUpdate: false }

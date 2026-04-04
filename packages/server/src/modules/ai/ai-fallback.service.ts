@@ -5,7 +5,7 @@ import { ClaudeService } from './claude.service'
 import { AiService } from './ai.service'
 import { CostTrackerService } from './cost-tracker.service'
 import { PromptManagerService } from './prompt-manager.service'
-import { AiUsageLog } from './entities/ai-usage-log.entity'
+import { AiUsageLog } from '../ai-config/ai-usage-log.entity'
 import { RedisService } from '../../common/redis/redis.service'
 import * as crypto from 'crypto'
 
@@ -239,7 +239,7 @@ export class AiFallbackService {
   }
 
   private async logUsage(
-    traceId: string,
+    _traceId: string,
     feature: string,
     model: string,
     usage: { inputTokens: number; outputTokens: number } | undefined,
@@ -248,17 +248,19 @@ export class AiFallbackService {
     options?: { tenantId?: number; userId?: number },
   ): Promise<void> {
     try {
+      const promptTokens = usage?.inputTokens ?? 0
+      const completionTokens = usage?.outputTokens ?? 0
       const log = this.usageLogRepo.create({
-        traceId,
-        feature,
+        module: feature,
         model,
-        inputTokens: usage?.inputTokens ?? 0,
-        outputTokens: usage?.outputTokens ?? 0,
-        cost: this.estimateCost(model, usage),
+        promptTokens,
+        completionTokens,
+        totalTokens: promptTokens + completionTokens,
+        estimatedCost: this.estimateCost(model, usage),
         latencyMs: Date.now() - startTime,
-        status,
-        tenantId: options?.tenantId ?? null,
-        userId: options?.userId ?? null,
+        isSuccess: status === 'success' || status === 'cache_hit',
+        errorMessage: null,
+        triggeredById: options?.userId ?? null,
       })
       await this.usageLogRepo.save(log)
     } catch (error) {

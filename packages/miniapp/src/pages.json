@@ -157,14 +157,6 @@
         {
           "path": "material/list",
           "style": { "navigationBarTitleText": "素材库" }
-        },
-        {
-          "path": "exam/index",
-          "style": { "navigationBarTitleText": "在线考试" }
-        },
-        {
-          "path": "exam/take",
-          "style": { "navigationBarTitleText": "答题" }
         }
       ]
     }

@@ -40,7 +40,7 @@ export async function registerPush(): Promise<PushRegistrationResult | null> {
       try {
         const raw = msg as { payload: string | Record<string, unknown> }
         const payload: PushMessage =
-          typeof raw.payload === 'string' ? JSON.parse(raw.payload) : raw.payload as PushMessage
+          typeof raw.payload === 'string' ? JSON.parse(raw.payload) as PushMessage : raw.payload as unknown as PushMessage
         handlePushNavigation(payload)
       } catch (e) {
         console.warn('[Push] Failed to parse click payload:', e)
@@ -52,7 +52,7 @@ export async function registerPush(): Promise<PushRegistrationResult | null> {
       try {
         const raw = msg as { payload: string | Record<string, unknown>; title?: string; content?: string }
         const payload: PushMessage =
-          typeof raw.payload === 'string' ? JSON.parse(raw.payload) : raw.payload as PushMessage
+          typeof raw.payload === 'string' ? JSON.parse(raw.payload) as PushMessage : raw.payload as unknown as PushMessage
 
         // Update badge count
         incrementUnreadCount()

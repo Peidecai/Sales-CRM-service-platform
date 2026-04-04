@@ -28,7 +28,7 @@ import { IntentPredictionProcessor } from './processors/intent-prediction.proces
 import { AnomalyDetectProcessor } from './processors/anomaly-detect.processor'
 import { ReportGenerateProcessor } from './processors/report-generate.processor'
 import { SalesForecastProcessor } from './processors/sales-forecast.processor'
-import { AiUsageLog } from './entities/ai-usage-log.entity'
+import { AiUsageLog } from '../ai-config/ai-usage-log.entity'
 import { PromptTemplate } from './entities/prompt-template.entity'
 import { CustomerProfile } from './entities/customer-profile.entity'
 import { IntentPrediction } from './entities/intent-prediction.entity'

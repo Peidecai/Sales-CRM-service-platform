@@ -37,6 +37,8 @@ const fetchTags = async () => {
   try {
     const res = (await getTags()) as unknown as Record<string, unknown>
     tags.value = (res.data as Record<string, unknown>[]) || []
+  } catch {
+    // handled by interceptor
   } finally {
     loading.value = false
   }
@@ -134,11 +136,9 @@ const handleDelete = async (id: number) => {
           <span style="color: #909399; font-size: 12px">{{ tag.group || '未分组' }}</span>
           <template v-if="isAdminOrManager">
             <el-button size="small" text @click="handleEdit(tag)">编辑</el-button>
-            <el-button size="small" text type="danger" @click="handleDelete(tag.id as number)"
-            >
+            <el-button size="small" text type="danger" @click="handleDelete(tag.id as number)">
               删除
-            </el-button
-            >
+            </el-button>
           </template>
         </div>
       </div>

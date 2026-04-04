@@ -260,6 +260,8 @@ async function loadList() {
     const data = res as unknown as { list: NegotiationAnalysis[]; total: number }
     list.value = data.list
     total.value = data.total
+  } catch {
+    // handled by interceptor
   } finally {
     loading.value = false
   }

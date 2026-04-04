@@ -264,6 +264,8 @@ async function loadDetail() {
   try {
     const res = await getNegotiationDetail(id)
     analysis.value = res as unknown as NegotiationAnalysis
+  } catch {
+    // handled by interceptor
   } finally {
     loading.value = false
   }

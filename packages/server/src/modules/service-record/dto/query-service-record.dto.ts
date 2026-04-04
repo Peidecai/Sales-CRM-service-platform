@@ -1,6 +1,6 @@
 import { IsOptional, IsEnum, IsInt, IsString } from 'class-validator'
 import { ApiPropertyOptional } from '@nestjs/swagger'
-import { Type } from 'class-transformer'
+import { Type, Transform } from 'class-transformer'
 import { ServiceType, ServiceStatus, ServicePriority } from '@crm/shared'
 
 export class QueryServiceRecordDto {
@@ -17,16 +17,19 @@ export class QueryServiceRecordDto {
   pageSize?: number
 
   @ApiPropertyOptional({ enum: ServiceStatus })
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsEnum(ServiceStatus)
   @IsOptional()
   status?: ServiceStatus
 
   @ApiPropertyOptional({ enum: ServiceType })
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsEnum(ServiceType)
   @IsOptional()
   type?: ServiceType
 
   @ApiPropertyOptional({ enum: ServicePriority })
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsEnum(ServicePriority)
   @IsOptional()
   priority?: ServicePriority

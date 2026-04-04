@@ -9,6 +9,8 @@ declare module '*.vue' {
 interface ImportMetaEnv {
   /** API base URL, e.g. https://api.example.com/api/v1 */
   readonly VITE_API_BASE_URL: string
+  /** true in development mode */
+  readonly DEV: boolean
 }
 
 interface ImportMeta {

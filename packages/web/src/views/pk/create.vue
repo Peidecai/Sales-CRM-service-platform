@@ -180,6 +180,8 @@ async function handleSubmit() {
     })
     ElMessage.success('PK创建成功')
     router.push('/pk')
+  } catch {
+    // handled by interceptor
   } finally {
     submitting.value = false
   }

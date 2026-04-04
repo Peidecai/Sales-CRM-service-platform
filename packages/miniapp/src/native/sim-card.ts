@@ -51,21 +51,21 @@ function detectAndroidSim(): SimDetectionResult {
   // #ifdef APP-PLUS
   try {
     const cards: SimInfo[] = []
-    const Context = plus.android.importClass('android.content.Context')
-    const activity = plus.android.runtimeMainActivity()
+    const Context = plus.android.importClass('android.content.Context') as unknown as AndroidContextClass
+    const activity = plus.android.runtimeMainActivity() as unknown as AndroidActivityInstance
 
     // Try SubscriptionManager first (Android 5.1+, API 22)
     try {
       const SubscriptionManager = plus.android.importClass(
         'android.telephony.SubscriptionManager',
-      )
+      ) as unknown as AndroidSubscriptionManagerClass
       const subManager = SubscriptionManager.from(activity)
       if (subManager) {
         const subList = subManager.getActiveSubscriptionInfoList()
         if (subList) {
           const count = subList.size() as number
           for (let i = 0; i < count; i++) {
-            const subInfo = subList.get(i) as Record<string, unknown>
+            const subInfo = subList.get(i) as Record<string, (...args: unknown[]) => unknown>
             const slot = (subInfo.getSimSlotIndex?.() as number) ?? i
             const carrier = (subInfo.getCarrierName?.() as string) ?? '未知运营商'
             const number = (subInfo.getNumber?.() as string) ?? undefined
@@ -89,8 +89,9 @@ function detectAndroidSim(): SimDetectionResult {
       try {
         const tm = activity.getSystemService(Context.TELEPHONY_SERVICE)
         if (tm) {
-          const carrier = (tm as Record<string, unknown>).getSimOperatorName?.() as string | undefined
-          const number = (tm as Record<string, unknown>).getLine1Number?.() as string | undefined
+          const tmRecord = tm as Record<string, (...args: unknown[]) => unknown>
+          const carrier = tmRecord.getSimOperatorName?.() as string | undefined
+          const number = tmRecord.getLine1Number?.() as string | undefined
           if (carrier) {
             cards.push({
               slot: 0,
@@ -155,9 +156,9 @@ export function makeCallWithSim(phoneNumber: string, simSlot?: number): void {
   try {
     const platform = uni.getSystemInfoSync().platform
     if (platform === 'android' && simSlot !== undefined) {
-      const Intent = plus.android.importClass('android.content.Intent')
-      const Uri = plus.android.importClass('android.net.Uri')
-      const activity = plus.android.runtimeMainActivity()
+      const Intent = plus.android.importClass('android.content.Intent') as unknown as AndroidIntentClass
+      const Uri = plus.android.importClass('android.net.Uri') as unknown as AndroidUriClass
+      const activity = plus.android.runtimeMainActivity() as unknown as AndroidActivityInstance
 
       const uri = Uri.parse(`tel:${phoneNumber}`)
       const intent = new Intent(Intent.ACTION_CALL, uri)
@@ -166,12 +167,12 @@ export function makeCallWithSim(phoneNumber: string, simSlot?: number): void {
       try {
         const SubscriptionManager = plus.android.importClass(
           'android.telephony.SubscriptionManager',
-        )
+        ) as unknown as AndroidSubscriptionManagerClass
         const subManager = SubscriptionManager.from(activity)
         if (subManager) {
           const subList = subManager.getActiveSubscriptionInfoList()
           if (subList && subList.size() > simSlot) {
-            const subInfo = subList.get(simSlot) as Record<string, unknown>
+            const subInfo = subList.get(simSlot) as Record<string, (...args: unknown[]) => unknown>
             const subId = subInfo.getSubscriptionId?.() as number
             if (subId !== undefined) {
               intent.putExtra('android.telecom.extra.PHONE_ACCOUNT_HANDLE', subId)
@@ -182,7 +183,7 @@ export function makeCallWithSim(phoneNumber: string, simSlot?: number): void {
         // Slot selection failed, proceed with default
       }
 
-      activity.startActivity(intent)
+      ;(activity as AndroidActivityInstance).startActivity(intent)
       return
     }
   } catch (e) {

@@ -173,8 +173,10 @@ function canDeleteComment(comment: ForumCommentVO): boolean {
 async function loadPost() {
   loading.value = true
   try {
-    const res = (await forumApi.getPost(postId)) as unknown as ForumPostVO
-    post.value = res
+    const res = await forumApi.getPost(postId)
+    if (res.code === 0 && res.data) {
+      post.value = res.data
+    }
   } catch {
     ElMessage.error('加载帖子失败')
   } finally {
@@ -184,12 +186,14 @@ async function loadPost() {
 
 async function loadComments() {
   try {
-    const res = (await forumApi.getComments(postId, {
+    const res = await forumApi.getComments(postId, {
       page: commentPage.value,
       pageSize: commentPageSize,
-    })) as unknown as { list: ForumCommentVO[]; total: number }
-    comments.value = res.list
-    commentTotal.value = res.total
+    })
+    if (res.code === 0 && res.data) {
+      comments.value = res.data.list
+      commentTotal.value = res.data.total
+    }
   } catch {
     // ignore
   }
@@ -197,10 +201,10 @@ async function loadComments() {
 
 async function handleToggleLike() {
   try {
-    const res = (await forumApi.toggleLikePost(postId)) as unknown as { liked: boolean }
-    if (post.value) {
-      post.value.isLiked = res.liked
-      post.value.likeCount += res.liked ? 1 : -1
+    const res = await forumApi.toggleLikePost(postId)
+    if (res.code === 0 && res.data && post.value) {
+      post.value.isLiked = res.data.liked
+      post.value.likeCount += res.data.liked ? 1 : -1
     }
   } catch {
     // ignore
@@ -209,9 +213,9 @@ async function handleToggleLike() {
 
 async function handleToggleFavorite() {
   try {
-    const res = (await forumApi.toggleFavoritePost(postId)) as unknown as { favorited: boolean }
-    if (post.value) {
-      post.value.isFavorited = res.favorited
+    const res = await forumApi.toggleFavoritePost(postId)
+    if (res.code === 0 && res.data && post.value) {
+      post.value.isFavorited = res.data.favorited
     }
   } catch {
     // ignore

@@ -30,8 +30,8 @@ export class ContactService {
       qb.andWhere('(contact.name LIKE :kw OR contact.mobile LIKE :kw)', { kw: `%${keyword}%` })
     }
 
-    qb.orderBy('contact.is_primary', 'DESC')
-      .addOrderBy('contact.created_at', 'DESC')
+    qb.orderBy('contact.isPrimary', 'DESC')
+      .addOrderBy('contact.createdAt', 'DESC')
       .skip((page - 1) * pageSize)
       .take(pageSize)
 

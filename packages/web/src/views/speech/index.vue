@@ -290,6 +290,8 @@ async function loadTemplates() {
     templates.value = res.list
     total.value = res.total
     totalCount.value = res.total
+  } catch {
+    // handled by interceptor
   } finally {
     loading.value = false
   }
@@ -348,6 +350,8 @@ async function handleSaveTemplate() {
     }
     showTemplateDialog.value = false
     loadTemplates()
+  } catch {
+    // handled by interceptor
   } finally {
     saving.value = false
   }

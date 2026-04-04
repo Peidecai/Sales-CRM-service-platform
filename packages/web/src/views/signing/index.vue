@@ -116,6 +116,8 @@ const loadList = async () => {
     }
     list.value = res.data?.list || []
     total.value = res.data?.total || 0
+  } catch {
+    // handled by interceptor
   } finally {
     loading.value = false
   }

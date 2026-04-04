@@ -56,15 +56,15 @@ export class ForumPostService {
     }
 
     // Pinned posts first
-    qb.addOrderBy('post.is_pinned', 'DESC')
+    qb.addOrderBy('post.isPinned', 'DESC')
 
     const sortBy = query.sortBy ?? 'latest'
     if (sortBy === 'popular') {
-      qb.addOrderBy('post.like_count', 'DESC')
+      qb.addOrderBy('post.likeCount', 'DESC')
     } else if (sortBy === 'commented') {
-      qb.addOrderBy('post.comment_count', 'DESC')
+      qb.addOrderBy('post.commentCount', 'DESC')
     } else {
-      qb.addOrderBy('post.created_at', 'DESC')
+      qb.addOrderBy('post.createdAt', 'DESC')
     }
 
     qb.skip((page - 1) * pageSize).take(pageSize)

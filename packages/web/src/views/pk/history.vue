@@ -137,6 +137,8 @@ async function fetchAll() {
     historyList.value = (historyRes as unknown as { list: PkItem[] }).list
     stats.value = statsRes as unknown as PkMyStats
     badges.value = badgesRes as unknown as PkBadgeItem[]
+  } catch {
+    // handled by interceptor
   } finally {
     loading.value = false
     statsLoading.value = false

@@ -170,9 +170,12 @@ async function loadList() {
       pageSize: pageSize.value,
       ...filters,
     })
-    const data = res as unknown as { list: TodoVO[]; total: number }
-    list.value = data.list
-    total.value = data.total
+    if (res.code === 0 && res.data) {
+      list.value = res.data.list
+      total.value = res.data.total
+    }
+  } catch {
+    // handled by interceptor
   } finally {
     loading.value = false
   }
@@ -185,36 +188,52 @@ async function handleCreate() {
   }
   submitting.value = true
   try {
-    await todoApi.create({
+    const res = await todoApi.create({
       title: form.title,
       description: form.description || undefined,
       category: form.category,
       priority: form.priority,
       dueDate: form.dueDate ? form.dueDate.toISOString() : undefined,
     })
-    ElMessage.success('创建成功')
-    showCreateDialog.value = false
-    form.title = ''
-    form.description = ''
-    form.category = TodoCategory.OTHER
-    form.priority = TodoPriority.MEDIUM
-    form.dueDate = null
-    await loadList()
+    if (res.code === 0) {
+      ElMessage.success('创建成功')
+      showCreateDialog.value = false
+      form.title = ''
+      form.description = ''
+      form.category = TodoCategory.OTHER
+      form.priority = TodoPriority.MEDIUM
+      form.dueDate = null
+      await loadList()
+    }
+  } catch {
+    // handled by interceptor
   } finally {
     submitting.value = false
   }
 }
 
 async function handleComplete(id: number) {
-  await todoApi.complete(id)
-  ElMessage.success('已完成')
-  await loadList()
+  try {
+    const res = await todoApi.complete(id)
+    if (res.code === 0) {
+      ElMessage.success('已完成')
+      await loadList()
+    }
+  } catch {
+    ElMessage.error('操作失败')
+  }
 }
 
 async function handleCancel(id: number) {
-  await todoApi.cancel(id)
-  ElMessage.success('已取消')
-  await loadList()
+  try {
+    const res = await todoApi.cancel(id)
+    if (res.code === 0) {
+      ElMessage.success('已取消')
+      await loadList()
+    }
+  } catch {
+    ElMessage.error('操作失败')
+  }
 }
 
 function priorityLabel(p: TodoPriority): string {

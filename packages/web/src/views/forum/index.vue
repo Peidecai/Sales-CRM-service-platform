@@ -121,8 +121,10 @@ function formatDate(dateStr: string): string {
 
 async function loadCategories() {
   try {
-    const res = (await forumApi.getCategories()) as unknown as ForumCategoryVO[]
-    categories.value = res
+    const res = await forumApi.getCategories()
+    if (res.code === 0 && res.data) {
+      categories.value = res.data
+    }
   } catch {
     // ignore
   }
@@ -131,15 +133,17 @@ async function loadCategories() {
 async function loadPosts() {
   loading.value = true
   try {
-    const res = (await forumApi.getPosts({
+    const res = await forumApi.getPosts({
       categoryId: activeCategory.value || undefined,
       keyword: keyword.value || undefined,
       sortBy: sortBy.value,
       page: page.value,
       pageSize: pageSize.value,
-    })) as unknown as { list: ForumPostVO[]; total: number }
-    posts.value = res.list
-    total.value = res.total
+    })
+    if (res.code === 0 && res.data) {
+      posts.value = res.data.list
+      total.value = res.data.total
+    }
   } catch {
     // ignore
   } finally {

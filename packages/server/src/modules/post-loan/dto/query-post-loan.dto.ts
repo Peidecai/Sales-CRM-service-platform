@@ -1,5 +1,5 @@
 import { IsOptional, IsEnum, IsInt, Min, Max } from 'class-validator'
-import { Type } from 'class-transformer'
+import { Type, Transform } from 'class-transformer'
 import { ApiPropertyOptional } from '@nestjs/swagger'
 import { PostLoanStatus } from '@crm/shared'
 
@@ -21,6 +21,7 @@ export class QueryPostLoanDto {
 
   @ApiPropertyOptional({ enum: PostLoanStatus })
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsEnum(PostLoanStatus)
   status?: PostLoanStatus
 }

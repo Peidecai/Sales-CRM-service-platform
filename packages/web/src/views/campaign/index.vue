@@ -12,26 +12,18 @@
       <el-table-column prop="successCount" label="成功数" width="80" />
       <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="$router.push(`/campaign/${row.id}`)"
-          >
+          <el-button link type="primary" @click="$router.push(`/campaign/${row.id}`)">
             详情
-          </el-button
-          >
-          <el-button v-if="row.status === 'draft'" link type="primary" @click="handleStart(row.id)"
-          >
+          </el-button>
+          <el-button v-if="row.status === 'draft'" link type="primary" @click="handleStart(row.id)">
             开始
-          </el-button
-          >
-          <el-button v-if="row.status === 'running'" link @click="handlePause(row.id)"
-          >
+          </el-button>
+          <el-button v-if="row.status === 'running'" link @click="handlePause(row.id)">
             暂停
-          </el-button
-          >
-          <el-button v-if="row.status === 'paused'" link @click="handleResume(row.id)"
-          >
+          </el-button>
+          <el-button v-if="row.status === 'paused'" link @click="handleResume(row.id)">
             恢复
-          </el-button
-          >
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -70,6 +62,8 @@ async function loadList() {
       list.value = data.list ?? []
       total.value = data.total ?? 0
     }
+  } catch {
+    // handled by interceptor
   } finally {
     loading.value = false
   }

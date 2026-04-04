@@ -309,6 +309,8 @@ async function fetchProducts() {
     })
     productList.value = res.data?.list ?? []
     total.value = res.data?.total ?? 0
+  } catch {
+    // handled by interceptor
   } finally {
     loading.value = false
   }
@@ -387,6 +389,8 @@ async function handleSubmit() {
     }
     dialogVisible.value = false
     fetchProducts()
+  } catch {
+    // handled by interceptor
   } finally {
     submitting.value = false
   }
@@ -446,6 +450,8 @@ async function handleCategorySubmit() {
     }
     categoryDialogVisible.value = false
     fetchCategories()
+  } catch {
+    // handled by interceptor
   } finally {
     submitting.value = false
   }

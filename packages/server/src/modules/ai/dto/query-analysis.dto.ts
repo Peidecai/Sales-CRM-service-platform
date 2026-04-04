@@ -1,5 +1,5 @@
 import { IsOptional, IsInt, IsString, IsEnum, IsIn, Matches, Min, Max } from 'class-validator'
-import { Type } from 'class-transformer'
+import { Type, Transform } from 'class-transformer'
 import { ApiPropertyOptional } from '@nestjs/swagger'
 import { AnalysisStatus } from '@crm/shared'
 
@@ -41,6 +41,7 @@ export class QueryAnalysisDto {
     enum: AnalysisStatus,
   })
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsEnum(AnalysisStatus)
   status?: AnalysisStatus
 

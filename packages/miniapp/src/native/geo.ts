@@ -90,7 +90,7 @@ export async function getHighAccuracyLocation(): Promise<LocationResult | null> 
             latitude: res.latitude,
             longitude: res.longitude,
             accuracy: res.accuracy ?? 0,
-            address: (res as Record<string, unknown>).address as string | undefined,
+            address: (res as unknown as Record<string, unknown>).address as string | undefined,
           })
         },
         fail: (err) => reject(new Error(err.errMsg ?? 'Location failed')),
@@ -129,9 +129,9 @@ export async function getHighAccuracyLocation(): Promise<LocationResult | null> 
  */
 export async function checkLocationPermission(): Promise<boolean> {
   try {
-    const res = await new Promise<UniApp.GetSettingRes>((resolve, reject) => {
+    const res = await new Promise<{ authSetting?: Record<string, boolean | undefined> }>((resolve, reject) => {
       uni.getSetting({
-        success: resolve,
+        success: (result) => resolve(result as unknown as { authSetting?: Record<string, boolean | undefined> }),
         fail: reject,
       })
     })
@@ -168,8 +168,14 @@ export async function reverseGeocode(lat: number, lng: number): Promise<string> 
   // #ifdef APP-PLUS
   try {
     return await new Promise<string>((resolve) => {
-      const geocoder = new plus.maps.Geocoder()
-      const point = new plus.maps.Point(lng, lat)
+      const maps = plus.maps as unknown as {
+        Geocoder: new () => {
+          reverseGeocode: (point: unknown, callbacks: { onSuccess: (event: { address?: string; result?: { address?: string } }) => void; onFail: () => void }) => void
+        }
+        Point: new (lng: number, lat: number) => unknown
+      }
+      const geocoder = new maps.Geocoder()
+      const point = new maps.Point(lng, lat)
       geocoder.reverseGeocode(point, {
         onSuccess: (event: { address?: string; result?: { address?: string } }) => {
           const addr = event.address || event.result?.address

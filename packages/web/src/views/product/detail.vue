@@ -77,6 +77,8 @@ async function fetchProduct() {
   try {
     const res = await productApi.getDetail(id)
     product.value = res.data ?? null
+  } catch {
+    // handled by interceptor
   } finally {
     loading.value = false
   }

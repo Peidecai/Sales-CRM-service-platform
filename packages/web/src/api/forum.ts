@@ -1,4 +1,5 @@
 import request from './request'
+import type { ApiResponse, PageResult } from './types'
 
 /* ========== Types ========== */
 
@@ -71,71 +72,76 @@ export interface ModeratePostParams {
 
 export const forumApi = {
   // Categories
-  getCategories() {
-    return request.get<ForumCategoryVO[]>('/forum/categories')
+  getCategories(): Promise<ApiResponse<ForumCategoryVO[]>> {
+    return request.get('/forum/categories')
   },
-  createCategory(data: { name: string; description?: string; icon?: string; sortOrder?: number }) {
+  createCategory(data: {
+    name: string
+    description?: string
+    icon?: string
+    sortOrder?: number
+  }): Promise<ApiResponse<ForumCategoryVO>> {
     return request.post('/forum/categories', data)
   },
   updateCategory(
     id: number,
     data: { name?: string; description?: string; icon?: string; sortOrder?: number },
-  ) {
+  ): Promise<ApiResponse<ForumCategoryVO>> {
     return request.put(`/forum/categories/${id}`, data)
   },
-  deleteCategory(id: number) {
+  deleteCategory(id: number): Promise<ApiResponse<null>> {
     return request.delete(`/forum/categories/${id}`)
   },
 
   // Posts
-  getPosts(params: ForumPostQuery) {
-    return request.get<{ list: ForumPostVO[]; total: number; page: number; pageSize: number }>(
-      '/forum/posts',
-      { params },
-    )
+  getPosts(params: ForumPostQuery): Promise<ApiResponse<PageResult<ForumPostVO>>> {
+    return request.get('/forum/posts', { params })
   },
-  getPost(id: number) {
-    return request.get<ForumPostVO>(`/forum/posts/${id}`)
+  getPost(id: number): Promise<ApiResponse<ForumPostVO>> {
+    return request.get(`/forum/posts/${id}`)
   },
-  createPost(data: CreateForumPostParams) {
-    return request.post<ForumPostVO>('/forum/posts', data)
+  createPost(data: CreateForumPostParams): Promise<ApiResponse<ForumPostVO>> {
+    return request.post('/forum/posts', data)
   },
-  updatePost(id: number, data: Partial<CreateForumPostParams>) {
-    return request.put<ForumPostVO>(`/forum/posts/${id}`, data)
+  updatePost(id: number, data: Partial<CreateForumPostParams>): Promise<ApiResponse<ForumPostVO>> {
+    return request.put(`/forum/posts/${id}`, data)
   },
-  deletePost(id: number) {
+  deletePost(id: number): Promise<ApiResponse<null>> {
     return request.delete(`/forum/posts/${id}`)
   },
-  moderatePost(id: number, data: ModeratePostParams) {
+  moderatePost(id: number, data: ModeratePostParams): Promise<ApiResponse<ForumPostVO>> {
     return request.put(`/forum/posts/${id}/moderate`, data)
   },
-  toggleLikePost(id: number) {
-    return request.post<{ liked: boolean }>(`/forum/posts/${id}/like`)
+  toggleLikePost(id: number): Promise<ApiResponse<{ liked: boolean }>> {
+    return request.post(`/forum/posts/${id}/like`)
   },
-  toggleFavoritePost(id: number) {
-    return request.post<{ favorited: boolean }>(`/forum/posts/${id}/favorite`)
+  toggleFavoritePost(id: number): Promise<ApiResponse<{ favorited: boolean }>> {
+    return request.post(`/forum/posts/${id}/favorite`)
   },
-  getFavorites(params?: { page?: number; pageSize?: number }) {
-    return request.get<{ list: ForumPostVO[]; total: number }>('/forum/posts/favorites', { params })
+  getFavorites(params?: {
+    page?: number
+    pageSize?: number
+  }): Promise<ApiResponse<{ list: ForumPostVO[]; total: number }>> {
+    return request.get('/forum/posts/favorites', { params })
   },
 
   // Comments
-  getComments(postId: number, params?: { page?: number; pageSize?: number }) {
-    return request.get<{ list: ForumCommentVO[]; total: number }>(
-      `/forum/posts/${postId}/comments`,
-      { params },
-    )
+  getComments(
+    postId: number,
+    params?: { page?: number; pageSize?: number },
+  ): Promise<ApiResponse<{ list: ForumCommentVO[]; total: number }>> {
+    return request.get(`/forum/posts/${postId}/comments`, { params })
   },
   createComment(
     postId: number,
     data: { content: string; parentId?: number; replyToUserId?: number },
-  ) {
-    return request.post<ForumCommentVO>(`/forum/posts/${postId}/comments`, data)
+  ): Promise<ApiResponse<ForumCommentVO>> {
+    return request.post(`/forum/posts/${postId}/comments`, data)
   },
-  deleteComment(id: number) {
+  deleteComment(id: number): Promise<ApiResponse<null>> {
     return request.delete(`/forum/comments/${id}`)
   },
-  toggleLikeComment(id: number) {
-    return request.post<{ liked: boolean }>(`/forum/comments/${id}/like`)
+  toggleLikeComment(id: number): Promise<ApiResponse<{ liked: boolean }>> {
+    return request.post(`/forum/comments/${id}/like`)
   },
 }

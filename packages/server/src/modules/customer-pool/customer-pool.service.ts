@@ -245,7 +245,7 @@ export class CustomerPoolService {
       qb.andWhere('customer.region LIKE :region', { region: `%${region}%` })
     }
 
-    qb.orderBy('customer.pool_entered_at', 'DESC')
+    qb.orderBy('customer.poolEnteredAt', 'DESC')
       .skip((page - 1) * pageSize)
       .take(pageSize)
 

@@ -53,11 +53,11 @@ export async function makeCall(options: CallOptions): Promise<CallResult> {
 function makeCallWithSim(phoneNumber: string, simSlot: number): CallResult {
   // #ifdef APP-PLUS
   try {
-    const Intent = plus.android.importClass('android.content.Intent')
-    const Uri = plus.android.importClass('android.net.Uri')
+    const Intent = plus.android.importClass('android.content.Intent') as unknown as AndroidIntentClass
+    const Uri = plus.android.importClass('android.net.Uri') as unknown as AndroidUriClass
     const intent = new Intent(Intent.ACTION_CALL, Uri.parse(`tel:${phoneNumber}`))
     intent.putExtra('com.android.phone.extra.slot', simSlot)
-    const activity = plus.android.runtimeMainActivity()
+    const activity = plus.android.runtimeMainActivity() as unknown as AndroidActivityInstance
     activity.startActivity(intent)
     return { success: true, method: 'sim-select' }
   } catch (e) {

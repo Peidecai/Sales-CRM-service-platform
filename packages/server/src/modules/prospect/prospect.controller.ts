@@ -156,7 +156,7 @@ export class ProspectController {
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: '下载线索导入模板' })
   @ApiResponse({ status: 200, description: '返回 Excel 模板文件' })
-  async downloadImportTemplate(@Res({ passthrough: true }) res: Response) {
+  async downloadImportTemplate(@Res() res: Response) {
     const buffer = await this.prospectImportService.generateImportTemplate()
     res.setHeader(
       'Content-Type',
@@ -198,7 +198,7 @@ export class ProspectController {
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: '导出线索为 Excel' })
   @ApiResponse({ status: 200, description: '返回 Excel 文件' })
-  async exportExcel(@CurrentUser() user: AuthUser, @Res({ passthrough: true }) res: Response) {
+  async exportExcel(@CurrentUser() user: AuthUser, @Res() res: Response) {
     const buffer = await this.prospectExportService.exportExcel(user)
     res.setHeader(
       'Content-Type',

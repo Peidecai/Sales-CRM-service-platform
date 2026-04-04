@@ -1,5 +1,5 @@
 import { IsOptional, IsEnum, IsInt, Min } from 'class-validator'
-import { Type } from 'class-transformer'
+import { Type, Transform } from 'class-transformer'
 import { TodoCategory, TodoPriority, TodoStatus } from '@crm/shared'
 
 export class QueryTodoDto {
@@ -16,14 +16,17 @@ export class QueryTodoDto {
   pageSize?: number
 
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsEnum(TodoStatus)
   status?: TodoStatus
 
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsEnum(TodoPriority)
   priority?: TodoPriority
 
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsEnum(TodoCategory)
   category?: TodoCategory
 }

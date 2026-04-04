@@ -83,8 +83,10 @@ const rules: FormRules = {
 
 async function loadCategories() {
   try {
-    const res = (await forumApi.getCategories()) as unknown as ForumCategoryVO[]
-    categories.value = res
+    const res = await forumApi.getCategories()
+    if (res.code === 0 && res.data) {
+      categories.value = res.data
+    }
   } catch {
     // ignore
   }
@@ -93,16 +95,13 @@ async function loadCategories() {
 async function loadPost() {
   if (!editId.value) return
   try {
-    const res = (await forumApi.getPost(editId.value)) as unknown as {
-      title: string
-      content: string
-      categoryId: number
-      linkedArticleId: number | null
+    const res = await forumApi.getPost(editId.value)
+    if (res.code === 0 && res.data) {
+      form.value.title = res.data.title
+      form.value.content = res.data.content
+      form.value.categoryId = res.data.categoryId
+      form.value.linkedArticleId = res.data.linkedArticleId ?? undefined
     }
-    form.value.title = res.title
-    form.value.content = res.content
-    form.value.categoryId = res.categoryId
-    form.value.linkedArticleId = res.linkedArticleId ?? undefined
   } catch {
     ElMessage.error('加载帖子失败')
   }
@@ -124,14 +123,14 @@ async function handleSubmit() {
       ElMessage.success('修改成功')
       router.push(`/forum/post/${editId.value}`)
     } else {
-      const res = (await forumApi.createPost({
+      const res = await forumApi.createPost({
         title: form.value.title,
         content: form.value.content,
         categoryId: form.value.categoryId!,
         linkedArticleId: form.value.linkedArticleId,
-      })) as unknown as { id: number }
+      })
       ElMessage.success('发表成功')
-      router.push(`/forum/post/${res.id}`)
+      router.push(`/forum/post/${res.data!.id}`)
     }
   } catch {
     ElMessage.error('操作失败')

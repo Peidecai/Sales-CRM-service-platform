@@ -97,7 +97,7 @@ export class CompetitorDetectionService {
       qb.andWhere('m.opportunity_id = :oppId', { oppId: query.opportunityId })
     }
 
-    qb.orderBy('m.created_at', 'DESC')
+    qb.orderBy('m.createdAt', 'DESC')
       .skip((page - 1) * pageSize)
       .take(pageSize)
 

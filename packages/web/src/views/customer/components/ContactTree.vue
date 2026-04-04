@@ -58,6 +58,8 @@ const fetchContacts = async () => {
       ? (((res as unknown as Record<string, unknown>).data as Record<string, unknown>)
           .list as Record<string, unknown>[])
       : []
+  } catch {
+    // handled by interceptor
   } finally {
     loading.value = false
   }
@@ -139,13 +141,11 @@ const handleDelete = async (id: number) => {
         <div style="display: flex; justify-content: space-between; align-items: center">
           <div>
             <strong>{{ c.name }}</strong>
-            <el-tag v-if="c.isPrimary" size="small" type="warning" style="margin-left: 8px"
-            >
+            <el-tag v-if="c.isPrimary" size="small" type="warning" style="margin-left: 8px">
               主联系人
-            </el-tag
-            >
+            </el-tag>
             <span style="color: #909399; margin-left: 8px"
-            >{{ c.position || '' }} {{ c.department || '' }}</span
+              >{{ c.position || '' }} {{ c.department || '' }}</span
             >
           </div>
           <div>
@@ -161,13 +161,10 @@ const handleDelete = async (id: number) => {
               @click="handleSetPrimary(c.id as number)"
             >
               设为主联系人
-            </el-button
-            >
-            <el-button size="small" text type="danger" @click="handleDelete(c.id as number)"
-            >
+            </el-button>
+            <el-button size="small" text type="danger" @click="handleDelete(c.id as number)">
               删除
-            </el-button
-            >
+            </el-button>
           </div>
         </div>
         <div style="margin-top: 4px; color: #909399; font-size: 13px">

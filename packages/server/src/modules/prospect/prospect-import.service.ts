@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, In } from 'typeorm'
-import ExcelJS from 'exceljs'
+import * as ExcelJS from 'exceljs'
 import { Prospect } from './prospect.entity'
 import { Customer } from '../customer/customer.entity'
 import { ProspectChannel, ProspectStatus, CustomerStatus, CustomerSource } from '@crm/shared'

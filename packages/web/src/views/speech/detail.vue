@@ -63,6 +63,8 @@ onMounted(async () => {
   try {
     const id = Number(route.params.id)
     template.value = (await getTemplate(id)) as unknown as SpeechTemplate
+  } catch {
+    // handled by interceptor
   } finally {
     loading.value = false
   }
