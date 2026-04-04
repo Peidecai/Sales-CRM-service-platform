@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import { BullModule } from '@nestjs/bull'
 import { ConfigModule } from '@nestjs/config'
 import { CloudCallRecord } from './entities/cloud-call-record.entity'
+import { CloudCallSettings } from './entities/cloud-call-settings.entity'
 import { CloudCallController } from './cloud-call.controller'
 import { CloudCallService } from './cloud-call.service'
 import { AliyunCCCProvider } from './providers/aliyun-ccc.provider'
@@ -14,7 +15,7 @@ import { AiModule } from '../ai/ai.module'
 @Module({
   imports: [
     ConfigModule,
-    TypeOrmModule.forFeature([CloudCallRecord]),
+    TypeOrmModule.forFeature([CloudCallRecord, CloudCallSettings]),
     BullModule.registerQueue({
       name: 'cloud-call-analysis',
       defaultJobOptions: {

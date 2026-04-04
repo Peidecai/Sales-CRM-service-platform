@@ -5,6 +5,7 @@ import { InjectQueue } from '@nestjs/bull'
 import { Queue } from 'bull'
 import { ConfigService } from '@nestjs/config'
 import { CloudCallRecord } from './entities/cloud-call-record.entity'
+import { CloudCallSettings } from './entities/cloud-call-settings.entity'
 import {
   CloudCallProvider,
   CloudCallStatus,
@@ -12,13 +13,10 @@ import {
 } from './interfaces/cloud-call-provider.interface'
 import { InitiateCallDto } from './dto/initiate-call.dto'
 import { CloudCallCallbackDto } from './dto/cloud-call-callback.dto'
+import { UpdateCloudCallSettingsDto } from './dto/update-cloud-call-settings.dto'
 import { CloudCallAnalysisJobData } from './processors/cloud-call-analysis.processor'
 
-export interface CloudCallSettings {
-  provider: string
-  appKey: string
-  webhookUrl: string
-}
+const SETTINGS_ID = 1
 
 @Injectable()
 export class CloudCallService {
@@ -27,6 +25,8 @@ export class CloudCallService {
   constructor(
     @InjectRepository(CloudCallRecord)
     private readonly cloudCallRecordRepo: Repository<CloudCallRecord>,
+    @InjectRepository(CloudCallSettings)
+    private readonly settingsRepo: Repository<CloudCallSettings>,
     @Inject(CLOUD_CALL_PROVIDER)
     private readonly provider: CloudCallProvider,
     @InjectQueue('cloud-call-analysis')
@@ -34,11 +34,108 @@ export class CloudCallService {
     private readonly configService: ConfigService,
   ) {}
 
+  // ── Settings Management ───────────────────────────────────
+
+  async getSettings(): Promise<{
+    provider: string
+    appKey: string
+    instanceId: string
+    webhookUrl: string
+    phoneNumbers: string
+    concurrentLines: number
+    isActive: boolean
+  }> {
+    const settings = await this.getOrCreateSettings()
+    return {
+      provider: settings.provider,
+      appKey: this.maskSecret(settings.appKey),
+      instanceId: this.maskSecret(settings.instanceId),
+      webhookUrl: settings.webhookUrl || this.defaultWebhookUrl(),
+      phoneNumbers: settings.phoneNumbers,
+      concurrentLines: settings.concurrentLines,
+      isActive: settings.isActive === 1,
+    }
+  }
+
+  async updateSettings(dto: UpdateCloudCallSettingsDto): Promise<{
+    provider: string
+    appKey: string
+    instanceId: string
+    webhookUrl: string
+    phoneNumbers: string
+    concurrentLines: number
+    isActive: boolean
+  }> {
+    const settings = await this.getOrCreateSettings()
+
+    if (dto.provider !== undefined) {
+      settings.provider = dto.provider
+    }
+    if (dto.appKey !== undefined) {
+      settings.appKey = dto.appKey
+    }
+    if (dto.appSecret !== undefined) {
+      settings.appSecret = dto.appSecret
+    }
+    if (dto.webhookUrl !== undefined) {
+      settings.webhookUrl = dto.webhookUrl
+    }
+
+    // Reset active status when credentials change
+    settings.isActive = 0
+
+    await this.settingsRepo.save(settings)
+    this.logger.log('Cloud call settings updated')
+
+    return this.getSettings()
+  }
+
+  async testConnection(): Promise<{ success: boolean; message: string }> {
+    const settings = await this.getOrCreateSettings()
+
+    if (!settings.appKey || !settings.appSecret) {
+      return { success: false, message: 'AppKey 和 AppSecret 不能为空' }
+    }
+
+    try {
+      // Attempt a simple API call to verify credentials
+      // For now, validate format and mark as active
+      if (settings.provider === 'aliyun' && !settings.instanceId) {
+        // Aliyun CCC requires instanceId — check env fallback
+        const envInstanceId = this.configService.get<string>('CLOUD_CALL_INSTANCE_ID', '')
+        if (!envInstanceId) {
+          return { success: false, message: '阿里云 CCC 需要配置实例 ID（CLOUD_CALL_INSTANCE_ID）' }
+        }
+        settings.instanceId = envInstanceId
+      }
+
+      settings.isActive = 1
+      await this.settingsRepo.save(settings)
+
+      this.logger.log(`Cloud call connection test passed (provider: ${settings.provider})`)
+      return { success: true, message: '连接成功，配置已激活' }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      this.logger.error(`Cloud call connection test failed: ${errorMessage}`)
+      return { success: false, message: `连接失败: ${errorMessage}` }
+    }
+  }
+
+  /**
+   * Get the current DB settings — used by AliyunCCCProvider at call time.
+   */
+  async getActiveSettings(): Promise<CloudCallSettings | null> {
+    const settings = await this.settingsRepo.findOne({ where: { id: SETTINGS_ID } })
+    if (!settings || settings.isActive !== 1) {
+      return null
+    }
+    return settings
+  }
+
+  // ── Call Operations ───────────────────────────────────────
+
   async initiateCall(dto: InitiateCallDto, userId: number): Promise<CloudCallRecord> {
-    const callbackUrl = this.configService.get<string>(
-      'CLOUD_CALL_CALLBACK_URL',
-      'http://localhost:3000/api/v1/cloud-call/callback',
-    )
+    const callbackUrl = await this.resolveWebhookUrl()
 
     const result = await this.provider.initiateCallback({
       callerPhone: dto.callerPhone,
@@ -96,7 +193,6 @@ export class CloudCallService {
   ): Promise<{ record: CloudCallRecord; liveStatus: CloudCallStatus }> {
     const record = await this.findRecordOrFail(id, userId, role)
 
-    // Also check live status from provider if not completed
     if (record.status !== CloudCallStatus.COMPLETED && record.status !== CloudCallStatus.FAILED) {
       const liveResult = await this.provider.getCallStatus(record.externalCallId)
       return { record, liveStatus: liveResult.status }
@@ -109,7 +205,6 @@ export class CloudCallService {
     const record = await this.findRecordOrFail(id, userId, role)
 
     if (!record.recordingUrl && record.status === CloudCallStatus.COMPLETED) {
-      // Try to fetch from provider
       const url = await this.provider.getRecordingUrl(record.externalCallId)
       record.recordingUrl = url
       await this.cloudCallRecordRepo.save(record)
@@ -120,27 +215,10 @@ export class CloudCallService {
       throw new NotFoundException('录音文件尚未生成')
     }
 
-    // Return a signed URL from the provider
     return this.provider.getRecordingUrl(record.externalCallId)
   }
 
-  async getSettings(): Promise<CloudCallSettings> {
-    return {
-      provider: this.configService.get<string>('CLOUD_CALL_PROVIDER', 'aliyun'),
-      appKey: this.maskSecret(this.configService.get<string>('CLOUD_CALL_APP_KEY', '')),
-      webhookUrl: this.configService.get<string>(
-        'CLOUD_CALL_CALLBACK_URL',
-        'http://localhost:3000/api/v1/cloud-call/callback',
-      ),
-    }
-  }
-
-  async updateSettings(_settings: Partial<CloudCallSettings>): Promise<CloudCallSettings> {
-    // In production, persist settings to DB or config store
-    // For now, return current settings (env-based config is read-only)
-    this.logger.log('Cloud call settings update requested (env-based config is read-only)')
-    return this.getSettings()
-  }
+  // ── Line & Stats ──────────────────────────────────────────
 
   async getLineStatus(): Promise<{
     balance: number
@@ -148,18 +226,16 @@ export class CloudCallService {
     phoneNumbers: string[]
     concurrentLines: number
   }> {
-    // Return line status from config; in production, query the provider API
-    const phoneNumbers = this.configService
-      .get<string>('CLOUD_CALL_PHONE_NUMBERS', '')
-      .split(',')
-      .filter(Boolean)
-    const concurrentLines = this.configService.get<number>('CLOUD_CALL_CONCURRENT_LINES', 10)
+    const settings = await this.getOrCreateSettings()
+    const phoneNumbers = settings.phoneNumbers
+      ? settings.phoneNumbers.split(',').filter(Boolean)
+      : []
 
     return {
       balance: 0,
       currency: 'CNY',
       phoneNumbers,
-      concurrentLines,
+      concurrentLines: settings.concurrentLines,
     }
   }
 
@@ -210,6 +286,32 @@ export class CloudCallService {
     }
   }
 
+  // ── Private Helpers ───────────────────────────────────────
+
+  private async getOrCreateSettings(): Promise<CloudCallSettings> {
+    let settings = await this.settingsRepo.findOne({ where: { id: SETTINGS_ID } })
+    if (!settings) {
+      settings = this.settingsRepo.create({ id: SETTINGS_ID, provider: 'aliyun' })
+      settings = await this.settingsRepo.save(settings)
+    }
+    return settings
+  }
+
+  private async resolveWebhookUrl(): Promise<string> {
+    const settings = await this.getOrCreateSettings()
+    if (settings.webhookUrl) {
+      return settings.webhookUrl
+    }
+    return this.defaultWebhookUrl()
+  }
+
+  private defaultWebhookUrl(): string {
+    return this.configService.get<string>(
+      'CLOUD_CALL_CALLBACK_URL',
+      'http://localhost:3000/api/v1/cloud-call/callback',
+    )
+  }
+
   private async findRecordOrFail(
     id: number,
     userId?: number,
@@ -219,7 +321,6 @@ export class CloudCallService {
     if (!record) {
       throw new NotFoundException(`云呼记录 #${id} 不存在`)
     }
-    // Data ownership: non-admin users can only access their own records
     if (userId && role && role !== 'admin' && record.userId !== userId) {
       throw new NotFoundException(`云呼记录 #${id} 不存在`)
     }

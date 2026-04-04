@@ -219,12 +219,13 @@ async function loadSettings() {
     const data = (await getCloudCallSettings()) as unknown as {
       provider: string
       appKey: string
-      appSecret: string
+      instanceId: string
       webhookUrl: string
+      isActive: boolean
     }
     settingsForm.provider = data.provider ?? ''
     settingsForm.appKey = data.appKey ?? ''
-    settingsForm.appSecret = data.appSecret ?? ''
+    settingsForm.appSecret = ''
     webhookUrl.value = data.webhookUrl ?? ''
   } catch {
     // error handled by interceptor

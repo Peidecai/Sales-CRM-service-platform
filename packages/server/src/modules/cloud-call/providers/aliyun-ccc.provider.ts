@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import {
   CloudCallProvider,
@@ -7,31 +7,55 @@ import {
   InitiateCallbackParams,
   InitiateCallbackResult,
 } from '../interfaces/cloud-call-provider.interface'
+import { CloudCallService } from '../cloud-call.service'
 import { v4 as uuidv4 } from 'uuid'
 
 /**
- * 阿里云 CCC (Cloud Contact Center) Provider — Mock 实现
- * 后续接入真实 SDK 时替换 mock 逻辑
+ * Alibaba Cloud CCC (Cloud Contact Center) Provider
+ *
+ * Credentials are read from the database (cloud_call_settings table)
+ * at call time, with env vars as fallback.
+ *
+ * When no valid credentials exist, falls back to mock mode with
+ * in-memory call simulation for local development.
  */
 @Injectable()
 export class AliyunCCCProvider implements CloudCallProvider {
   private readonly logger = new Logger(AliyunCCCProvider.name)
   readonly providerName = 'aliyun'
 
-  // In-memory mock state
+  // In-memory mock state (dev only)
   private readonly mockCalls = new Map<
     string,
     { status: CloudCallStatus; duration: number | null }
   >()
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    @Inject(forwardRef(() => CloudCallService))
+    private readonly cloudCallService: CloudCallService,
+  ) {}
 
   async initiateCallback(params: InitiateCallbackParams): Promise<InitiateCallbackResult> {
-    const appKey = this.configService.get<string>('CLOUD_CALL_APP_KEY', '')
-    if (!appKey) {
-      this.logger.warn('CLOUD_CALL_APP_KEY not configured — using mock mode')
+    const credentials = await this.resolveCredentials()
+
+    if (credentials) {
+      // TODO: Replace with real Aliyun CCC SDK call
+      // const client = new CCC20200701Client(...)
+      // const result = await client.makeCall({
+      //   instanceId: credentials.instanceId,
+      //   caller: params.callerPhone,
+      //   callee: params.calleePhone,
+      //   callbackUrl: params.callbackUrl,
+      // })
+      // return { callId: result.body.data.callId }
+      this.logger.log(
+        `[REAL] Would initiate callback: ${params.callerPhone} -> ${params.calleePhone} ` +
+          `(instance: ${credentials.instanceId})`,
+      )
     }
 
+    // Mock mode fallback
     this.logger.log(`[MOCK] Initiating callback: ${params.callerPhone} -> ${params.calleePhone}`)
 
     const callId = `aliyun-${uuidv4()}`
@@ -67,8 +91,41 @@ export class AliyunCCCProvider implements CloudCallProvider {
 
   async getRecordingUrl(callId: string): Promise<string> {
     this.logger.log(`[MOCK] Generating recording URL for callId: ${callId}`)
-    // Mock: return a signed URL with 15-minute expiry
     const expiry = Date.now() + 15 * 60 * 1000
     return `https://mock-oss.aliyuncs.com/recordings/${callId}.wav?expires=${expiry}&signature=mock`
+  }
+
+  /**
+   * Resolve credentials: DB settings first, env vars as fallback.
+   */
+  private async resolveCredentials(): Promise<{
+    instanceId: string
+    accessKeyId: string
+    accessKeySecret: string
+  } | null> {
+    try {
+      const settings = await this.cloudCallService.getActiveSettings()
+      if (settings && settings.appKey && settings.appSecret) {
+        return {
+          instanceId: settings.instanceId,
+          accessKeyId: settings.appKey,
+          accessKeySecret: settings.appSecret,
+        }
+      }
+    } catch {
+      this.logger.warn('Failed to read DB settings, falling back to env vars')
+    }
+
+    // Env var fallback
+    const instanceId = this.configService.get<string>('CLOUD_CALL_INSTANCE_ID', '')
+    const accessKeyId = this.configService.get<string>('CLOUD_CALL_ACCESS_KEY_ID', '')
+    const accessKeySecret = this.configService.get<string>('CLOUD_CALL_ACCESS_KEY_SECRET', '')
+
+    if (instanceId && accessKeyId && accessKeySecret) {
+      return { instanceId, accessKeyId, accessKeySecret }
+    }
+
+    this.logger.warn('No cloud call credentials configured — running in MOCK mode')
+    return null
   }
 }

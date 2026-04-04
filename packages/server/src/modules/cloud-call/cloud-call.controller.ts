@@ -45,6 +45,36 @@ export class CloudCallController {
     return { code: 0, message: 'success' }
   }
 
+  @Get('settings')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '获取云呼配置（Admin only）' })
+  async getSettings() {
+    const settings = await this.cloudCallService.getSettings()
+    return { code: 0, message: 'success', data: settings }
+  }
+
+  @Put('settings')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '更新云呼配置（Admin only）' })
+  async updateSettings(@Body() dto: UpdateCloudCallSettingsDto) {
+    const result = await this.cloudCallService.updateSettings(dto)
+    return { code: 0, message: 'success', data: result }
+  }
+
+  @Post('settings/test')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '测试云呼连接（Admin only）' })
+  async testConnection() {
+    const result = await this.cloudCallService.testConnection()
+    return { code: 0, message: 'success', data: result }
+  }
+
   @Get('line-status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
@@ -89,25 +119,5 @@ export class CloudCallController {
   ) {
     const url = await this.cloudCallService.getRecordingUrl(id, userId, role)
     return { code: 0, message: 'success', data: { url } }
-  }
-
-  @Get('settings')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: '获取云呼配置（Admin only）' })
-  async getSettings() {
-    const settings = await this.cloudCallService.getSettings()
-    return { code: 0, message: 'success', data: settings }
-  }
-
-  @Put('settings')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: '更新云呼配置（Admin only）' })
-  async updateSettings(@Body() settings: UpdateCloudCallSettingsDto) {
-    const result = await this.cloudCallService.updateSettings(settings)
-    return { code: 0, message: 'success', data: result }
   }
 }

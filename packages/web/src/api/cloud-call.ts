@@ -9,8 +9,11 @@ export interface CloudCallProvider {
 export interface CloudCallSettings {
   provider: string
   appKey: string
-  appSecret: string
+  instanceId: string
   webhookUrl: string
+  phoneNumbers: string
+  concurrentLines: number
+  isActive: boolean
 }
 
 export interface LineStatus {
@@ -39,7 +42,14 @@ export function getCloudCallSettings() {
   return request.get<CloudCallSettings>('/cloud-call/settings')
 }
 
-export function updateCloudCallSettings(data: Partial<CloudCallSettings>) {
+export interface UpdateCloudCallSettingsParams {
+  provider?: string
+  appKey?: string
+  appSecret?: string
+  webhookUrl?: string
+}
+
+export function updateCloudCallSettings(data: UpdateCloudCallSettingsParams) {
   return request.put<CloudCallSettings>('/cloud-call/settings', data)
 }
 
