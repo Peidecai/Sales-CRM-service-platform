@@ -3,9 +3,12 @@
 # ============================================================
 FROM node:20-alpine AS deps
 
-RUN npm install -g pnpm@9
+RUN npm install -g pnpm@9 --registry=https://registry.npmmirror.com
 
 WORKDIR /app
+
+# Use China npm mirror for faster installs
+RUN pnpm config set registry https://registry.npmmirror.com
 
 # Copy workspace config for dependency caching
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
