@@ -155,7 +155,7 @@ import {
 } from '@/api/cloud-call'
 
 const providers = [
-  { id: 'aliyun-ccc', name: 'aliyun-ccc', label: '阿里云CCC' },
+  { id: 'aliyun', name: 'aliyun', label: '阿里云CCC' },
   { id: 'tianrun', name: 'tianrun', label: '天润融通' },
   { id: 'ronglian', name: 'ronglian', label: '容联七陌' },
 ]
