@@ -70,7 +70,17 @@
           show-overflow-tooltip
           sortable
         />
-        <el-table-column prop="phone" label="手机" min-width="130" />
+        <el-table-column prop="phone" label="手机" min-width="160">
+          <template #default="{ row }">
+            <template v-if="row.phone">
+              {{ row.phone }}
+              <el-button type="success" link size="small" @click="handleCloudCall(row)">
+                <el-icon><Phone /></el-icon>
+              </el-button>
+            </template>
+            <span v-else>—</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="email" label="邮箱" min-width="180" show-overflow-tooltip />
         <el-table-column prop="status" label="状态" min-width="110" sortable>
           <template #default="{ row }">
@@ -254,13 +264,22 @@
 
     <!-- Import Wizard -->
     <ImportWizard v-model:visible="importWizardVisible" @success="fetchList" />
+
+    <!-- Cloud Call Dialog -->
+    <CloudCallDialog
+      v-model:visible="cloudCallDialogVisible"
+      :customer-id="cloudCallCustomer.id"
+      :customer-name="cloudCallCustomer.name"
+      :customer-phone="cloudCallCustomer.phone"
+      @call-completed="fetchList"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { Plus, Download, Upload } from '@element-plus/icons-vue'
+import { Plus, Download, Upload, Phone } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import {
   customerApi,
@@ -274,6 +293,7 @@ import { formatDate } from '@/utils/format'
 import { getStatusTagType, getStatusLabel } from '@/utils/tag-helpers'
 import { usePermission } from '@/composables/usePermission'
 import ImportWizard from './components/ImportWizard.vue'
+import CloudCallDialog from './components/CloudCallDialog.vue'
 
 const userStore = useUserStore()
 const { isAdminOrManager } = usePermission()
@@ -563,6 +583,18 @@ async function handleExport() {
 
 // ---- Import (via ImportWizard component) ----
 const importWizardVisible = ref(false)
+
+// ---- Cloud Call ----
+const cloudCallDialogVisible = ref(false)
+const cloudCallCustomer = reactive({ id: 0, name: '', phone: '' })
+
+function handleCloudCall(row: { id: number; name: string; phone?: string }) {
+  if (!row.phone) return
+  cloudCallCustomer.id = row.id
+  cloudCallCustomer.name = row.name
+  cloudCallCustomer.phone = row.phone
+  cloudCallDialogVisible.value = true
+}
 
 // ---- Init ----
 onMounted(() => {
