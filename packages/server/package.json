@@ -10,7 +10,6 @@
     "start:prod": "node dist/src/main",
     "lint": "eslint src --ext .ts --fix",
     "test": "jest",
-    "test:phase2": "jest --config jest.phase2.config.ts",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d database/data-source.ts",

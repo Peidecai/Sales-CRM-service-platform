@@ -82,6 +82,9 @@ ai-phase2-output/
 ai-test-output/
 
 # Automation scripts & task files (local dev)
+app-dev.ps1
+app-tasks.txt
+app-logs/
 claude-*.ps1
 claude-*.txt
 fix-runner.ps1
@@ -98,6 +101,22 @@ ai-phase2*-tasks.txt
 ai-test-*-tasks.txt
 ai-test-*.ps1
 ai-test-*.cmd
+miniapp-test-runner.ps1
+miniapp-test-tasks.txt
+miniapp-test-logs/
+test-all-runner.ps1
+test-all-logs/
+test-p*-runner.ps1
+test-p*-tasks.txt
+test-p*-logs/
+
+# One-off migration/entity audit artifacts
+analyze_entities.py
+check_entities.sh
+ENTITY_MIGRATION_SUMMARY.md
+MIGRATION_AUDIT_REPORT.md
+FINDINGS_SUMMARY.txt
+docs1/
 
 # Session/debug artifacts
 archives/

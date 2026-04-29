@@ -280,6 +280,33 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml logs server --ta
 # Fix: create migration, rebuild server image, run Step 7
 ```
 
+### Migration fails with "BLOB/TEXT can't have default value"
+
+MySQL 8.0 strict mode disallows DEFAULT on TEXT/BLOB/JSON columns.
+
+```bash
+# Fix: use varchar(255) instead of text for columns that need defaults
+# If migration already recorded, fix manually:
+source .env
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec mysql \
+  mysql -uroot -p"$DB_ROOT_PASSWORD" crm_sales -e \
+  "ALTER TABLE table_name ADD COLUMN col_name varchar(255) NOT NULL DEFAULT 'value';"
+
+# Then insert migration record to skip it next time:
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec mysql \
+  mysql -uroot -p"$DB_ROOT_PASSWORD" crm_sales -e \
+  "INSERT INTO migrations (timestamp, name) VALUES (TIMESTAMP, 'ClassName');"
+```
+
+### Manual SQL fails with "Duplicate column name"
+
+When running multiple ALTER TABLEs in one statement, a failure stops all subsequent statements.
+
+```bash
+# Fix: run each ALTER TABLE separately, skip existing columns
+# Then insert migration record manually
+```
+
 ### Docker network name for manual commands
 
 ```bash
