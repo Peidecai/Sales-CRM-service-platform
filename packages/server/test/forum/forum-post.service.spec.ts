@@ -101,7 +101,8 @@ describe('ForumPostService', () => {
       postRepo.createQueryBuilder.mockReturnValue(qb)
 
       await service.findAll({ sortBy: 'popular', page: 1, pageSize: 10 })
-      expect(qb.addOrderBy).toHaveBeenCalledWith('post.like_count', 'DESC')
+      expect(qb.addOrderBy).toHaveBeenCalledWith('post.isPinned', 'DESC')
+      expect(qb.addOrderBy).toHaveBeenCalledWith('post.likeCount', 'DESC')
     })
   })
 

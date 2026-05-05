@@ -57,13 +57,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useCallStateStore } from '@/stores/call-state'
-import { useUserStore } from '@/stores/user'
 import { callRecordApi } from '@/api/call-record'
 import type { CallResultData } from '@/components/CallResultForm.vue'
 import CallResultForm from '@/components/CallResultForm.vue'
 
 const callState = useCallStateStore()
-const userStore = useUserStore()
 
 const estimatedDuration = ref<number>(180)
 const createdRecordId = ref(0)
@@ -118,14 +116,17 @@ async function handleFormSubmit(data: CallResultData) {
   }
 
   try {
-    const res = await callRecordApi.create({
+    // returnTime 由 App.onShow 写入；没有拿到时用当前时间兜底，服务端会再次校验时间窗口。
+    const endedAt = normalizeEndedAt(pc.dialTime, pc.returnTime)
+    const res = await callRecordApi.createNativeOutbound({
+      clientCallId: pc.clientCallId,
       customerId: pc.customerId,
-      userId: userStore.userId,
-      callAt: pc.dialTime,
-      callType: 'manual',
+      customerPhone: pc.phone,
+      startedAt: pc.dialTime,
+      endedAt,
       callResult: data.result as 'connected' | 'no_answer' | 'busy' | 'power_off',
-      estimatedDuration: estimatedDuration.value,
       notes: data.notes || undefined,
+      simSlot: pc.simSlot,
     })
 
     if (res.code === 0) {
@@ -153,6 +154,17 @@ async function handleFormSubmit(data: CallResultData) {
   } catch {
     uni.showToast({ title: '保存失败', icon: 'none' })
   }
+}
+
+function normalizeEndedAt(startedAt: string, returnedAt?: string): string {
+  const startTime = new Date(startedAt).getTime()
+  const rawEnd = returnedAt ?? new Date().toISOString()
+  const endTime = new Date(rawEnd).getTime()
+  // 异常时退回拨出时间，避免负时长破坏后续云转写匹配。
+  if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime < startTime) {
+    return startedAt
+  }
+  return rawEnd
 }
 </script>
 

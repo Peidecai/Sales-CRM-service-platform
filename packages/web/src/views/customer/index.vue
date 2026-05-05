@@ -74,9 +74,6 @@
           <template #default="{ row }">
             <template v-if="row.phone">
               {{ row.phone }}
-              <el-button type="success" link size="small" @click="handleCloudCall(row)">
-                <el-icon><Phone /></el-icon>
-              </el-button>
             </template>
             <span v-else>—</span>
           </template>
@@ -264,22 +261,13 @@
 
     <!-- Import Wizard -->
     <ImportWizard v-model:visible="importWizardVisible" @success="fetchList" />
-
-    <!-- Cloud Call Dialog -->
-    <CloudCallDialog
-      v-model:visible="cloudCallDialogVisible"
-      :customer-id="cloudCallCustomer.id"
-      :customer-name="cloudCallCustomer.name"
-      :customer-phone="cloudCallCustomer.phone"
-      @call-completed="fetchList"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { Plus, Download, Upload, Phone } from '@element-plus/icons-vue'
+import { Plus, Download, Upload } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import {
   customerApi,
@@ -293,7 +281,6 @@ import { formatDate } from '@/utils/format'
 import { getStatusTagType, getStatusLabel } from '@/utils/tag-helpers'
 import { usePermission } from '@/composables/usePermission'
 import ImportWizard from './components/ImportWizard.vue'
-import CloudCallDialog from './components/CloudCallDialog.vue'
 
 const userStore = useUserStore()
 const { isAdminOrManager } = usePermission()
@@ -583,18 +570,6 @@ async function handleExport() {
 
 // ---- Import (via ImportWizard component) ----
 const importWizardVisible = ref(false)
-
-// ---- Cloud Call ----
-const cloudCallDialogVisible = ref(false)
-const cloudCallCustomer = reactive({ id: 0, name: '', phone: '' })
-
-function handleCloudCall(row: { id: number; name: string; phone?: string }) {
-  if (!row.phone) return
-  cloudCallCustomer.id = row.id
-  cloudCallCustomer.name = row.name
-  cloudCallCustomer.phone = row.phone
-  cloudCallDialogVisible.value = true
-}
 
 // ---- Init ----
 onMounted(() => {

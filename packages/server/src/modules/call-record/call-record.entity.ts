@@ -66,6 +66,16 @@ export class CallRecord extends BaseEntity {
   })
   providerCallId!: string | null
 
+  @Index({ unique: true })
+  @Column({
+    type: 'varchar',
+    name: 'client_call_id',
+    length: 100,
+    nullable: true,
+    comment: '客户端生成的通话幂等ID',
+  })
+  clientCallId!: string | null
+
   // ---- Relations ----
 
   @ManyToOne(() => Customer, (c) => c.callRecords, {

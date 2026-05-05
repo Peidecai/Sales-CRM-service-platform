@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common'
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger'
 import { ConfigService } from '@nestjs/config'
 import * as cookieParser from 'cookie-parser'
+import * as express from 'express'
 import helmet from 'helmet'
 import { AppModule } from './app.module'
 import { HttpExceptionFilter } from './common/filters/http-exception.filter'
@@ -22,6 +23,7 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule, {
     logger,
+    bodyParser: false,
   })
 
   const configService = app.get(ConfigService)
@@ -72,6 +74,22 @@ async function bootstrap() {
       next as Parameters<RequestContextMiddleware['use']>[2],
     ),
   )
+
+  const normalizedApiPrefix = normalizeApiPrefix(apiPrefix)
+  const callbackBodyLimit = configService.get<string>(
+    'CLOUD_TRANSCRIPTION_CALLBACK_BODY_LIMIT',
+    '2mb',
+  )
+  const jsonBodyLimit = configService.get<string>('JSON_BODY_LIMIT', '100kb')
+  const urlencodedBodyLimit = configService.get<string>('URLENCODED_BODY_LIMIT', jsonBodyLimit)
+
+  // 云转写回调包含分段识别结果，体积明显大于普通 API 请求，单独放宽限制。
+  app.use(
+    `${normalizedApiPrefix}/recordings/transcription/callback`,
+    express.json({ limit: callbackBodyLimit }),
+  )
+  app.use(express.json({ limit: jsonBodyLimit }))
+  app.use(express.urlencoded({ extended: true, limit: urlencodedBodyLimit }))
 
   // SQL injection detection middleware (#164)
   const sqlInjectionMiddleware = new SqlInjectionMiddleware()
@@ -137,6 +155,11 @@ async function bootstrap() {
   await app.listen(port)
   logger.log(`NestJS server running on: http://localhost:${port}`, 'Bootstrap')
   logger.log(`API prefix: ${apiPrefix}`, 'Bootstrap')
+}
+
+function normalizeApiPrefix(apiPrefix: string): string {
+  const normalized = apiPrefix.trim().replace(/^\/+/, '').replace(/\/+$/, '')
+  return normalized ? `/${normalized}` : ''
 }
 
 bootstrap()

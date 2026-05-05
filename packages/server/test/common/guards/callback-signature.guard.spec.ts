@@ -3,9 +3,14 @@ import { ConfigService } from '@nestjs/config'
 import { createHmac } from 'crypto'
 import { CallbackSignatureGuard } from '../../../src/common/guards/callback-signature.guard'
 
+const CALLBACK_SECRET_KEY = 'HMAC_CALLBACK_SECRET'
+const CALLBACK_SECRET = 'test-app-secret'
+
 function makeConfigService(secret = 'test-app-secret'): ConfigService {
   return {
-    get: jest.fn((_key: string, defaultVal?: string) => secret || defaultVal),
+    get: jest.fn((key: string, defaultVal?: string) =>
+      key === CALLBACK_SECRET_KEY ? secret || defaultVal : defaultVal,
+    ),
   } as unknown as ConfigService
 }
 
@@ -32,9 +37,20 @@ function computeSignature(
 }
 
 describe('CallbackSignatureGuard', () => {
-  const SECRET = 'test-app-secret'
+  const SECRET = CALLBACK_SECRET
 
   afterEach(() => jest.restoreAllMocks())
+
+  it('should read the generic HMAC callback secret key', () => {
+    const configService = makeConfigService()
+    const guard = new CallbackSignatureGuard(configService)
+    const body = { action: 'complete', callId: '123' }
+    const sig = computeSignature(SECRET, body)
+    const ctx = makeExecutionContext({ 'x-signature': sig }, body)
+
+    expect(guard.canActivate(ctx)).toBe(true)
+    expect(configService.get).toHaveBeenCalledWith(CALLBACK_SECRET_KEY, '')
+  })
 
   /* ---------- Missing secret ---------- */
 

@@ -20,5 +20,5 @@ export type { PhoneScanResult, BusinessCardResult } from './camera-ocr'
 export { checkBiometricAvailable, authenticate } from './biometric'
 export type { BiometricStatus } from './biometric'
 
-export { makeCall } from './cloud-call'
-export type { CallOptions, CallResult } from './cloud-call'
+export { makeCall } from './phone-call'
+export type { CallOptions, CallResult } from './phone-call'

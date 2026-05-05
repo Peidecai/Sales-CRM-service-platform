@@ -17,6 +17,9 @@ export interface CallRecordVO {
   callType: string
   callResult: string | null
   estimatedDuration: number | null
+  simSlot: number | null
+  simNumber: string | null
+  providerCallId: string | null
   customer?: { id: number; name: string }
   createdAt: string
 }
@@ -30,6 +33,17 @@ export interface CreateCallRecordParams {
   callType?: 'normal' | 'manual' | 'callback'
   callResult?: 'connected' | 'no_answer' | 'busy' | 'power_off'
   estimatedDuration?: number
+}
+
+export interface NativeOutboundCallParams {
+  clientCallId: string
+  customerId: number
+  customerPhone: string
+  startedAt: string
+  endedAt: string
+  notes?: string
+  callResult?: 'connected' | 'no_answer' | 'busy' | 'power_off'
+  simSlot?: number
 }
 
 export interface CallAnalysisResultVO {
@@ -65,6 +79,14 @@ export const callRecordApi = {
   /** 创建通话记录 */
   create(data: CreateCallRecordParams) {
     return http.post<CallRecordVO>('/call-records', data as unknown as Record<string, unknown>)
+  },
+
+  /** 鍒涘缓鎵嬫満鍘熺敓澶栧懠璁板綍 */
+  createNativeOutbound(data: NativeOutboundCallParams) {
+    return http.post<CallRecordVO>(
+      '/call-records/native-outbound',
+      data as unknown as Record<string, unknown>,
+    )
   },
 
   /** 获取通话记录详情 */

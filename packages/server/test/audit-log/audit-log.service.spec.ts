@@ -180,13 +180,13 @@ describe('AuditLogService', () => {
       expect(qb.andWhere).toHaveBeenCalledTimes(3)
     })
 
-    it('should order by created_at DESC', async () => {
+    it('should order by createdAt DESC', async () => {
       const qb = createMockQueryBuilder([], 0)
       repo.createQueryBuilder.mockReturnValue(qb)
 
       await service.findAll({})
 
-      expect(qb.orderBy).toHaveBeenCalledWith('log.created_at', 'DESC')
+      expect(qb.orderBy).toHaveBeenCalledWith('log.createdAt', 'DESC')
     })
   })
 })

@@ -4,8 +4,8 @@
     <view class="card header-card">
       <view class="header-row">
         <text class="customer-name">{{ detail?.customer?.name || '未知客户' }}</text>
-        <view class="call-type-tag" :class="isCloudCall ? 'type-cloud' : 'type-native'">
-          <text>{{ isCloudCall ? '云呼录音' : '直接拨号' }}</text>
+        <view class="call-type-tag" :class="hasRecording ? 'type-recorded' : 'type-native'">
+          <text>{{ hasRecording ? '录音通话' : '直接拨号' }}</text>
         </view>
       </view>
       <view class="info-grid">
@@ -24,19 +24,14 @@
       </view>
     </view>
 
-    <!-- Audio Player (cloud calls only) -->
-    <view v-if="isCloudCall && detail?.recordingUrl" class="card player-card">
+    <!-- Audio Player -->
+    <view v-if="hasRecording && detail?.recordingUrl" class="card player-card">
       <text class="section-title">通话录音</text>
       <AudioPlayer
         :src="recordingUrl"
         :duration="detail.duration || detail.estimatedDuration || 0"
         @refresh="refreshRecordingUrl"
       />
-    </view>
-
-    <view v-if="isCloudCall && !detail?.recordingUrl" class="card no-recording-card">
-      <text class="section-title">通话录音</text>
-      <text class="no-recording-text">录音处理中或暂无录音</text>
     </view>
 
     <!-- AI Analysis -->
@@ -108,7 +103,7 @@
       </view>
     </view>
 
-    <view v-if="!analysis && isCloudCall && !analysisLoading" class="card">
+    <view v-if="!analysis && hasRecording && !analysisLoading" class="card">
       <text class="section-title">AI 分析</text>
       <text class="no-recording-text">暂无分析结果</text>
     </view>
@@ -139,9 +134,9 @@ const summaryExpanded = ref(false)
 const recordingUrl = ref('')
 let recordId = 0
 
-const isCloudCall = computed(() => {
+const hasRecording = computed(() => {
   if (!detail.value) return false
-  return !!detail.value.recordingUrl || detail.value.callType === 'normal'
+  return !!detail.value.recordingUrl
 })
 
 const resultLabel = computed(() => {
@@ -307,7 +302,7 @@ onMounted(async () => {
   font-size: 22rpx;
 }
 
-.type-cloud {
+.type-recorded {
   background: #ecf5ff;
   color: #409eff;
 }

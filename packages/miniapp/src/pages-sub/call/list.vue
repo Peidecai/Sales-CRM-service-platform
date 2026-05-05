@@ -97,7 +97,6 @@ const loadMoreStatus = ref<'loading' | 'noMore' | 'error'>('noMore')
 
 const filterTabs = [
   { value: '', label: '全部' },
-  { value: 'cloud', label: '云呼录音' },
   { value: 'native', label: '直接拨号' },
 ]
 
@@ -109,12 +108,12 @@ const resultLabels: Record<string, string> = {
 }
 
 function getCallTypeLabel(record: CallRecordVO): string {
-  if (record.recordingUrl || record.callType === 'normal') return '云呼'
+  if (record.recordingUrl) return '录音'
   return '原生'
 }
 
 function getCallTypeClass(record: CallRecordVO): string {
-  if (record.recordingUrl || record.callType === 'normal') return 'type-cloud'
+  if (record.recordingUrl) return 'type-recorded'
   return 'type-native'
 }
 
@@ -164,7 +163,6 @@ async function fetchRecords(isRefresh = false) {
       pageSize,
     }
     if (keyword.value) params['keyword'] = keyword.value
-    if (filterType.value === 'cloud') params['callType'] = 'normal'
     if (filterType.value === 'native') params['callType'] = 'manual'
 
     const res = await callRecordApi.getList(params as Parameters<typeof callRecordApi.getList>[0])
@@ -289,7 +287,7 @@ onMounted(() => {
   font-size: 20rpx;
 }
 
-.type-cloud {
+.type-recorded {
   background: #ecf5ff;
   color: #409eff;
 }

@@ -13,7 +13,7 @@ const CALL_STATUS_ORDER: Record<string, number> = {
 }
 
 /**
- * 处理阿里云语音回调：更新 call_records 的 status、answered_at、duration、end_reason、provider_call_id。
+ * 处理语音供应商回调：更新 call_records 的 status、answered_at、duration、end_reason、provider_call_id。
  * 可根据 body.event 分发: call_answered / call_end 等。
  *
  * 幂等保护：

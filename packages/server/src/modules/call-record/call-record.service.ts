@@ -3,16 +3,20 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, SelectQueryBuilder } from 'typeorm'
 import { InjectQueue } from '@nestjs/bull'
 import { Queue } from 'bull'
-import { UserRole } from '@crm/shared'
+import { CallDirection, CallStatus, CallType, UserRole } from '@crm/shared'
 import { CallRecord } from './call-record.entity'
 import { CreateCallRecordDto } from './dto/create-call-record.dto'
+import { CreateNativeOutboundCallDto } from './dto/create-native-outbound-call.dto'
 import { UpdateCallRecordDto } from './dto/update-call-record.dto'
 import { QueryCallRecordDto } from './dto/query-call-record.dto'
+import { Customer } from '../customer/customer.entity'
+import { User } from '../user/user.entity'
 import type { CallSummaryJobData } from '../ai/processors/call-summary.processor'
 import type { AuthUser } from '../../common/decorators/current-user.decorator'
 
@@ -29,21 +33,112 @@ export interface CallRecordStats {
   weekCount: number
 }
 
+const MAX_NATIVE_CALL_DURATION_MS = 24 * 60 * 60 * 1000
+const FUTURE_CALL_SKEW_MS = 5 * 60 * 1000
+
 @Injectable()
 export class CallRecordService {
+  private readonly logger = new Logger(CallRecordService.name)
+
   constructor(
     @InjectRepository(CallRecord)
     private readonly callRecordRepository: Repository<CallRecord>,
+    @InjectRepository(Customer)
+    private readonly customerRepository: Repository<Customer>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     @InjectQueue('call-summary')
     private readonly callSummaryQueue: Queue<CallSummaryJobData>,
+    @InjectQueue('cloud-transcription-match')
+    private readonly transcriptionMatchQueue: Queue<{ callRecordId: number }>,
   ) {}
 
-  async create(dto: CreateCallRecordDto): Promise<CallRecord> {
+  async create(dto: CreateCallRecordDto, user: AuthUser): Promise<CallRecord> {
+    const customer = await this.customerRepository.findOne({
+      where: { id: dto.customerId },
+    })
+
+    if (!customer) {
+      throw new NotFoundException(`Customer with ID ${dto.customerId} not found`)
+    }
+
+    if (user.role === UserRole.SALES && customer.assignedUserId !== user.id) {
+      throw new ForbiddenException('No permission to create a call record for this customer')
+    }
+
     const record = this.callRecordRepository.create({
       ...dto,
+      userId: user.id,
       callAt: new Date(dto.callAt),
     })
     return this.callRecordRepository.save(record)
+  }
+
+  async createNativeOutbound(
+    dto: CreateNativeOutboundCallDto,
+    user: AuthUser,
+  ): Promise<CallRecord> {
+    // 小程序可能在弱网或返回前台时重复提交，clientCallId 保证同一次拨号只落一条记录。
+    const existing = await this.findExistingNativeOutbound(dto.clientCallId, user)
+    if (existing) return existing
+
+    const customer = await this.customerRepository.findOne({
+      where: { id: dto.customerId },
+    })
+
+    if (!customer) {
+      throw new NotFoundException(`Customer with ID ${dto.customerId} not found`)
+    }
+
+    if (user.role === UserRole.SALES && customer.assignedUserId !== user.id) {
+      throw new ForbiddenException('鎮ㄦ棤鏉冧负姝ゅ鎴峰垱寤洪€氳瘽璁板綍')
+    }
+
+    // 防止客户端篡改 customerId，把通话挂到并未拨打的客户上。
+    this.assertCustomerPhoneMatches(customer.phone, dto.customerPhone)
+
+    const startedAt = new Date(dto.startedAt)
+    const endedAt = new Date(dto.endedAt)
+    if (!Number.isFinite(startedAt.getTime()) || !Number.isFinite(endedAt.getTime())) {
+      throw new BadRequestException('Invalid call time')
+    }
+    if (endedAt.getTime() < startedAt.getTime()) {
+      throw new BadRequestException('Call end time cannot be earlier than start time')
+    }
+    this.assertNativeCallTimeWindow(startedAt, endedAt)
+
+    const duration = Math.round((endedAt.getTime() - startedAt.getTime()) / 1000)
+    const caller = await this.userRepository.findOne({ where: { id: user.id } })
+    const notes = dto.notes?.trim()
+
+    const record = this.callRecordRepository.create({
+      clientCallId: dto.clientCallId,
+      customerId: customer.id,
+      userId: user.id,
+      callAt: startedAt,
+      duration,
+      estimatedDuration: duration,
+      callType: CallType.MANUAL,
+      callResult: dto.callResult ?? null,
+      notes: notes || null,
+      simSlot: dto.simSlot ?? null,
+      simNumber: caller?.phone ?? null,
+      direction: CallDirection.OUTBOUND,
+      status: CallStatus.ENDED,
+    })
+
+    let saved: CallRecord
+    try {
+      saved = await this.callRecordRepository.save(record)
+    } catch (error) {
+      if (!this.isDuplicateKeyError(error)) throw error
+      const duplicate = await this.findExistingNativeOutbound(dto.clientCallId, user)
+      if (duplicate) return duplicate
+      throw error
+    }
+    // 云转写回调可能先到达并处于 PENDING，保存本地通话后主动触发一次反向匹配。
+    await this.scheduleCloudTranscriptionMatch(saved.id)
+    return saved
   }
 
   async findAll(query: QueryCallRecordDto, user: AuthUser): Promise<CallRecordListResult> {
@@ -223,6 +318,76 @@ export class CallRecordService {
       return `"${value.replace(/"/g, '""')}"`
     }
     return value
+  }
+
+  private assertCustomerPhoneMatches(customerPhone: string | null, submittedPhone: string): void {
+    const expected = this.normalizePhone(customerPhone)
+    const actual = this.normalizePhone(submittedPhone)
+
+    if (!expected || !actual || expected !== actual) {
+      throw new BadRequestException('Submitted phone does not match the selected customer')
+    }
+  }
+
+  private async findExistingNativeOutbound(
+    clientCallId: string,
+    user: AuthUser,
+  ): Promise<CallRecord | null> {
+    const existing = await this.callRecordRepository.findOne({ where: { clientCallId } })
+    if (!existing) return null
+
+    if (existing.userId !== user.id) {
+      throw new ForbiddenException('Client call id belongs to another user')
+    }
+
+    return existing
+  }
+
+  private assertNativeCallTimeWindow(startedAt: Date, endedAt: Date): void {
+    const nowWithSkew = Date.now() + FUTURE_CALL_SKEW_MS
+    // 允许少量设备时钟/网络偏移，但拒绝明显未来时间和异常超长通话。
+    if (startedAt.getTime() > nowWithSkew || endedAt.getTime() > nowWithSkew) {
+      throw new BadRequestException('Call time cannot be in the future')
+    }
+
+    if (endedAt.getTime() - startedAt.getTime() > MAX_NATIVE_CALL_DURATION_MS) {
+      throw new BadRequestException('Call duration exceeds maximum allowed duration')
+    }
+  }
+
+  private isDuplicateKeyError(error: unknown): boolean {
+    const err = error as { code?: string; errno?: number; message?: string }
+    return (
+      err.code === 'ER_DUP_ENTRY' ||
+      err.errno === 1062 ||
+      String(err.message ?? '').includes('Duplicate entry')
+    )
+  }
+
+  private normalizePhone(value: string | null | undefined): string {
+    const digits = String(value ?? '').replace(/\D/g, '')
+    if (digits.startsWith('0086') && digits.length === 15) return digits.slice(4)
+    if (digits.startsWith('86') && digits.length === 13) return digits.slice(2)
+    return digits
+  }
+
+  private async scheduleCloudTranscriptionMatch(callRecordId: number): Promise<void> {
+    try {
+      await this.transcriptionMatchQueue.add(
+        { callRecordId },
+        {
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 30000 },
+          jobId: `native-outbound-match:${callRecordId}`,
+          removeOnComplete: 100,
+          removeOnFail: 200,
+        },
+      )
+    } catch (error) {
+      this.logger.warn(
+        `Failed to enqueue cloud transcription match for call record #${callRecordId}: ${String(error)}`,
+      )
+    }
   }
 
   /**

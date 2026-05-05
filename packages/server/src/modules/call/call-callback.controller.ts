@@ -13,7 +13,7 @@ export class CallCallbackController {
 
   @Post()
   @UseGuards(CallbackSignatureGuard, ReplayAttackGuard)
-  async handleAliyunCallback(@Body() body: Record<string, unknown>, @Res() res: Response) {
+  async handleProviderCallback(@Body() body: Record<string, unknown>, @Res() res: Response) {
     await this.callCallbackService.handleCallback(body)
     res.status(200).send('OK')
   }

@@ -68,9 +68,9 @@
                     link
                     size="small"
                     style="margin-left: 8px"
-                    @click="handleCloudCall"
+                    @click="handleCreateCallRecord"
                   >
-                    <el-icon><Phone /></el-icon>云呼
+                    <el-icon><Plus /></el-icon>记录通话
                   </el-button>
                 </template>
                 <span v-else>—</span>
@@ -195,16 +195,6 @@
                     callRecords.length
                   }}</el-tag>
                 </span>
-                <el-button
-                  type="success"
-                  size="small"
-                  plain
-                  :disabled="!customer?.phone"
-                  @click="handleCloudCall"
-                >
-                  <el-icon><Phone /></el-icon>
-                  云呼
-                </el-button>
                 <el-button type="primary" size="small" plain @click="handleCreateCallRecord">
                   <el-icon><Plus /></el-icon>
                   记录通话
@@ -464,15 +454,6 @@
           </el-button>
         </template>
       </el-dialog>
-
-      <!-- Cloud Call Dialog -->
-      <CloudCallDialog
-        v-model:visible="cloudCallDialogVisible"
-        :customer-id="customerId"
-        :customer-name="customer?.name ?? ''"
-        :customer-phone="customer?.phone ?? ''"
-        @call-completed="onCloudCallCompleted"
-      />
     </template>
 
     <!-- Not found -->
@@ -486,12 +467,11 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules, type TagProps } from 'element-plus'
-import { ArrowLeft, Edit, Delete, Plus, Calendar, MagicStick, Phone } from '@element-plus/icons-vue'
+import { ArrowLeft, Edit, Delete, Plus, Calendar, MagicStick } from '@element-plus/icons-vue'
 import CustomerProfileTab from './components/CustomerProfileTab.vue'
 import AiSidePanel from './components/AiSidePanel.vue'
 import AiCommunicationBrief from './components/AiCommunicationBrief.vue'
 import AiCallReviewTab from './components/AiCallReviewTab.vue'
-import CloudCallDialog from './components/CloudCallDialog.vue'
 import {
   customerApi,
   CustomerStatus,
@@ -822,21 +802,6 @@ function handleCreateCallRecord() {
     path: '/call-record',
     query: { createForCustomer: String(customerId) },
   })
-}
-
-// ---- Cloud Call ----
-const cloudCallDialogVisible = ref(false)
-
-function handleCloudCall() {
-  if (!customer.value?.phone) {
-    ElMessage.warning('该客户没有手机号，无法云呼')
-    return
-  }
-  cloudCallDialogVisible.value = true
-}
-
-function onCloudCallCompleted() {
-  fetchCustomer()
 }
 
 // ---- Init ----

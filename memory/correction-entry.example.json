@@ -1,0 +1,8 @@
+{
+  "timestamp": "2026-05-05T00:00:00+08:00",
+  "task": "CRM harness or feature work",
+  "incorrect_behavior": "Example: treating an old README or CLAUDE claim as proof without fresh code or command evidence.",
+  "correction": "Use source inspection and verification commands as higher authority; record stale docs separately.",
+  "affected_area": "docs/project, README/CLAUDE, or affected package/module",
+  "promoted_to_rule": true
+}

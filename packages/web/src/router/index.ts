@@ -378,16 +378,6 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '线索详情', breadcrumb: ['获客管理', '线索详情'] },
       },
       {
-        path: 'cloud-call/settings',
-        name: 'CloudCallSettings',
-        component: () => import('@/views/cloud-call/settings.vue'),
-        meta: {
-          title: '云呼设置',
-          breadcrumb: ['云呼设置'],
-          roles: [UserRole.ADMIN],
-        },
-      },
-      {
         path: 'speech',
         name: 'Speech',
         component: () => import('@/views/speech/index.vue'),
@@ -657,7 +647,7 @@ const router = createRouter({
   routes,
 })
 
-// Route guard
+// 路由守卫只做登录态和 meta.roles 粗粒度控制，数据级权限仍以后端为准。
 router.beforeEach((to, _from, next) => {
   const userStore = useUserStore()
   const requiresAuth = to.meta.requiresAuth !== false
@@ -672,7 +662,6 @@ router.beforeEach((to, _from, next) => {
     return
   }
 
-  // Role-based access control
   const requiredRoles = to.meta.roles as UserRole[] | undefined
   if (requiredRoles && requiredRoles.length > 0) {
     const userRole = userStore.userRole as UserRole

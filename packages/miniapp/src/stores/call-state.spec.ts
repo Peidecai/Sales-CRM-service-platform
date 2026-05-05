@@ -7,12 +7,11 @@ describe('useCallStateStore', () => {
     setActivePinia(createPinia())
   })
 
-  const mockCustomer = { id: 1, name: 'Test Corp', phone: '13800001111' }
+  const mockCustomer = { id: 1, name: 'Test Corp', phone: '13800001111', simSlot: 1 }
 
   it('has correct initial state', () => {
     const store = useCallStateStore()
     expect(store.pendingCall).toBeNull()
-    expect(store.callMode).toBe('native')
     expect(store.isInCall).toBe(false)
     expect(store.pending).toBe(false)
   })
@@ -24,9 +23,11 @@ describe('useCallStateStore', () => {
     const after = new Date().toISOString()
 
     expect(store.pendingCall).not.toBeNull()
+    expect(store.pendingCall!.clientCallId).toMatch(/^native-\d+-[a-z0-9]+$/)
     expect(store.pendingCall!.customerId).toBe(1)
     expect(store.pendingCall!.customerName).toBe('Test Corp')
     expect(store.pendingCall!.phone).toBe('13800001111')
+    expect(store.pendingCall!.simSlot).toBe(1)
     expect(store.pendingCall!.dialTime >= before).toBe(true)
     expect(store.pendingCall!.dialTime <= after).toBe(true)
     expect(store.pendingCall!.returnTime).toBeUndefined()
@@ -39,6 +40,8 @@ describe('useCallStateStore', () => {
       (uni.setStorageSync as ReturnType<typeof vi.fn>).mock.calls.at(-1)![1],
     )
     expect(saved.customerId).toBe(1)
+    expect(saved.clientCallId).toBe(store.pendingCall!.clientCallId)
+    expect(saved.simSlot).toBe(1)
   })
 
   it('setPendingCall makes pending computed return true', () => {
@@ -84,29 +87,6 @@ describe('useCallStateStore', () => {
     expect(uni.removeStorageSync).toHaveBeenCalledWith('crm_pending_call')
   })
 
-  it('setCallMode("cloud", true) updates mode and saves to storage', () => {
-    const store = useCallStateStore()
-    store.setCallMode('cloud', true)
-    expect(store.callMode).toBe('cloud')
-    expect(uni.setStorageSync).toHaveBeenCalledWith('crm_call_mode', 'cloud')
-  })
-
-  it('setCallMode("cloud", false) updates mode but does NOT save to storage', () => {
-    const store = useCallStateStore()
-    store.setCallMode('cloud', false)
-    expect(store.callMode).toBe('cloud')
-    expect(uni.setStorageSync).not.toHaveBeenCalledWith(
-      'crm_call_mode',
-      expect.anything(),
-    )
-  })
-
-  it('clearRememberedMode removes call mode from storage', () => {
-    const store = useCallStateStore()
-    store.clearRememberedMode()
-    expect(uni.removeStorageSync).toHaveBeenCalledWith('crm_call_mode')
-  })
-
   describe('restore from storage', () => {
     it('loads a recent pendingCall from storage', () => {
       const recentCall = {
@@ -120,9 +100,11 @@ describe('useCallStateStore', () => {
       // Create store AFTER storage is populated
       const store = useCallStateStore()
       expect(store.pendingCall).not.toBeNull()
+      expect(store.pendingCall!.clientCallId).toMatch(/^native-\d+-[a-z0-9]+$/)
       expect(store.pendingCall!.customerId).toBe(2)
       expect(store.pendingCall!.customerName).toBe('Restored Corp')
       expect(store.pending).toBe(true)
+      expect(uni.setStorageSync).toHaveBeenCalledWith('crm_pending_call', expect.any(String))
     })
 
     it('returns null for expired (25h-old) pendingCall', () => {

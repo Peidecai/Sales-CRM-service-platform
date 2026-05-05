@@ -200,10 +200,6 @@
           <el-icon><Setting /></el-icon>
           <template #title> 用户管理 </template>
         </el-menu-item>
-        <el-menu-item v-if="isAdmin" index="/cloud-call/settings">
-          <el-icon><Headset /></el-icon>
-          <template #title> 云呼设置 </template>
-        </el-menu-item>
         <el-menu-item v-if="isAdmin" index="/settings">
           <el-icon><Tools /></el-icon>
           <template #title> 系统设置 </template>
@@ -370,7 +366,6 @@ import {
   MagicStick,
   Magnet,
   Tools,
-  Headset,
   UserFilled,
   Box,
   Hide,
@@ -437,7 +432,7 @@ function handleNotificationClick(item: NotificationPayload) {
 }
 
 const activeRoute = computed(() => {
-  // For detail pages, highlight the parent menu item
+  // 详情页和子功能页高亮所属一级菜单，避免侧栏跟随动态 id 路由跳动。
   const path = route.path
   if (path.startsWith('/customer/groups')) return '/customer/groups'
   if (path.startsWith('/customer')) return '/customer'
@@ -472,7 +467,6 @@ const activeRoute = computed(() => {
   if (path.startsWith('/ai/employee-profile')) return '/ai/reports'
   if (path.startsWith('/ai/reports')) return '/ai/reports'
   if (path.startsWith('/audit-log')) return '/audit-log'
-  if (path.startsWith('/cloud-call')) return '/cloud-call/settings'
   if (path.startsWith('/settings/roles')) return '/settings/roles'
   if (path.startsWith('/settings/data-masking')) return '/settings/data-masking'
   if (path.startsWith('/settings/ai/prompts')) return '/settings/ai/prompts'
@@ -525,7 +519,6 @@ const breadcrumbRouteMap: Record<string, string> = {
   员工画像: '/ai/employee-profile',
   审计日志: '/audit-log',
   用户管理: '/user',
-  云呼设置: '/cloud-call/settings',
   系统设置: '/settings',
   角色管理: '/settings/roles',
   数据脱敏: '/settings/data-masking',

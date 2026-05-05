@@ -374,7 +374,7 @@ export enum CallResult {
  * 录音来源类型
  */
 export enum RecordingSourceType {
-  PLATFORM = "platform", // 平台录音（阿里云CCC）
+  PLATFORM = "platform", // 平台录音
   VOICE_MEMO = "voice_memo", // 语音速记（方案B）
   MANUAL_UPLOAD = "manual_upload", // 手动上传录音
 }

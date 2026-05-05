@@ -60,6 +60,20 @@ packages/server/data/
 
 # AI assistant
 .claude/
+.codex/
+
+# Local Codex harness template source.
+# Keep these files available as a local reference, but do not commit the
+# external template repository into this product repo. Project-owned takeover
+# docs live under docs/project/ and are intentionally not ignored.
+docs/.git/
+docs/.git.local-template-source/
+docs/.github/
+docs/codex-skills/
+docs/superpowers/
+docs/.gitattributes
+docs/README.md
+docs/项目接管首轮提示词包.md
 
 # Test results
 test-results/

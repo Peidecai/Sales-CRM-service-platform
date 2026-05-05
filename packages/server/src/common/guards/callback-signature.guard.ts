@@ -4,8 +4,8 @@ import { createHmac, timingSafeEqual } from 'crypto'
 import type { Request } from 'express'
 
 /**
- * 校验厂商回调签名（如阿里云语音/OSS/讯飞）。
- * 从 header 或 body 取签名，使用配置的 AppSecret 做 HMAC-SHA256 校验。
+ * 校验厂商回调签名（如 OSS/讯飞/其他语音供应商）。
+ * 从 header 或 body 取签名，使用配置的回调密钥做 HMAC-SHA256 校验。
  */
 @Injectable()
 export class CallbackSignatureGuard implements CanActivate {
@@ -15,7 +15,7 @@ export class CallbackSignatureGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>()
-    const secret = this.configService.get<string>('ALIYUN_VOICE_APP_SECRET', '')
+    const secret = this.configService.get<string>('HMAC_CALLBACK_SECRET', '')
     if (!secret) {
       throw new ForbiddenException('Callback signature not configured')
     }
@@ -65,6 +65,7 @@ export class CallbackSignatureGuard implements CanActivate {
   private getBodyForSignature(req: Request): string {
     const body = req.body
     if (!body || typeof body !== 'object') return ''
+    // 签名串固定按 key 排序，避免 JSON 字段顺序差异导致合法回调验签失败。
     const keys = Object.keys(body)
       .filter((k) => k !== 'signature')
       .sort()

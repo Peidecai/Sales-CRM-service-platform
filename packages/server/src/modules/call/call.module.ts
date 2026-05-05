@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common'
-import { AliyunVoiceAdapter } from './adapters/aliyun-voice.adapter'
+import { UnsupportedVoiceAdapter } from './adapters/unsupported-voice.adapter'
 import { CallService } from './call.service'
 import { CallController } from './call.controller'
 import { CallCallbackController } from './call-callback.controller'
@@ -25,7 +25,7 @@ import { CallbackSignatureGuard } from '../../common/guards/callback-signature.g
     CallbackSignatureGuard,
     {
       provide: 'VOICE_PROVIDER',
-      useClass: AliyunVoiceAdapter,
+      useClass: UnsupportedVoiceAdapter,
     },
   ],
   exports: [CallService, CustomerMatcherService, PopupAggregateService],

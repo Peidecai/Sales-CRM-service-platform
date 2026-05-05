@@ -39,7 +39,6 @@ import { PaymentModule } from './modules/payment/payment.module'
 import { ContractModule } from './modules/contract/contract.module'
 import { ApprovalModule } from './modules/approval/approval.module'
 import { ProspectModule } from './modules/prospect/prospect.module'
-import { CloudCallModule } from './modules/cloud-call/cloud-call.module'
 import { PushModule } from './modules/push/push.module'
 import { CheckInModule } from './modules/check-in/check-in.module'
 import { AppVersionModule } from './modules/app-version/app-version.module'
@@ -133,7 +132,6 @@ import { DashboardModule } from './modules/dashboard/dashboard.module'
     ContractModule,
     ApprovalModule,
     ProspectModule,
-    CloudCallModule,
     PushModule,
     CheckInModule,
     AppVersionModule,

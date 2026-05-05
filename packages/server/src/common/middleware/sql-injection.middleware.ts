@@ -22,15 +22,21 @@ const SQL_PATTERNS: RegExp[] = [
 ]
 
 /** Paths excluded from SQL injection checks (e.g. rich text content) */
-const EXCLUDED_PATHS = ['/api/v1/knowledge/articles', '/api/v1/announcements']
+const EXCLUDED_PATHS = [
+  '/knowledge/articles',
+  '/announcements',
+  '/recordings/transcription/callback',
+]
 
 @Injectable()
 export class SqlInjectionMiddleware implements NestMiddleware {
   private readonly logger = new Logger(SqlInjectionMiddleware.name)
 
   use(req: Request, _res: Response, next: NextFunction): void {
-    // Skip excluded paths (rich text content)
-    if (EXCLUDED_PATHS.some((p) => req.originalUrl.startsWith(p) && req.method !== 'GET')) {
+    const requestPath = this.getPathWithoutApiPrefix(req)
+
+    // Skip excluded paths (rich text / signed third-party text payloads)
+    if (EXCLUDED_PATHS.some((p) => requestPath.startsWith(p)) && req.method !== 'GET') {
       return next()
     }
 
@@ -65,5 +71,12 @@ export class SqlInjectionMiddleware implements NestMiddleware {
 
   private isSuspicious(value: string): boolean {
     return SQL_PATTERNS.some((pattern) => pattern.test(value))
+  }
+
+  private getPathWithoutApiPrefix(req: Request): string {
+    const path = req.path || req.originalUrl.split('?')[0]
+    const configuredPrefix = process.env.API_PREFIX || '/api/v1'
+    const apiPrefix = configuredPrefix.startsWith('/') ? configuredPrefix : `/${configuredPrefix}`
+    return path.startsWith(apiPrefix) ? path.slice(apiPrefix.length) || '/' : path
   }
 }

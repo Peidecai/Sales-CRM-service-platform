@@ -11,6 +11,7 @@ describe('CallRecordController', () => {
   let callRecordService: {
     findAll: jest.Mock
     create: jest.Mock
+    createNativeOutbound: jest.Mock
     exportCsv: jest.Mock
     getStats: jest.Mock
     findOne: jest.Mock
@@ -33,6 +34,7 @@ describe('CallRecordController', () => {
     callRecordService = {
       findAll: jest.fn(),
       create: jest.fn(),
+      createNativeOutbound: jest.fn(),
       exportCsv: jest.fn(),
       getStats: jest.fn(),
       findOne: jest.fn(),
@@ -76,8 +78,20 @@ describe('CallRecordController', () => {
 
     const result = await controller.create(dto as never, user)
 
-    expect(callRecordService.create).toHaveBeenCalledWith(dto)
+    expect(callRecordService.create).toHaveBeenCalledWith(dto, user)
     expect(notificationService.callRecordCreated).toHaveBeenCalledWith(2, 'sales-b', 77)
+    expect(result).toBe(record)
+  })
+
+  it('createNativeOutbound should notify after creating a native outbound record', async () => {
+    const dto = { clientCallId: 'native-1', customerId: 3, customerPhone: '13800138001' }
+    const record = { id: 78 }
+    callRecordService.createNativeOutbound.mockResolvedValue(record)
+
+    const result = await controller.createNativeOutbound(dto as never, user)
+
+    expect(callRecordService.createNativeOutbound).toHaveBeenCalledWith(dto, user)
+    expect(notificationService.callRecordCreated).toHaveBeenCalledWith(2, 'sales-b', 78)
     expect(result).toBe(record)
   })
 

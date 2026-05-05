@@ -26,6 +26,7 @@ import { NotificationService } from '../notification/notification.service'
 import { CallRecordService } from './call-record.service'
 import { LeaderReviewService } from './leader-review.service'
 import { CreateCallRecordDto } from './dto/create-call-record.dto'
+import { CreateNativeOutboundCallDto } from './dto/create-native-outbound-call.dto'
 import { UpdateCallRecordDto } from './dto/update-call-record.dto'
 import { QueryCallRecordDto } from './dto/query-call-record.dto'
 import { CreateLeaderReviewDto } from './dto/create-leader-review.dto'
@@ -53,7 +54,19 @@ export class CallRecordController {
   @ApiOperation({ summary: 'Create a new call record' })
   @ApiResponse({ status: 201, description: 'Call record created successfully' })
   async create(@Body() dto: CreateCallRecordDto, @CurrentUser() user: AuthUser) {
-    const record = await this.callRecordService.create(dto)
+    const record = await this.callRecordService.create(dto, user)
+    this.notificationService.callRecordCreated(user.id, user.username, record.id)
+    return record
+  }
+
+  @Post('native-outbound')
+  @ApiOperation({ summary: 'Create a native outbound call record from miniapp call metadata' })
+  @ApiResponse({ status: 201, description: 'Native outbound call record created successfully' })
+  async createNativeOutbound(
+    @Body() dto: CreateNativeOutboundCallDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const record = await this.callRecordService.createNativeOutbound(dto, user)
     this.notificationService.callRecordCreated(user.id, user.username, record.id)
     return record
   }

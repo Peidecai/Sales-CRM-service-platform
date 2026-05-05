@@ -198,49 +198,18 @@
       </view>
     </view>
 
-    <!-- Dial Mode ActionSheet -->
-    <view class="dial-sheet-mask" v-if="showDialActionSheet" @click="showDialActionSheet = false">
-      <view class="dial-sheet" @click.stop>
-        <view class="dial-sheet-title">
-          <text>选择拨号方式</text>
-        </view>
-        <view class="dial-sheet-option" @click="dialNative">
-          <text class="dial-option-icon">tel</text>
-          <view class="dial-option-info">
-            <text class="dial-option-title">直接拨号</text>
-            <text class="dial-option-desc">使用手机原生拨号，不录音</text>
-          </view>
-        </view>
-        <view class="dial-sheet-option" @click="dialCloud">
-          <text class="dial-option-icon">cloud</text>
-          <view class="dial-option-info">
-            <text class="dial-option-title">云呼录音</text>
-            <text class="dial-option-desc">通过云端发起通话，自动录音+AI分析</text>
-          </view>
-        </view>
-        <view class="dial-sheet-remember" @click="toggleRemember">
-          <view class="remember-checkbox" :class="{ checked: rememberChoice }">
-            <text v-if="rememberChoice">✓</text>
-          </view>
-          <text class="remember-text">记住我的选择</text>
-        </view>
-        <view class="dial-sheet-cancel" @click="showDialActionSheet = false">
-          <text>取消</text>
-        </view>
-      </view>
-    </view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onUnmounted } from 'vue'
-import { onLoad, onShow } from '@dcloudio/uni-app'
+import { onLoad } from '@dcloudio/uni-app'
 import { customerApi, type CustomerVO, CustomerStatus } from '@/api/customer'
 import { opportunityApi, type OpportunityVO } from '@/api/opportunity'
 import { followUpApi, type FollowUpVO } from '@/api/follow-up'
 import { callRecordApi, type CallRecordVO } from '@/api/call-record'
-import { initiateCloudCall } from '@/api/cloud-call'
-import { makeCall } from '@/native/cloud-call'
+import { makeCall } from '@/native/phone-call'
+import { getPreferredSimSlot } from '@/native/sim-card'
 import { useCallStateStore } from '@/stores/call-state'
 import { http } from '@/api/request'
 
@@ -251,8 +220,6 @@ interface ContactVO {
   phone: string | null
   email: string | null
 }
-
-const CALL_MODE_KEY = 'crm_call_mode'
 
 const callState = useCallStateStore()
 const customerId = ref(0)
@@ -278,10 +245,6 @@ const tabLoading = reactive({
   opportunities: false,
   callRecords: false,
 })
-
-// Dial ActionSheet state
-const showDialActionSheet = ref(false)
-const rememberChoice = ref(false)
 
 const tabs = [
   { key: 'info', label: '基本信息' },
@@ -347,7 +310,7 @@ function callTypeLabel(callType: string | null): string {
   const map: Record<string, string> = {
     normal: '原生',
     manual: '原生',
-    callback: '云呼',
+    callback: '回呼',
   }
   return callType ? (map[callType] || '原生') : '原生'
 }
@@ -389,86 +352,35 @@ async function loadTabData(key: string) {
   }
 }
 
-/** Show dial mode selection or use remembered choice */
 function showDialSheet() {
   if (!customer.value?.phone) {
     uni.showToast({ title: '暂无电话号码', icon: 'none' })
     return
   }
-
-  const savedMode = uni.getStorageSync(CALL_MODE_KEY) as string
-  if (savedMode === 'native') {
-    dialNative()
-    return
-  }
-  if (savedMode === 'cloud') {
-    dialCloud()
-    return
-  }
-
-  showDialActionSheet.value = true
+  dialNative()
 }
 
 /** Native dial (方案B) */
 function dialNative() {
-  showDialActionSheet.value = false
   if (!customer.value?.phone) return
-
-  if (rememberChoice.value) {
-    uni.setStorageSync(CALL_MODE_KEY, 'native')
-  }
+  const simSlot = getPreferredSimSlot()
 
   callState.setPendingCall({
     id: customer.value.id,
     name: customer.value.name,
     phone: customer.value.phone,
+    simSlot: simSlot ?? undefined,
   })
 
-  makeCall({ phoneNumber: customer.value.phone }).catch(() => {
-    callState.clearPendingCall()
-  })
-}
-
-/** Cloud call (方案D) */
-async function dialCloud() {
-  showDialActionSheet.value = false
-  if (!customer.value?.phone) return
-
-  if (rememberChoice.value) {
-    uni.setStorageSync(CALL_MODE_KEY, 'cloud')
-  }
-
-  uni.showLoading({ title: '发起云呼...' })
-  try {
-    const userPhone = uni.getStorageSync('crm_user_phone') as string
-    if (!userPhone) {
-      uni.showToast({ title: '请先在设置中绑定手机号', icon: 'none' })
-      return
-    }
-
-    const res = await initiateCloudCall({
-      customerId: String(customer.value.id),
-      customerPhone: customer.value.phone,
-      callerPhone: userPhone,
+  makeCall({ phoneNumber: customer.value.phone, simSlot: simSlot ?? undefined })
+    .then((result) => {
+      if (!result.success) {
+        callState.clearPendingCall()
+      }
     })
-
-    if (res.code === 0 && res.data) {
-      uni.showToast({ title: '云呼已发起，请接听来电', icon: 'none', duration: 3000 })
-    } else {
-      uni.showToast({ title: '云呼发起失败', icon: 'none' })
-    }
-  } catch {
-    uni.showToast({ title: '云呼服务异常', icon: 'none' })
-  } finally {
-    uni.hideLoading()
-  }
-}
-
-function toggleRemember() {
-  rememberChoice.value = !rememberChoice.value
-  if (!rememberChoice.value) {
-    uni.removeStorageSync(CALL_MODE_KEY)
-  }
+    .catch(() => {
+      callState.clearPendingCall()
+    })
 }
 
 function addFollowUp() {
@@ -546,12 +458,6 @@ onLoad((options) => {
   if (customerId.value) {
     loadDetail()
     loadContacts() // loaded with info tab
-  }
-
-  // Restore remember state
-  const savedMode = uni.getStorageSync(CALL_MODE_KEY) as string
-  if (savedMode) {
-    rememberChoice.value = true
   }
 
   // Listen for call record creation to auto-refresh
@@ -1075,116 +981,4 @@ onUnmounted(() => {
   color: #666;
 }
 
-/* Dial ActionSheet */
-.dial-sheet-mask {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 200;
-  display: flex;
-  align-items: flex-end;
-}
-
-.dial-sheet {
-  width: 100%;
-  background: #ffffff;
-  border-radius: 24rpx 24rpx 0 0;
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-.dial-sheet-title {
-  text-align: center;
-  padding: 28rpx;
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #333;
-  border-bottom: 1rpx solid #f0f0f0;
-}
-
-.dial-sheet-option {
-  display: flex;
-  align-items: center;
-  padding: 28rpx 32rpx;
-  border-bottom: 1rpx solid #f5f5f5;
-}
-
-.dial-sheet-option:active {
-  background: #f5f5f5;
-}
-
-.dial-option-icon {
-  width: 80rpx;
-  height: 80rpx;
-  line-height: 80rpx;
-  text-align: center;
-  border-radius: 16rpx;
-  background: #ecf5ff;
-  color: #409eff;
-  font-size: 26rpx;
-  margin-right: 24rpx;
-  flex-shrink: 0;
-}
-
-.dial-option-info {
-  flex: 1;
-}
-
-.dial-option-title {
-  font-size: 28rpx;
-  color: #333;
-  font-weight: 500;
-  display: block;
-  margin-bottom: 4rpx;
-}
-
-.dial-option-desc {
-  font-size: 24rpx;
-  color: #999;
-  display: block;
-}
-
-.dial-sheet-remember {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24rpx;
-  gap: 12rpx;
-}
-
-.remember-checkbox {
-  width: 36rpx;
-  height: 36rpx;
-  border: 2rpx solid #ddd;
-  border-radius: 6rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22rpx;
-  color: #ffffff;
-}
-
-.remember-checkbox.checked {
-  background: #409eff;
-  border-color: #409eff;
-}
-
-.remember-text {
-  font-size: 26rpx;
-  color: #666;
-}
-
-.dial-sheet-cancel {
-  text-align: center;
-  padding: 28rpx;
-  font-size: 28rpx;
-  color: #999;
-  border-top: 8rpx solid #f5f5f5;
-}
-
-.dial-sheet-cancel:active {
-  background: #f5f5f5;
-}
 </style>

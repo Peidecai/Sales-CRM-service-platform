@@ -24,6 +24,7 @@ const EXEMPT_PATHS = new Set([
   '/auth/captcha',
   '/auth/wx-login',
   '/auth/public-key',
+  '/recordings/transcription/callback',
 ])
 
 @Injectable()
@@ -47,10 +48,7 @@ export class CsrfMiddleware implements NestMiddleware {
     }
 
     // Check exempt paths (strip the global API prefix to get the relative path)
-    const apiPrefix = process.env.API_PREFIX || '/api/v1'
-    const relativePath = req.path.startsWith(apiPrefix)
-      ? req.path.slice(apiPrefix.length)
-      : req.path
+    const relativePath = this.getPathWithoutApiPrefix(req)
 
     if (EXEMPT_PATHS.has(relativePath)) {
       return next()
@@ -76,5 +74,12 @@ export class CsrfMiddleware implements NestMiddleware {
     }
 
     next()
+  }
+
+  private getPathWithoutApiPrefix(req: Request): string {
+    const path = req.path || req.originalUrl.split('?')[0]
+    const configuredPrefix = process.env.API_PREFIX || '/api/v1'
+    const apiPrefix = configuredPrefix.startsWith('/') ? configuredPrefix : `/${configuredPrefix}`
+    return path.startsWith(apiPrefix) ? path.slice(apiPrefix.length) || '/' : path
   }
 }

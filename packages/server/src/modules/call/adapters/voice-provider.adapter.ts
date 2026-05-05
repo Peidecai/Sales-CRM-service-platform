@@ -1,5 +1,5 @@
 /**
- * 语音厂商适配器接口，便于切换阿里云/其他厂商。
+ * 语音厂商适配器接口，便于接入外部呼叫供应商。
  */
 export interface VoiceProviderAdapter {
   dial(params: {

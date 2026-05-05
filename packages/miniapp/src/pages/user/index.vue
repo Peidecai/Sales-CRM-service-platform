@@ -50,12 +50,6 @@
           @click="showSimPicker"
         />
         <!-- #endif -->
-        <ListItem
-          title="外呼模式选择"
-          icon="&#x1F4DE;"
-          :extra="callModeLabel"
-          @click="showCallModePicker"
-        />
         <!-- #ifdef APP-PLUS -->
         <ListItem
           title="版本更新"
@@ -93,7 +87,6 @@ import StatsCard from '@/components/StatsCard.vue'
 import ListItem from '@/components/ListItem.vue'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
-import { useCallStateStore, type CallMode } from '@/stores/call-state'
 import { salesTargetApi, type OverviewItem } from '@/api/sales-target'
 import { TargetMetricType } from '@crm/shared'
 // #ifdef APP-PLUS
@@ -102,8 +95,6 @@ import { getSimCards, getPreferredSimSlot, setPreferredSimSlot, type SimDetectio
 
 const userStore = useUserStore()
 const appStore = useAppStore()
-const callStateStore = useCallStateStore()
-
 const displayInitial = computed(() => {
   const name = userStore.displayName
   return name ? name.charAt(0).toUpperCase() : 'U'
@@ -185,31 +176,6 @@ function showSimPicker(): void {
 // #ifndef APP-PLUS
 const simResult = ref({ supported: false, cards: [] as Array<{ slot: number; carrier: string }> })
 // #endif
-
-// --- Call Mode ---
-const callModeLabels: Record<string, string> = {
-  native: '原生拨号',
-  cloud: '云呼录音',
-  ask: '每次询问',
-}
-
-const callModeLabel = computed(() => callModeLabels[callStateStore.callMode] || '原生拨号')
-
-function showCallModePicker(): void {
-  const modes: Array<{ value: CallMode | 'ask'; label: string }> = [
-    { value: 'native', label: '原生拨号' },
-    { value: 'cloud', label: '云呼录音' },
-  ]
-  uni.showActionSheet({
-    itemList: modes.map((m) => m.label),
-    success: (res) => {
-      const selected = modes[res.tapIndex]
-      if (selected) {
-        callStateStore.setCallMode(selected.value as CallMode, true)
-      }
-    },
-  })
-}
 
 // --- Version Update (APP-PLUS only) ---
 const currentVersion = ref('v1.0.0')

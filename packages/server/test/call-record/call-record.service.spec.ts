@@ -4,7 +4,9 @@ import { getQueueToken } from '@nestjs/bull'
 import { NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common'
 import { CallRecordService } from '../../src/modules/call-record/call-record.service'
 import { CallRecord } from '../../src/modules/call-record/call-record.entity'
-import { UserRole } from '@crm/shared'
+import { Customer } from '../../src/modules/customer/customer.entity'
+import { User } from '../../src/modules/user/user.entity'
+import { CallResult, CallStatus, CallType, UserRole } from '@crm/shared'
 import {
   createMockRepository,
   createMockQueryBuilder,
@@ -20,19 +22,31 @@ const otherSalesUser: AuthUser = { id: 3, username: 'sales2', role: UserRole.SAL
 const mockQueue = {
   add: jest.fn().mockResolvedValue({ id: 'job-123' }),
 }
+const mockTranscriptionMatchQueue = {
+  add: jest.fn().mockResolvedValue({ id: 'match-job-123' }),
+}
 
 describe('CallRecordService', () => {
   let service: CallRecordService
   let repo: MockRepository<CallRecord>
+  let customerRepo: MockRepository<Customer>
+  let userRepo: MockRepository<User>
 
   beforeEach(async () => {
     repo = createMockRepository<CallRecord>()
+    customerRepo = createMockRepository<Customer>()
+    userRepo = createMockRepository<User>()
+    mockQueue.add.mockClear()
+    mockTranscriptionMatchQueue.add.mockClear()
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CallRecordService,
         { provide: getRepositoryToken(CallRecord), useValue: repo },
+        { provide: getRepositoryToken(Customer), useValue: customerRepo },
+        { provide: getRepositoryToken(User), useValue: userRepo },
         { provide: getQueueToken('call-summary'), useValue: mockQueue },
+        { provide: getQueueToken('cloud-transcription-match'), useValue: mockTranscriptionMatchQueue },
       ],
     }).compile()
 
@@ -45,26 +59,172 @@ describe('CallRecordService', () => {
   describe('create', () => {
     const dto = {
       customerId: 1,
-      userId: 1,
+      userId: 99,
       callAt: '2025-03-01T10:00:00Z',
       duration: 300,
       notes: 'Test notes',
     }
 
-    it('should create call record with parsed date', async () => {
-      const record = fixtures.callRecord()
-      repo.create.mockReturnValue(record)
-      repo.save.mockResolvedValue(record)
+    it('should create call record for current user and ignore client userId', async () => {
+      customerRepo.findOne.mockResolvedValue(fixtures.customer({ assignedUserId: salesUser.id }))
+      repo.create.mockImplementation((payload) => fixtures.callRecord(payload as Record<string, unknown>))
+      repo.save.mockImplementation(async (record) => record)
 
-      const result = await service.create(dto as never)
+      const result = await service.create(dto as never, salesUser)
 
       expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({
         customerId: 1,
-        userId: 1,
+        userId: salesUser.id,
         duration: 300,
       }))
       expect(repo.save).toHaveBeenCalled()
       expect(result.duration).toBe(300)
+    })
+
+    it('should reject sales users creating records for unassigned customers', async () => {
+      customerRepo.findOne.mockResolvedValue(fixtures.customer({ assignedUserId: 99 }))
+
+      await expect(service.create(dto as never, salesUser)).rejects.toThrow(ForbiddenException)
+      expect(repo.save).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('createNativeOutbound', () => {
+    beforeEach(() => {
+      jest.useFakeTimers()
+      jest.setSystemTime(new Date('2026-04-30T03:00:00.000Z'))
+    })
+
+    afterEach(() => {
+      jest.useRealTimers()
+    })
+
+    const dto = {
+      clientCallId: 'native-test-call-1',
+      customerId: 1,
+      customerPhone: '+86 13800138001',
+      startedAt: '2026-04-30T02:00:00.000Z',
+      endedAt: '2026-04-30T02:02:05.000Z',
+      callResult: CallResult.CONNECTED,
+      notes: '  discussed pricing  ',
+      simSlot: 1,
+    }
+
+    it('should create native outbound record from current user and bound phone', async () => {
+      customerRepo.findOne.mockResolvedValue(fixtures.customer({ phone: '13800138001' }))
+      userRepo.findOne.mockResolvedValue(fixtures.user({ id: salesUser.id, phone: '13900139000' }))
+      repo.create.mockImplementation((payload) => ({ id: 10, ...payload }))
+      repo.save.mockImplementation(async (record) => record)
+
+      const result = await service.createNativeOutbound(dto, salesUser)
+
+      expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({
+        customerId: 1,
+        clientCallId: 'native-test-call-1',
+        userId: salesUser.id,
+        duration: 125,
+        estimatedDuration: 125,
+        callType: CallType.MANUAL,
+        callResult: CallResult.CONNECTED,
+        status: CallStatus.ENDED,
+        simSlot: 1,
+        simNumber: '13900139000',
+        notes: 'discussed pricing',
+      }))
+      expect(result.userId).toBe(salesUser.id)
+      expect(mockTranscriptionMatchQueue.add).toHaveBeenCalledWith(
+        { callRecordId: 10 },
+        expect.objectContaining({ jobId: 'native-outbound-match:10' }),
+      )
+    })
+
+    it('should return existing native outbound record for a repeated client call id', async () => {
+      const existing = fixtures.callRecord({
+        id: 11,
+        userId: salesUser.id,
+        clientCallId: dto.clientCallId,
+      }) as CallRecord
+      repo.findOne.mockResolvedValue(existing)
+
+      const result = await service.createNativeOutbound(dto, salesUser)
+
+      expect(result).toBe(existing)
+      expect(customerRepo.findOne).not.toHaveBeenCalled()
+      expect(repo.save).not.toHaveBeenCalled()
+      expect(mockTranscriptionMatchQueue.add).not.toHaveBeenCalled()
+    })
+
+    it('should recover from duplicate client call id races by returning the existing record', async () => {
+      const existing = fixtures.callRecord({
+        id: 12,
+        userId: salesUser.id,
+        clientCallId: dto.clientCallId,
+      }) as CallRecord
+      repo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(existing)
+      customerRepo.findOne.mockResolvedValue(fixtures.customer({ phone: '13800138001' }))
+      userRepo.findOne.mockResolvedValue(fixtures.user({ id: salesUser.id, phone: '13900139000' }))
+      repo.create.mockImplementation((payload) => ({ id: 10, ...payload }))
+      repo.save.mockRejectedValueOnce({ code: 'ER_DUP_ENTRY' })
+
+      const result = await service.createNativeOutbound(dto, salesUser)
+
+      expect(result).toBe(existing)
+      expect(mockTranscriptionMatchQueue.add).not.toHaveBeenCalled()
+    })
+
+    it('should reject sales users creating records for unassigned customers', async () => {
+      customerRepo.findOne.mockResolvedValue(fixtures.customer({ assignedUserId: 99 }))
+
+      await expect(service.createNativeOutbound(dto, salesUser)).rejects.toThrow(ForbiddenException)
+      expect(repo.save).not.toHaveBeenCalled()
+    })
+
+    it('should reject customer phone mismatches', async () => {
+      customerRepo.findOne.mockResolvedValue(fixtures.customer({ phone: '13800138002' }))
+
+      await expect(service.createNativeOutbound(dto, salesUser)).rejects.toThrow(BadRequestException)
+      expect(repo.save).not.toHaveBeenCalled()
+    })
+
+    it('should reject end time earlier than start time', async () => {
+      customerRepo.findOne.mockResolvedValue(fixtures.customer({ phone: '13800138001' }))
+
+      await expect(
+        service.createNativeOutbound({ ...dto, endedAt: '2026-04-30T01:59:59.000Z' }, salesUser),
+      ).rejects.toThrow(BadRequestException)
+      expect(repo.save).not.toHaveBeenCalled()
+    })
+
+    it('should throw NotFoundException when customer does not exist', async () => {
+      customerRepo.findOne.mockResolvedValue(null)
+
+      await expect(service.createNativeOutbound(dto, salesUser)).rejects.toThrow(NotFoundException)
+    })
+
+    it('should reject future native outbound call times', async () => {
+      customerRepo.findOne.mockResolvedValue(fixtures.customer({ phone: '13800138001' }))
+
+      await expect(
+        service.createNativeOutbound({
+          ...dto,
+          startedAt: '2026-04-30T03:10:01.000Z',
+          endedAt: '2026-04-30T03:11:01.000Z',
+        }, salesUser),
+      ).rejects.toThrow(BadRequestException)
+    })
+
+    it('should reject native outbound calls longer than 24 hours', async () => {
+      customerRepo.findOne.mockResolvedValue(fixtures.customer({ phone: '13800138001' }))
+
+      await expect(
+        service.createNativeOutbound({
+          ...dto,
+          startedAt: '2026-04-28T02:00:00.000Z',
+          endedAt: '2026-04-29T02:00:01.000Z',
+        }, salesUser),
+      ).rejects.toThrow(BadRequestException)
     })
   })
 

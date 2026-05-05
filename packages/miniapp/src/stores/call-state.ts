@@ -8,40 +8,40 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
 const STORAGE_KEY = 'crm_pending_call'
-const CALL_MODE_KEY = 'crm_call_mode'
 const MAX_AGE_MS = 24 * 60 * 60 * 1000 // 24 hours
 
-export type CallMode = 'native' | 'cloud'
-
 export interface PendingCall {
+  clientCallId: string
   customerId: number
   customerName: string
   phone: string
   dialTime: string // ISO string
   returnTime?: string // ISO string, set on App.onShow
+  simSlot?: number
 }
 
 export const useCallStateStore = defineStore('callState', () => {
   // State
   const pendingCall = ref<PendingCall | null>(restoreFromStorage())
-  const callMode = ref<CallMode>(restoreCallMode())
   const isInCall = ref(false)
 
   // Getters
   const pending = computed(() => !!pendingCall.value)
-  const hasRememberedMode = computed(() => !!uni.getStorageSync(CALL_MODE_KEY))
 
   // Actions
 
   /**
    * 记录拨号上下文（点击拨号时调用）
    */
-  function setPendingCall(customer: { id: number; name: string; phone: string }) {
+  function setPendingCall(customer: { id: number; name: string; phone: string; simSlot?: number }) {
+    // clientCallId 在调起系统拨号前生成，返回后提交失败重试也能保持幂等。
     const call: PendingCall = {
+      clientCallId: createClientCallId(),
       customerId: customer.id,
       customerName: customer.name,
       phone: customer.phone,
       dialTime: new Date().toISOString(),
+      simSlot: customer.simSlot,
     }
     pendingCall.value = call
     saveToStorage(call)
@@ -55,23 +55,6 @@ export const useCallStateStore = defineStore('callState', () => {
       pendingCall.value.returnTime = new Date().toISOString()
       saveToStorage(pendingCall.value)
     }
-  }
-
-  /**
-   * 设置通话模式（可选持久化）
-   */
-  function setCallMode(mode: CallMode, remember: boolean) {
-    callMode.value = mode
-    if (remember) {
-      uni.setStorageSync(CALL_MODE_KEY, mode)
-    }
-  }
-
-  /**
-   * 清除记住的通话模式
-   */
-  function clearRememberedMode() {
-    uni.removeStorageSync(CALL_MODE_KEY)
   }
 
   /**
@@ -103,32 +86,27 @@ export const useCallStateStore = defineStore('callState', () => {
         uni.removeStorageSync(STORAGE_KEY)
         return null
       }
+      // 兼容旧版本已缓存但没有幂等 ID 的拨号上下文。
+      if (!call.clientCallId) {
+        call.clientCallId = createClientCallId()
+        saveToStorage(call)
+      }
       return call
     } catch {
       return null
     }
   }
 
-  function restoreCallMode(): CallMode {
-    try {
-      const saved = uni.getStorageSync(CALL_MODE_KEY) as string
-      if (saved === 'native' || saved === 'cloud') return saved
-    } catch {
-      // ignore
-    }
-    return 'native'
+  function createClientCallId(): string {
+    return `native-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
   }
 
   return {
     pendingCall,
     pending,
-    callMode,
     isInCall,
-    hasRememberedMode,
     setPendingCall,
     markReturned,
-    setCallMode,
-    clearRememberedMode,
     clearPendingCall,
   }
 })
