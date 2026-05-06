@@ -42,11 +42,12 @@ export class EmbeddingProcessor {
 
       if (!article) {
         this.logger.warn(`Article #${articleId} not found, removing old vectors`)
+        // 文章已删除时同步清理向量，避免 RAG 检索返回不存在的来源。
         this.vectorService.deleteArticleVectors(articleId)
         return
       }
 
-      // Chunk the article content
+      // 标题参与 embedding，便于短查询命中文章主题而不只依赖正文。
       const fullText = `${article.title}\n\n${article.content}`
       const chunks = splitIntoChunks(fullText, CHUNK_SIZE, CHUNK_OVERLAP)
 
@@ -82,6 +83,7 @@ export class EmbeddingProcessor {
     )
 
     if (job.attemptsMade >= maxAttempts) {
+      // 最终失败才通知，单次供应商抖动交给队列重试吸收。
       this.notificationService.notify({
         type: NotificationType.QUEUE_JOB_FAILED,
         actorId: 0,
@@ -113,6 +115,7 @@ function splitIntoChunks(text: string, chunkSize: number, overlap: number): stri
       chunks.push(chunk)
     }
     if (end >= text.length) break
+    // 保留重叠区，降低答案证据刚好落在分块边界时的召回损失。
     start = end - overlap
   }
 

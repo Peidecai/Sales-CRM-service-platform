@@ -69,7 +69,7 @@ export class ProspectService {
     dto: SearchProspectDto,
     user: AuthUser,
   ): Promise<{ results: SearchResultWithDuplicate[]; total: number }> {
-    // 选择可用适配器（优先 DB 配置数据源，无则用已注册适配器，再无则用 Mock）
+    // 数据源优先级：后台配置 > 环境变量适配器 > Mock，保证未配置真实渠道时功能仍可演示。
     const { adapter, dbSourceId, credentials } = await this.getAvailableAdapter()
 
     const { results, total, cost } = await adapter.search(
@@ -88,7 +88,7 @@ export class ProspectService {
       credentials,
     )
 
-    // 若使用 DB 配置的数据源，累计用量
+    // 使用量统计不影响搜索结果返回，失败只记录告警。
     if (dbSourceId !== null) {
       this.prospectConfigService
         .incrementUsage(dbSourceId)
@@ -97,15 +97,15 @@ export class ProspectService {
         )
     }
 
-    // 查重：比对已有客户
+    // 搜索结果只标记已存在客户，不在搜索阶段写入线索池。
     const resultsWithDuplicate = await this.markDuplicates(results)
 
-    // 记录搜索日志（fire-and-forget）
+    // 日志写入 fire-and-forget，避免审计辅助数据阻塞主查询。
     this.logSearch(user.id, adapter.channel, dto, total, cost).catch((err) =>
       this.logger.warn(`Failed to log search: ${String(err)}`),
     )
 
-    // 记录查询历史（fire-and-forget）
+    // 查询历史同样不影响搜索主链路。
     this.saveQueryHistory(user.id, dto as unknown as Record<string, unknown>, total).catch((err) =>
       this.logger.warn(`Failed to save query history: ${String(err)}`),
     )
@@ -124,7 +124,7 @@ export class ProspectService {
     const batchId = `batch-${Date.now()}-${user.id}`
 
     for (const item of results) {
-      // 去重：按 unifiedCreditCode + channel 或 companyName + channel
+      // 线索池按“来源渠道 + 统一信用代码/企业名”去重，不跨渠道合并第三方数据。
       const exists = await this.checkProspectExists(item)
       if (exists) {
         skipped++
@@ -169,6 +169,7 @@ export class ProspectService {
   ): Promise<{ list: Prospect[]; total: number }> {
     const { page = 1, pageSize = 20, keyword, status, channel, industry, sortBy, sortOrder } = query
 
+    // 列表缓存必须包含角色和用户，避免销售之间看到彼此的数据。
     const cacheKey = `${CACHE_KEYS.PROSPECT_LIST}:${JSON.stringify({
       page,
       pageSize,
@@ -223,6 +224,7 @@ export class ProspectService {
     const cached = await this.redisService.safeGet(cacheKey)
     if (cached) {
       const prospect = JSON.parse(cached) as Prospect
+      // 详情缓存不按用户分片，命中后仍要做所有权校验。
       this.checkOwnership(prospect, user)
       return prospect
     }
@@ -275,7 +277,7 @@ export class ProspectService {
           throw new BadRequestException(`线索 ${prospect.companyName} 已转化`)
         }
 
-        // 创建客户
+        // 转客户与线索状态更新在同一事务内，避免出现客户已建但线索未标记的半转换状态。
         const customer = queryRunner.manager.create(Customer, {
           name: prospect.companyName,
           company: prospect.companyName,
@@ -309,7 +311,7 @@ export class ProspectService {
       await queryRunner.release()
     }
 
-    // 清除缓存
+    // 转换会影响线索列表、统计和客户列表，相关缓存需要一起失效。
     await this.invalidateListCache()
     await this.invalidateStatsCache()
     await this.redisService.delByPattern('cache:customers:list:*')
@@ -488,7 +490,7 @@ export class ProspectService {
     dbSourceId: number | null
     credentials: DataSourceCredentials | undefined
   }> {
-    // 1. If a specific channel is requested (and it's not MOCK), try DB-configured adapter first
+    // 指定真实渠道时优先使用后台启用的数据源配置。
     if (channelOverride && channelOverride !== ProspectChannel.MOCK) {
       const result = await this.prospectConfigService.getConfiguredAdapter(channelOverride)
       if (result) {
@@ -500,7 +502,7 @@ export class ProspectService {
       }
     }
 
-    // 2. Try all non-MOCK channels in DB order
+    // 未指定渠道时按固定顺序选择可用真实渠道，避免随机切换导致结果不可复现。
     if (!channelOverride) {
       for (const channel of [
         ProspectChannel.TIANYANCHA,
@@ -517,11 +519,11 @@ export class ProspectService {
       }
     }
 
-    // 3. Fall back to locally-registered adapters (e.g. env-var configured)
+    // 数据库未配置时退回本地注册适配器，兼容环境变量部署。
     const real = this.adapters.find((a) => a.channel !== ProspectChannel.MOCK && a.isAvailable())
     if (real) return { adapter: real, dbSourceId: null, credentials: undefined }
 
-    // 4. Final fallback: Mock adapter
+    // 最后退回 Mock，保证开发和演示环境没有外部密钥也能运行。
     const mock = this.adapters.find((a) => a.channel === ProspectChannel.MOCK)
     if (mock) return { adapter: mock, dbSourceId: null, credentials: undefined }
 
@@ -533,11 +535,11 @@ export class ProspectService {
   ): Promise<SearchResultWithDuplicate[]> {
     if (results.length === 0) return []
 
-    // 收集所有 unifiedCreditCode 和 companyName
+    // 先批量收集查重键，避免每条搜索结果分别查询客户表。
     const codes = results.map((r) => r.unifiedCreditCode).filter((c): c is string => !!c)
     const names = results.map((r) => r.companyName)
 
-    // 查询已有客户
+    // 统一信用代码优先于名称，名称只作为缺少代码时的兜底查重。
     const existingByCode =
       codes.length > 0
         ? await this.customerRepository

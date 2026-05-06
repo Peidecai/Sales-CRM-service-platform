@@ -40,6 +40,7 @@ export class SqlInjectionMiddleware implements NestMiddleware {
       return next()
     }
 
+    // 这是入口层的兜底拦截，不能替代 Repository/QueryBuilder 的参数化查询。
     const suspicious =
       this.checkParams(req.query as Record<string, unknown>) ||
       this.checkParams(req.params as Record<string, unknown>) ||

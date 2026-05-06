@@ -88,7 +88,7 @@ export class KnowledgeService {
     const article = this.articleRepository.create(dto)
     const saved = await this.articleRepository.save(article)
 
-    // Trigger async embedding
+    // 文章保存后异步生成向量，避免 AI/队列波动阻塞正文创建。
     await this.triggerEmbedding(saved.id)
 
     return saved
@@ -149,6 +149,7 @@ export class KnowledgeService {
     } = {},
   ): Promise<{ list: KnowledgeArticle[]; total: number }> {
     const { page = 1, pageSize = 20, categoryId, status, isPublished } = options
+    // FULLTEXT 仍使用参数化；这里额外裁剪危险字符是为了降低 BOOLEAN MODE 语法误伤。
     const safeKeyword =
       String(keyword)
         .replace(/[\\'"%;]/g, ' ')
@@ -191,6 +192,7 @@ export class KnowledgeService {
     const key = CACHE_KEYS.KNOWLEDGE_SEARCH_HISTORY(userId)
     const score = Date.now()
     await this.redisService.zAdd(key, score, k)
+    // 只保留最近 50 条，避免高频搜索用户的 Redis 集合无限增长。
     await this.redisService.zRemRangeByRank(key, 0, -(KnowledgeService.SEARCH_HISTORY_MAX + 1))
   }
 
@@ -231,7 +233,7 @@ export class KnowledgeService {
     const article = await this.findOneArticle(id)
     const oldVersion = article.version ?? 0
 
-    // Create version snapshot before update
+    // 更新前先保存版本快照，后续乐观锁失败也能保留本次编辑基线。
     const versionSnapshot = this.versionRepository.create({
       articleId: id,
       version: oldVersion,
@@ -244,7 +246,7 @@ export class KnowledgeService {
     Object.assign(article, dto)
     article.version = oldVersion + 1
 
-    // Extract only scalar columns (exclude relation objects) for the QB update
+    // QueryBuilder update 只接受列值；剥离 relation 对象避免 TypeORM 尝试写入关联实例。
     const { category: _cat, ...columns } = article
     void _cat
 
@@ -260,7 +262,7 @@ export class KnowledgeService {
       throw new ConflictException('文章已被其他人修改，请刷新后重试')
     }
 
-    // Re-trigger embedding if content changed
+    // 标题也参与 embedding，上下文标题变化时同样需要重建向量。
     if (dto.content || dto.title) {
       await this.triggerEmbedding(id)
     }
@@ -272,7 +274,7 @@ export class KnowledgeService {
     const article = await this.findOneArticle(id)
     await this.articleRepository.softRemove(article)
 
-    // Remove vectors for deleted article
+    // 软删文章后同步清理向量，防止 RAG 继续召回已删除内容。
     this.vectorService.deleteArticleVectors(id)
   }
 
@@ -371,6 +373,7 @@ export class KnowledgeService {
     if (existing) {
       const deleteResult = await this.likeRepository.delete({ id: existing.id })
       if (deleteResult.affected && deleteResult.affected > 0) {
+        // 并发取消点赞时只在实际删除成功后递减，避免计数被扣成负数。
         await this.decrementLikeCount(articleId)
       }
       return this.getArticleActionStatus(articleId, userId)
@@ -380,6 +383,7 @@ export class KnowledgeService {
       await this.likeRepository.save(this.likeRepository.create({ articleId, userId }))
       await this.articleRepository.increment({ id: articleId }, 'likeCount', 1)
     } catch (error) {
+      // 唯一键冲突说明并发点赞已成功写入，直接读取最新状态即可保持幂等。
       if (!this.isDuplicateEntryError(error)) {
         throw error
       }
@@ -400,6 +404,7 @@ export class KnowledgeService {
     try {
       await this.favoriteRepository.save(this.favoriteRepository.create({ articleId, userId }))
     } catch (error) {
+      // 唯一键冲突说明并发收藏已存在，最终状态查询会返回真实结果。
       if (!this.isDuplicateEntryError(error)) {
         throw error
       }
@@ -456,7 +461,7 @@ export class KnowledgeService {
   }
 
   async findAllCategories(): Promise<KnowledgeCategory[]> {
-    // Check cache first
+    // 分类树变更频率低，优先读缓存；写路径统一调用 invalidateCategoryCache。
     const cached = await this.redisService.safeGet(CACHE_KEYS.CATEGORY_TREE)
     if (cached) {
       return JSON.parse(cached) as KnowledgeCategory[]
@@ -530,6 +535,7 @@ export class KnowledgeService {
         await catRepo.update({ id: category.id }, { path: newPath, level: newLevel })
         category.path = newPath
         category.level = newLevel
+        // 父级变化会影响整棵子树的 path/level，必须和当前分类更新处于同一事务。
         await this.syncChildrenPathAndLevel(em, category.id, newPath, newLevel)
       }
     })
@@ -590,7 +596,7 @@ export class KnowledgeService {
       }
     }
 
-    // 3. Fetch article titles for sources (deduplicate by articleId)
+    // 来源列表按 articleId 去重，避免多个分片命中时前端展示重复文章。
     const articleIds = [...new Set(searchResults.map((r) => r.articleId))]
     const articles = await this.articleRepository
       .createQueryBuilder('a')
@@ -600,7 +606,7 @@ export class KnowledgeService {
 
     const articleMap = new Map(articles.map((a) => [a.id, a.title]))
 
-    // 4. Assemble context
+    // 只把命中的片段拼入上下文，减少模型脱离知识库自由发挥的空间。
     const context = searchResults
       .map(
         (r, i) =>

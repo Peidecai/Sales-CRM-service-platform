@@ -48,6 +48,7 @@ function buildQueryString(params: Record<string, unknown>): string {
  */
 function tryRefreshToken(): Promise<string | null> {
   if (isRefreshing && refreshPromise) {
+    // 并发 401 共用同一个刷新请求，避免小程序端同时打爆 refresh 接口。
     return refreshPromise
   }
 
@@ -127,7 +128,7 @@ export async function request<T = unknown>(options: RequestOptions): Promise<Api
         const data = res.data as ApiResponse<T>
 
         if (statusCode === 401 && !options._isRetry) {
-          // Attempt token refresh before giving up
+          // 先尝试静默刷新并重放原请求，失败后再清 token 回登录页。
           const newToken = await tryRefreshToken()
           if (newToken) {
             try {

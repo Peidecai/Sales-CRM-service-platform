@@ -40,6 +40,7 @@ export class DataMaskInterceptor implements NestInterceptor {
       return obj.map((item) => this.maskDeep(item))
     }
 
+    // 递归复制并脱敏，避免直接修改 TypeORM 实体或服务层复用的对象引用。
     const result: Record<string, unknown> = {}
     for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
       if (MASK_KEYS.has(key) && typeof value === 'string' && value.length > 0) {

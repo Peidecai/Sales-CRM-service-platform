@@ -30,6 +30,7 @@ export async function registerPush(): Promise<PushRegistrationResult | null> {
     const info = plus.push.getClientInfo()
     const platform = uni.getSystemInfoSync().platform // 'android' | 'ios'
 
+    // 注册先上报服务端，再绑定本地事件，避免无 token 的点击事件进入业务路由。
     await http.post('/push/register', {
       deviceToken: info.clientid,
       platform,
@@ -39,6 +40,7 @@ export async function registerPush(): Promise<PushRegistrationResult | null> {
     plus.push.addEventListener('click', (msg: unknown) => {
       try {
         const raw = msg as { payload: string | Record<string, unknown> }
+        // 厂商推送 payload 可能是字符串或对象，两种格式都按同一结构归一化。
         const payload: PushMessage =
           typeof raw.payload === 'string' ? JSON.parse(raw.payload) as PushMessage : raw.payload as unknown as PushMessage
         handlePushNavigation(payload)
@@ -51,6 +53,7 @@ export async function registerPush(): Promise<PushRegistrationResult | null> {
     plus.push.addEventListener('receive', (msg: unknown) => {
       try {
         const raw = msg as { payload: string | Record<string, unknown>; title?: string; content?: string }
+        // 前台收到通知只更新未读数和轻提示，不直接跳转打断当前操作。
         const payload: PushMessage =
           typeof raw.payload === 'string' ? JSON.parse(raw.payload) as PushMessage : raw.payload as unknown as PushMessage
 
@@ -109,6 +112,7 @@ export async function unregisterPush(): Promise<boolean> {
  */
 function handlePushNavigation(payload: PushMessage): void {
   const { type, targetId } = payload
+  // 未识别类型统一进入消息中心，避免推送点击无响应。
   switch (type) {
     case 'follow_up':
       if (targetId) {

@@ -65,7 +65,7 @@ export class DuplicateCheckService {
       )
     }
 
-    // Dimension 4: Company name fuzzy match via SOUNDEX
+    // 公司名先用 SOUNDEX 缩小候选，再用编辑距离过滤，控制模糊匹配成本。
     if (input.company) {
       const candidates = await this.customerRepo
         .createQueryBuilder('c')
@@ -125,6 +125,7 @@ export class DuplicateCheckService {
     const map = new Map<number, DuplicateResult>()
     for (const r of results) {
       const existing = map.get(r.customer.id)
+      // 同一客户命中多个维度时保留最高置信度，前端只展示最有解释力的原因。
       if (!existing || existing.confidence < r.confidence) {
         map.set(r.customer.id, r)
       }

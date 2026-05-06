@@ -49,7 +49,7 @@ function loadQueue(): QueueItem[] {
     if (!raw) return []
     const items = JSON.parse(raw as string) as QueueItem[]
 
-    // Purge expired items (>72h)
+    // 过期请求可能引用已变化的客户/跟进状态，超过 72h 不再自动重放。
     const now = Date.now()
     const valid = items.filter((item) => now - item.createdAt < EXPIRY_MS)
     if (valid.length !== items.length) {
@@ -162,7 +162,7 @@ export const offlineQueue = {
             saveFailed(failedItems)
             failed++
           } else {
-            // Update retry count and stop flushing (will retry next time)
+            // 首个失败项会阻塞后续 FIFO 项，保持用户操作顺序不被打乱。
             queue[0] = item
             saveQueue(queue)
             break

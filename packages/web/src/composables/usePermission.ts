@@ -5,6 +5,7 @@ import { useUserStore } from '@/stores/user'
 export function usePermission() {
   const userStore = useUserStore()
 
+  // 这些仅用于前端展示控制；真实数据权限必须由后端 RBAC/数据范围兜底。
   const isAdmin = computed(() => userStore.userRole === UserRole.ADMIN)
   const isManager = computed(() => userStore.userRole === UserRole.MANAGER)
   const isSales = computed(() => userStore.userRole === UserRole.SALES)

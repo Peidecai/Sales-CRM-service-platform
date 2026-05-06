@@ -8,11 +8,10 @@ export class RequestContextMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction): void {
     const traceId = (req.headers['x-request-id'] as string) || randomUUID()
 
-    // Echo traceId back in response header
+    // 将 traceId 回传给客户端，便于前后端和日志系统串起同一次请求。
     res.setHeader('X-Request-Id', traceId)
 
-    // Extract userId from JWT payload if already decoded (set by passport later)
-    // userId will be populated by the logging interceptor after auth guard runs
+    // 先创建 AsyncLocalStorage 上下文；认证完成后再由后续环节补充 userId 等信息。
     requestContext.run({ traceId }, () => {
       next()
     })

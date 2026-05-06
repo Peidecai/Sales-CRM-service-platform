@@ -54,9 +54,7 @@ export class CsrfMiddleware implements NestMiddleware {
       return next()
     }
 
-    // Skip CSRF for non-browser clients (miniapp / API calls with Bearer token but no cookies)
-    // These clients are not vulnerable to CSRF because they explicitly set Authorization headers
-    // Only bypass if the request has no session cookies at all (just the XSRF-TOKEN cookie set by us)
+    // Bearer 且无业务 Cookie 时视为非浏览器客户端；只要存在会话 Cookie，仍必须校验 CSRF。
     const hasBearerToken = (req.headers['authorization'] as string | undefined)?.startsWith(
       'Bearer ',
     )

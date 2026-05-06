@@ -53,6 +53,7 @@ export class TokenService {
   ) {
     this.privateKey = (configService.get<string>('JWT_PRIVATE_KEY', '') || '').replace(/\\n/g, '\n')
     this.publicKey = (configService.get<string>('JWT_PUBLIC_KEY', '') || '').replace(/\\n/g, '\n')
+    // 配置私钥时优先使用 RS256，未配置时回退 HMAC，兼容本地开发环境。
     this.useRS256 = !!this.privateKey
     this.hmacSecret = configService.get<string>('JWT_SECRET', 'dev-secret-key')
     this.refreshSecret = configService.get<string>('JWT_REFRESH_SECRET', 'dev-refresh-secret-key')
@@ -79,7 +80,7 @@ export class TokenService {
       ? { privateKey: this.privateKey, algorithm: 'RS256' as const }
       : { secret: this.hmacSecret }
 
-    // Sign both tokens synchronously before any async Redis work
+    // 先完成签名，再写 Redis 状态；Redis 失败会由 RedisService 降级记录，不阻塞签发流程。
     const accessToken = this.jwtService.sign(
       { sub: user.id, username: user.username, role: user.role, jti, familyId, type: 'access' },
       { ...signOptions, expiresIn: this.accessTtlSeconds },
@@ -115,7 +116,7 @@ export class TokenService {
       ),
     ])
 
-    // Multi-device session control — kick old same-type session (sequential: depends on get result)
+    // 同一用户同一设备类型只保留一个会话，新登录会踢掉旧 access token。
     const sessionKey = `${TOKEN_KEYS.USER_SESSION}:${user.id}:${deviceType}`
     const oldJti = await this.redisService.get(sessionKey)
     if (oldJti) {

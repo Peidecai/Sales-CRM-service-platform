@@ -30,7 +30,7 @@ export class PermissionCacheService {
       return JSON.parse(cached) as string[]
     }
 
-    // Query: user_roles → roles → role_permissions → permissions
+    // Redis miss/error 时回源查询 RBAC 表，保证权限判断不依赖缓存可用性。
     const userRoles = await this.userRoleRepo.find({ where: { userId } })
     if (userRoles.length === 0) return []
 
@@ -59,6 +59,7 @@ export class PermissionCacheService {
    */
   async invalidateByRole(roleId: number): Promise<void> {
     const userRoles = await this.userRoleRepo.find({ where: { roleId } })
+    // 角色权限变更会影响所有绑定用户，只能逐个用户清缓存。
     for (const ur of userRoles) {
       await this.invalidate(ur.userId)
     }

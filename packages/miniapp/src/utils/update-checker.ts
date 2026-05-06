@@ -43,7 +43,7 @@ export async function checkUpdate(): Promise<VersionCheckResult> {
 
     return { hasUpdate: false }
   } catch {
-    // Silently fail — update check is non-critical
+    // 更新检查失败不阻塞启动，避免版本服务故障导致 App 无法进入。
     return { hasUpdate: false }
   }
 }
@@ -92,6 +92,7 @@ export function promptUpdate(result: VersionCheckResult): void {
   const content = result.description || `发现新版本 ${result.version || ''}，是否立即更新？`
 
   if (result.forceUpdate) {
+    // 强制更新不提供取消入口，适用于协议/接口不兼容版本。
     uni.showModal({
       title: '发现新版本（必须更新）',
       content,

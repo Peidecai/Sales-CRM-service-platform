@@ -26,7 +26,7 @@ export class EncryptionService {
         'Production 环境必须配置有效的 ENCRYPTION_KEY（64位 hex，不可为全零），禁止明文存储敏感字段',
       )
     } else {
-      // Disabled in dev — passthrough
+      // 开发环境允许明文透传，避免本地缺少密钥时阻塞启动；生产环境上方已强制失败。
       this.key = Buffer.alloc(32)
       this.enabled = false
       this.logger.warn('ENCRYPTION_KEY not configured — sensitive field encryption disabled')
@@ -47,7 +47,7 @@ export class EncryptionService {
   decrypt(ciphertext: string): string {
     if (!this.enabled || !ciphertext) return ciphertext
 
-    // Not encrypted (legacy plaintext data)
+    // 兼容历史明文字段：没有 GCM 分隔符时直接返回，避免旧数据读取失败。
     if (!ciphertext.includes(':')) return ciphertext
 
     try {
@@ -64,7 +64,7 @@ export class EncryptionService {
 
       return decrypted.toString('utf8')
     } catch {
-      // If decryption fails, return as-is (likely plaintext)
+      // 解密失败时按历史明文处理，避免单条坏数据拖垮整个业务请求。
       return ciphertext
     }
   }
@@ -82,6 +82,7 @@ export class EncryptionService {
   // --- Static helpers for @Column() decorators (no DI needed) ---
 
   private static readKey(): { key: Buffer; enabled: boolean } {
+    // 静态 transformer 无法注入 ConfigService，只能读取进程环境变量。
     const hexKey = process.env.ENCRYPTION_KEY ?? ''
     if (hexKey && hexKey.length === 64 && hexKey !== '0'.repeat(64)) {
       return { key: Buffer.from(hexKey, 'hex'), enabled: true }

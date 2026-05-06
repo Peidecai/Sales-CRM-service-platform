@@ -99,6 +99,7 @@ export class RedisService implements OnModuleDestroy {
    *  All DEL commands are awaited before resolving — returns actual deleted count. */
   async delByPattern(pattern: string): Promise<number> {
     const delPromises: Promise<number>[] = []
+    // 使用 SCAN 流式遍历，避免生产 Redis 上 KEYS 阻塞主线程。
     const stream = this.client.scanStream({ match: pattern, count: 100 })
 
     return new Promise((resolve) => {

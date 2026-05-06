@@ -46,7 +46,7 @@ export class HmacSignatureGuard implements CanActivate {
       throw new ForbiddenException('Request timestamp expired')
     }
 
-    // Compute expected signature
+    // 第三方必须使用同样的字段排序和排除 signature 规则，否则签名会不一致。
     const payload = this.buildSignaturePayload(request)
     const expected = createHmac('sha256', secret).update(payload).digest('hex')
 

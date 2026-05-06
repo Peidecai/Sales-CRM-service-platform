@@ -19,7 +19,7 @@ const permissionDirective: Directive = {
 }
 
 function isPermissionCode(value: string): boolean {
-  // Permission codes contain at least 2 colons: module:resource:action
+  // 权限码约定为 module:resource:action，纯角色值保持旧写法兼容。
   return value.includes(':')
 }
 
@@ -28,7 +28,7 @@ function checkPermission(el: HTMLElement, binding: DirectiveBinding<string | str
   const value = binding.value
 
   if (typeof value === 'string' && isPermissionCode(value)) {
-    // Permission code check
+    // 指令只隐藏入口，不替代后端权限校验。
     if (!userStore.hasPermission(value)) {
       el.parentNode?.removeChild(el)
     }

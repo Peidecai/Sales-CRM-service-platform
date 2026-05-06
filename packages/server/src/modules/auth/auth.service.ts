@@ -29,7 +29,7 @@ export class AuthService {
   // ─── Login ───────────────────────────────────────────────────────────
 
   async login(loginDto: LoginDto): Promise<LoginResult> {
-    // Login failure lockout check — fail-open on Redis error (skip lockout, allow login attempt)
+    // 登录锁定依赖 Redis；Redis 故障时 fail-open，避免缓存故障变成全员无法登录。
     const failKey = `${AUTH_KEYS.LOGIN_FAIL}:${loginDto.username}`
     let failCount = 0
     try {
@@ -43,7 +43,7 @@ export class AuthService {
       throw new UnauthorizedException('账户已锁定 30 分钟，请稍后再试')
     }
 
-    // Captcha check — if failCount >= 3, require captcha
+    // 连续失败 3 次后要求验证码，5 次后短暂锁定。
     if (failCount >= 3 && loginDto.captchaId && loginDto.captchaCode) {
       const captchaValid = await this.captchaService.verify(
         loginDto.captchaId,
@@ -178,6 +178,7 @@ export class AuthService {
 
   private async incrementLoginFail(key: string): Promise<void> {
     await this.redisService.incr(key)
+    // 每次失败刷新 30 分钟窗口，避免旧失败次数永久影响账号。
     await this.redisService.expire(key, 1800) // 30 minutes
   }
 }

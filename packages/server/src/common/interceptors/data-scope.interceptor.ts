@@ -53,7 +53,7 @@ export class DataScopeInterceptor implements NestInterceptor {
       scope = explicit
     }
 
-    // Inject scope info into request for service layer consumption
+    // 这里只写入范围信息；真正的 WHERE 条件必须由各 Service 显式消费，避免隐式漏过滤。
     request.dataScope = {
       scope,
       userId: scope === 'self' ? user.id : undefined,

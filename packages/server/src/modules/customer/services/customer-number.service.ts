@@ -15,6 +15,7 @@ export class CustomerNumberService {
     const seqKey = `seq:customer_no:${dateStr}`
     const seq = await this.redisService.incr(seqKey)
     if (seq === 1) {
+      // 序列保留 48 小时，覆盖跨时区/延迟任务但不会无限堆积历史日期 key。
       await this.redisService.expire(seqKey, 172800) // 48h TTL
     }
     return `CUS-${dateStr}-${String(seq).padStart(4, '0')}`

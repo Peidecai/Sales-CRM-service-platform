@@ -30,6 +30,7 @@ export const useUserStore = defineStore(
     async function login(credentials: LoginDto) {
       const res = await authApi.login(credentials)
       if (res.data) {
+        // 权限随登录响应一起持久化，刷新页面后路由和按钮展示能立即恢复。
         token.value = res.data.accessToken
         refreshToken.value = res.data.refreshToken
         userInfo.value = res.data.user as unknown as UserInfo
@@ -63,6 +64,7 @@ export const useUserStore = defineStore(
 
     async function refreshAccessToken() {
       if (!refreshToken.value) {
+        // 缺少 refreshToken 说明本地登录态已不完整，直接清理避免反复 401。
         logout()
         return null
       }

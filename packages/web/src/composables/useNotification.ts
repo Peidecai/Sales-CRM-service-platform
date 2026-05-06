@@ -53,6 +53,7 @@ const PROCESSED_EVENT_IDS_MAX = 1000
 function connectNotificationSocket(token: string | null, currentUserId?: number) {
   if (!token || socket) return
 
+  // 使用模块级单例，避免多个布局/组件重复建立 WebSocket 连接。
   socket = io('/ws/notifications', {
     transports: ['websocket', 'polling'],
     auth: { token },
@@ -82,9 +83,10 @@ function connectNotificationSocket(token: string | null, currentUserId?: number)
   )
 
   socket.on('notification', (payload: NotificationPayload) => {
+    // 自己触发的写操作页面通常已经即时更新，避免再弹一条自通知。
     if (currentUserId !== undefined && payload.actorId === currentUserId) return
 
-    // Dedup by eventId — silently ignore duplicate notifications
+    // 以 eventId 去重，处理重连、广播重试和多网关场景下的重复事件。
     if (payload.eventId) {
       if (processedEventIds.has(payload.eventId)) return
       processedEventIds.add(payload.eventId)

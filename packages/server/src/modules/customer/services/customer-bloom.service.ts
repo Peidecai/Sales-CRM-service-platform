@@ -41,7 +41,7 @@ export class CustomerBloomService implements OnModuleInit {
    * Called on startup and can be called manually if the filter drifts.
    */
   async rebuild(): Promise<void> {
-    // Clear existing bitmap
+    // 重建时先清空 bitmap，避免已软删或已迁移数据长期残留造成误判率升高。
     await this.redisService.del(BLOOM_KEY)
 
     // Stream all customer IDs (only id column, no soft-deleted)
@@ -70,6 +70,7 @@ export class CustomerBloomService implements OnModuleInit {
    * - Returns true: ID probably exists (proceed to DB query)
    */
   async mightExist(id: number): Promise<boolean> {
+    // Redis 出错时由调用方决定是否回退 DB；这里不吞异常，避免把未知状态当成不存在。
     const offsets = this.getHashOffsets(id)
     for (const offset of offsets) {
       const bit = await this.redisService.getBit(BLOOM_KEY, offset)

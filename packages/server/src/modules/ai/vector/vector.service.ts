@@ -29,7 +29,7 @@ export class VectorService implements OnModuleInit, OnModuleDestroy {
     this.db = new Database(dbPath)
     this.db.pragma('journal_mode = WAL')
 
-    // Create vectors table if it doesn't exist
+    // 向量库使用本地 SQLite，WAL 降低读写互相阻塞；生产替换向量引擎时保持接口不变即可。
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS vectors (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,6 +65,7 @@ export class VectorService implements OnModuleInit, OnModuleDestroy {
       'INSERT INTO vectors (article_id, chunk_index, content, embedding) VALUES (?, ?, ?, ?)',
     )
 
+    // 先删后插必须在同一事务内完成，避免搜索读到同一文章的新旧分片混合状态。
     const transaction = this.db.transaction(() => {
       deleteStmt.run(articleId)
       chunks.forEach((chunk, index) => {
@@ -87,6 +88,7 @@ export class VectorService implements OnModuleInit, OnModuleDestroy {
    * Returns top-K results.
    */
   search(queryEmbedding: number[], topK = 5, minSimilarity = 0.3): VectorSearchResult[] {
+    // 当前实现全量扫描并在内存计算相似度，适合小规模知识库；数据量增长后应换 ANN 索引。
     const rows = this.db
       .prepare('SELECT id, article_id, chunk_index, content, embedding FROM vectors')
       .all() as {
@@ -113,7 +115,7 @@ export class VectorService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    // Sort by similarity descending, take top K
+    // 先按阈值过滤再取 topK，避免低相关片段进入 RAG 上下文。
     results.sort((a, b) => b.similarity - a.similarity)
     return results.slice(0, topK)
   }

@@ -15,7 +15,7 @@ import { ThrottlerGuard } from '@nestjs/throttler'
 @Injectable()
 export class CustomThrottlerGuard extends ThrottlerGuard {
   protected async getTracker(req: Record<string, unknown>): Promise<string> {
-    // Use userId if authenticated, otherwise IP
+    // 登录后按用户限流，避免同一公司/门店共用出口 IP 时互相影响。
     const user = req.user as { id: number } | undefined
     if (user?.id) {
       return `user:${user.id}`

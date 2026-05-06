@@ -41,7 +41,7 @@ export class CustomerImportProcessor {
     let successCount = 0
     const failDetails: Array<{ row: number; reason: string }> = []
 
-    // Split rows into chunks of CHUNK_SIZE
+    // 分批事务降低单次锁持有时间，某批失败时不会回滚已成功批次。
     const chunks: Array<Array<{ row: Record<string, string>; index: number }>> = []
     for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
       chunks.push(rows.slice(i, i + CHUNK_SIZE).map((row, offset) => ({ row, index: i + offset })))
@@ -85,7 +85,7 @@ export class CustomerImportProcessor {
         await queryRunner.release()
       }
 
-      // Report progress after each chunk
+      // 每批结束后推送进度，前端可实时刷新导入状态。
       const processed = Math.min((ci + 1) * CHUNK_SIZE, rows.length)
       const progress = Math.round((processed / rows.length) * 100)
       await job.progress(progress)
@@ -144,6 +144,7 @@ export class CustomerImportProcessor {
     )
 
     if (job.attemptsMade >= maxAttempts) {
+      // 最终失败时发系统通知；中间重试阶段只写日志。
       this.notificationService.notify({
         type: NotificationType.QUEUE_JOB_FAILED,
         actorId: 0,

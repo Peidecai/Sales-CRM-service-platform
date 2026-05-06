@@ -95,7 +95,7 @@ export class RecordingService {
   ): Promise<{ taskId: number; status: string }> {
     const file = await this.getRecording(recordingId, user)
 
-    // Duration guard — skip ASR for calls too short to produce useful transcripts
+    // 过短录音通常没有有效话术内容，跳过 ASR 可减少供应商成本和噪声结果。
     const fileDuration = file.durationSeconds
     const duration =
       fileDuration != null
@@ -117,6 +117,7 @@ export class RecordingService {
       where: { recordingFileId: recordingId },
       order: { createdAt: 'DESC' },
     })
+    // 已存在非失败任务时直接复用，避免用户重复点击造成重复扣费/重复转写。
     if (existingTask && existingTask.status !== AsrTaskStatus.FAILED) {
       return { taskId: existingTask.id, status: existingTask.status }
     }
@@ -209,7 +210,7 @@ export class RecordingService {
     })
     await this.recordingFileRepository.save(recordingFile)
 
-    // 5. 可选触发 ASR（语音速记录音通常较短，但仍需转写）
+    // ASR 触发失败不回滚录音上传，用户仍可稍后手动重试转写。
     let asrTriggered = false
     try {
       const result = await this.triggerAsr(recordingFile.id, user)
@@ -228,6 +229,7 @@ export class RecordingService {
     const task = await this.asrTaskRepository.findOne({
       where: { recordingFileId, status: AsrTaskStatus.PENDING },
     })
+    // 任务可能已被取消/重试实例接管，非 PENDING 时直接跳过。
     if (!task) return
     task.status = AsrTaskStatus.PROCESSING
     task.startedAt = new Date()
@@ -340,7 +342,7 @@ export class RecordingService {
     })
     await this.recordingFileRepository.save(recordingFile)
 
-    // 6. 触发 ASR
+    // 手动上传主流程已成功时，ASR 失败只记录告警，不影响文件和通话记录落库。
     let asrTriggered = false
     try {
       const result = await this.triggerAsr(recordingFile.id, user)

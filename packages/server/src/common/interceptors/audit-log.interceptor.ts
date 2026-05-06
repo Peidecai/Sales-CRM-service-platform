@@ -19,7 +19,7 @@ export class AuditLogInterceptor implements NestInterceptor {
     const method: string = request.method
     const action = METHOD_ACTION_MAP[method]
 
-    // Only audit write operations
+    // 审计只覆盖写操作；读接口量大且不改变业务状态，避免日志噪声和存储膨胀。
     if (!action) {
       return next.handle()
     }
@@ -42,7 +42,7 @@ export class AuditLogInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       tap((responseData) => {
-        // Fire-and-forget: don't block the response
+        // 审计写入失败不能影响主业务响应，失败仅降级为静默丢弃。
         this.auditLogService
           .log({
             userId: user.id,

@@ -71,6 +71,7 @@ export class SanitizeHtmlPipe implements PipeTransform {
     if (metadata.type !== 'body') return value
     if (typeof value !== 'object' || value === null) return value
 
+    // 只清理约定的富文本字段，避免误改普通查询条件或枚举字符串。
     return this.sanitizeDeep(value as Record<string, unknown>)
   }
 

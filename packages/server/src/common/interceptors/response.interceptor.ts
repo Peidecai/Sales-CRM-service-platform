@@ -21,6 +21,7 @@ function serializeDates(value: unknown): unknown {
     return value.map(serializeDates)
   }
   if (value !== null && typeof value === 'object') {
+    // 重新构造普通对象，统一处理实体、分页对象和嵌套数组里的 Date。
     const result: Record<string, unknown> = {}
     for (const [k, v] of Object.entries(value)) {
       result[k] = serializeDates(v)
@@ -35,7 +36,7 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, ResponseData<T
   intercept(context: ExecutionContext, next: CallHandler): Observable<ResponseData<T>> {
     return next.handle().pipe(
       map((data) => {
-        // If already wrapped in our format, don't wrap again
+        // 某些旧接口已手动返回 { code, message, data }，这里保持兼容避免二次包裹。
         if (
           data !== null &&
           typeof data === 'object' &&

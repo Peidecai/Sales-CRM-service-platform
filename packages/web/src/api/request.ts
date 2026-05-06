@@ -125,6 +125,7 @@ request.interceptors.response.use(
 
     if (error.response?.status === 401 && !originalRequest._retry && !isAuthRequest) {
       if (isRefreshing) {
+        // 多个请求同时 401 时只刷新一次 token，其余请求等待新 token 后重放。
         return new Promise((resolve) => {
           pendingQueue.push((token: string) => {
             if (originalRequest.headers) {
@@ -142,6 +143,7 @@ request.interceptors.response.use(
       const newToken = await userStore.refreshAccessToken()
 
       if (newToken) {
+        // 先唤醒排队请求，再重放当前失败请求，保持调用方拿到原请求结果。
         pendingQueue.forEach((cb) => cb(newToken))
         pendingQueue = []
         isRefreshing = false

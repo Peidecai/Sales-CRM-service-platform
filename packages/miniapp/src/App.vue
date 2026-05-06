@@ -47,13 +47,13 @@ onShow(() => {
     },
   })
 
-  // Detect pending call and navigate to after-call page
+  // 用户从系统拨号返回小程序时，用 pendingCall 恢复到通话结果补录页。
   const callState = useCallStateStore()
   const userStore = useUserStore()
   if (callState.pending && userStore.token && !navigatingToAfterCall) {
     callState.markReturned()
     navigatingToAfterCall = true
-    // Delay slightly to let the app fully resume
+    // 延迟半秒等页面栈恢复，避免 onShow 中立即 navigateTo 被系统恢复流程吞掉。
     setTimeout(() => {
       const pages = getCurrentPages()
       const currentPath = pages.length > 0 ? pages[pages.length - 1].route : ''

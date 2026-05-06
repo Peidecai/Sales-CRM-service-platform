@@ -64,7 +64,7 @@ export class CallSummaryProcessor {
         return
       }
 
-      // Attempt full AI analysis first (richer result, updates ai_summary as a side-effect)
+      // 优先走完整分析链路；失败再退回旧摘要，避免 AI 子能力故障导致摘要完全不可用。
       try {
         await this.callAnalysisService.analyzeCall(callRecordId, buildSystemUser(record))
         this.logger.log(`Full call analysis completed for record #${callRecordId}`)
@@ -105,6 +105,7 @@ export class CallSummaryProcessor {
     )
 
     if (job.attemptsMade >= maxAttempts) {
+      // 只在最终失败时通知，避免 Bull 中间重试阶段反复打扰用户。
       this.notificationService.notify({
         type: NotificationType.QUEUE_JOB_FAILED,
         actorId: 0,

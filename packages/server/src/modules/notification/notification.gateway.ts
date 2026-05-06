@@ -86,6 +86,7 @@ export class NotificationGateway
     if (!this.userSockets.has(userId)) {
       this.userSockets.set(userId, new Set())
     }
+    // 一个用户可能同时打开多个浏览器标签页，定向通知需要发到全部 socket。
     this.userSockets.get(userId)!.add(client.id)
     this.socketUsers.set(client.id, userId)
 
@@ -175,6 +176,7 @@ export class NotificationGateway
         return null
       }
 
+      // WebSocket 长连接也要尊重登出/踢下线后的 token 吊销状态。
       const isBlacklisted = await this.tokenService.isTokenBlacklisted(token)
       if (isBlacklisted) {
         return null

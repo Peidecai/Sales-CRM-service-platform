@@ -57,7 +57,7 @@ export class AiService implements OnModuleInit {
       input: texts,
     })
 
-    // Sort by index in case the API returns out of order
+    // 按 index 还原输入顺序，避免向量和原文本块错位写入索引库。
     return response.data.sort((a, b) => a.index - b.index).map((item) => item.embedding)
   }
 

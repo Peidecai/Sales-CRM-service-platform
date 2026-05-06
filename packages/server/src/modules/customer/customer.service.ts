@@ -41,7 +41,7 @@ export class CustomerService {
       await this.customFieldService.validateCustomFields(dto.customFields)
     }
 
-    // Duplicate check (skip when forceCreate is true or within a transaction/import)
+    // 普通创建做重复拦截；导入事务内跳过逐条检查，交给导入流程批量处理。
     if (!dto.forceCreate && !manager) {
       const duplicates = await this.duplicateCheckService.checkDuplicates({
         company: dto.company,
@@ -82,7 +82,7 @@ export class CustomerService {
     // SALES users can only see their own customers
     const effectiveAssignedUserId = user.role === UserRole.SALES ? user.id : assignedUserId
 
-    // Build cache key from query params (include userId for SALES role isolation)
+    // 缓存 key 带角色和用户，防止 SALES 用户读到其他人的客户列表缓存。
     const cacheKey = `${CACHE_KEYS.CUSTOMER_LIST}:${JSON.stringify({ page, pageSize, keyword, status, assignedUserId: effectiveAssignedUserId, _role: user.role, _uid: user.id })}`
     const cached = await this.redisService.safeGet(cacheKey)
     if (cached) {
@@ -120,7 +120,7 @@ export class CustomerService {
   }
 
   async findOne(id: number, user?: AuthUser): Promise<Customer> {
-    // Bloom filter: if definitely not in set, skip cache + DB
+    // Bloom 过滤器只用于快速判定“一定不存在”；可能存在仍需查缓存/数据库。
     const mayExist = await this.bloomService.mightExist(id)
     if (!mayExist) {
       throw new NotFoundException(`Customer with ID ${id} not found`)
@@ -212,9 +212,9 @@ export class CustomerService {
 
   /** Validate if a status transition is allowed */
   validateStatusTransition(from: CustomerStatus, to: CustomerStatus): boolean {
-    // invalid and lost can be entered from any state
+    // 无效/流失是终态分支，可从任意主流程状态进入。
     if (to === CustomerStatus.INVALID || to === CustomerStatus.LOST) return true
-    // cannot transition back from invalid/lost to main flow
+    // 进入终态后不允许直接回主流程，需通过其他显式业务动作恢复。
     if (from === CustomerStatus.INVALID || from === CustomerStatus.LOST) return false
     const fromIdx = this.STATUS_ORDER.indexOf(from)
     const toIdx = this.STATUS_ORDER.indexOf(to)

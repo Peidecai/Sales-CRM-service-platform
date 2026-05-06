@@ -163,7 +163,7 @@ export function makeCallWithSim(phoneNumber: string, simSlot?: number): void {
       const uri = Uri.parse(`tel:${phoneNumber}`)
       const intent = new Intent(Intent.ACTION_CALL, uri)
 
-      // Set SIM slot via subscription ID
+      // 厂商 ROM 对 SIM 槽参数兼容性不一致，失败时继续走系统默认拨号卡。
       try {
         const SubscriptionManager = plus.android.importClass(
           'android.telephony.SubscriptionManager',
@@ -191,5 +191,6 @@ export function makeCallWithSim(phoneNumber: string, simSlot?: number): void {
   }
   // #endif
 
+  // H5/小程序/iOS 或 Android 选卡失败时，统一退回 uni 标准拨号能力。
   uni.makePhoneCall({ phoneNumber })
 }

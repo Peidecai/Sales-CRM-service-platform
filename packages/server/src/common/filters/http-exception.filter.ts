@@ -97,7 +97,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       }
     } else if (exception instanceof Error) {
       this.logger.error(`Unhandled exception: ${exception.message}`, exception.stack)
-      // In production, never leak internal error details to clients
+      // 生产环境不把数据库/依赖错误细节暴露给前端，具体堆栈只进服务端日志。
       if (this.isProduction) {
         message = GENERIC_SERVER_ERROR
       } else {
@@ -108,7 +108,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     // Map HTTP status to business error code
     let code = ERROR_CODE_MAP[status] ?? status
 
-    // Refine 401 error codes based on message content
+    // 401 再按文案细分，前端可区分“凭证错误”和“token 过期/账号禁用”。
     if (status === HttpStatus.UNAUTHORIZED) {
       for (const refinement of UNAUTHORIZED_REFINEMENTS) {
         if (refinement.pattern.test(message)) {

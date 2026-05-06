@@ -69,6 +69,7 @@ export class CustomerMergeService {
     await queryRunner.startTransaction()
 
     try {
+      // 合并必须在一个事务内完成，避免关联数据已迁移但副客户未软删的半合并状态。
       // 1. Merge contacts
       await queryRunner.query(
         'UPDATE contacts SET customer_id = ? WHERE customer_id = ? AND deleted_at IS NULL',

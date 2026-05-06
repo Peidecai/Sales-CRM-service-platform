@@ -47,7 +47,7 @@ export class ReplayAttackGuard implements CanActivate {
       throw new ForbiddenException('Duplicate request (nonce already used)')
     }
 
-    // Store nonce to prevent reuse
+    // nonce 的 TTL 与时间窗口保持一致，超过窗口的请求即使重放也会先被时间校验拦截。
     await this.redisService.set(nonceKey, '1', NONCE_TTL)
 
     return true

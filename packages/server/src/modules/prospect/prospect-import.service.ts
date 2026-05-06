@@ -78,7 +78,7 @@ export class ProspectImportService {
     const errors: string[] = []
     const toCreate: Partial<Prospect>[] = []
 
-    // Extract all company names for batch duplicate check
+    // 先收集名称做批量查重，避免 Excel 大文件导入时逐行打数据库。
     const allNames: string[] = []
     for (const row of rows) {
       const name = (row['企业名称(必填)'] ?? row['企业名称'] ?? '').trim()
@@ -97,7 +97,7 @@ export class ProspectImportService {
       }
     }
 
-    // Track names within this import batch to prevent intra-batch duplicates
+    // 同一文件内也要去重，防止本次导入制造重复线索。
     const seenInBatch = new Set<string>()
 
     for (let i = 0; i < rows.length; i++) {
@@ -170,7 +170,7 @@ export class ProspectImportService {
     const errors: string[] = []
     const toCreate: Partial<Customer>[] = []
 
-    // Batch duplicate check against existing customers by company name
+    // 直接导入客户时只和客户表查重，线索池重复不阻断客户创建。
     const allNames: string[] = []
     for (const row of rows) {
       const name = (row['企业名称(必填)'] ?? row['企业名称'] ?? '').trim()
@@ -261,6 +261,7 @@ export class ProspectImportService {
           if (record[header]) hasData = true
         }
       })
+      // 空行直接跳过，错误行号仍按 Excel 原始行号计算。
       if (hasData) rows.push(record)
     }
 
