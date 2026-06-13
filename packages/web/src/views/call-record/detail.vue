@@ -51,14 +51,15 @@
         <el-descriptions :column="3" border>
           <el-descriptions-item label="关联客户">
             <el-button
-              v-if="customerName"
+              v-if="linkedCustomerId && customerName"
               type="primary"
               link
-              @click="$router.push(`/customer/${record.customerId}`)"
+              @click="goToLinkedCustomer"
             >
               {{ customerName }}
             </el-button>
-            <span v-else>ID: {{ record.customerId }}</span>
+            <span v-else-if="linkedCustomerId">ID: {{ linkedCustomerId }}</span>
+            <span v-else>-</span>
           </el-descriptions-item>
           <el-descriptions-item label="关联商机">
             <el-button
@@ -87,11 +88,18 @@
               {{ formatDuration(record.duration) }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="记录人">
-            {{ userName ?? `ID: ${record.userId}` }}
+          <el-descriptions-item label="销售员">
+            {{ displaySalesUser }}
           </el-descriptions-item>
           <el-descriptions-item label="创建时间">
             {{ formatDate(record.createdAt) }}
+          </el-descriptions-item>
+          <el-descriptions-item
+            v-for="item in detailIdentityItems"
+            :key="item.label"
+            :label="item.label"
+          >
+            {{ item.value }}
           </el-descriptions-item>
           <el-descriptions-item v-if="record.recordingUrl" label="录音" :span="3">
             <el-link type="primary" :href="record.recordingUrl" target="_blank">
@@ -113,6 +121,38 @@
           {{ record.notes }}
         </div>
         <el-empty v-else description="暂无备注" :image-size="60" />
+      </el-card>
+
+      <!-- Transcript Card -->
+      <el-card shadow="never" class="content-card">
+        <template #header>
+          <div class="card-header">
+            <span class="card-header-title">
+              <el-icon><Document /></el-icon>
+              通话转写
+            </span>
+            <el-tag v-if="record.transcriptTextLen" type="info" size="small">
+              {{ record.transcriptSegmentCount ?? transcriptDisplaySegments.length }} 段 ·
+              {{ record.transcriptTextLen }} 字
+            </el-tag>
+          </div>
+        </template>
+        <div v-if="transcriptDisplaySegments.length" class="transcript-list">
+          <div
+            v-for="segment in transcriptDisplaySegments"
+            :key="segment.key"
+            class="transcript-row"
+          >
+            <div class="transcript-meta">
+              <el-tag size="small" :type="segment.speaker === '销售' ? 'primary' : 'success'">
+                {{ segment.speaker }}
+              </el-tag>
+              <span v-if="segment.time" class="transcript-time">{{ segment.time }}</span>
+            </div>
+            <div class="transcript-text">{{ segment.text }}</div>
+          </div>
+        </div>
+        <el-empty v-else description="暂无转写内容" :image-size="60" />
       </el-card>
 
       <!-- AI Summary Card -->
@@ -342,7 +382,10 @@
 
       <!-- Leader Review Section -->
       <el-card shadow="never" class="content-card">
-        <LeaderReviewSection :call-record-id="recordId" :customer-id="record?.customerId" />
+        <LeaderReviewSection
+          :call-record-id="recordId"
+          :customer-id="linkedCustomerId ?? undefined"
+        />
       </el-card>
 
       <!-- Edit Dialog -->
@@ -489,6 +532,7 @@ import {
   Promotion,
   Check,
   Connection,
+  Document,
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { callRecordApi, type CallRecordVO, type UpdateCallRecordParams } from '@/api/call-record'
@@ -499,6 +543,11 @@ import { callAnalysisApi, type CallAnalysisResultVO } from '@/api/ai-analysis'
 import LeaderReviewSection from './components/LeaderReviewSection.vue'
 import { AnalysisStatus } from '@crm/shared'
 import { usePermission } from '@/composables/usePermission'
+import {
+  buildCallRecordIdentityItems,
+  buildTranscriptDisplaySegments,
+  toLinkedEntityId,
+} from './detail-helpers'
 
 const route = useRoute()
 const router = useRouter()
@@ -513,6 +562,26 @@ const opportunityTitle = ref('')
 const userName = ref('')
 
 const recordId = computed(() => Number(route.params.id))
+const linkedCustomerId = computed(() => toLinkedEntityId(record.value?.customerId))
+const identityItems = computed(() =>
+  record.value ? buildCallRecordIdentityItems(record.value) : [],
+)
+const detailIdentityItems = computed(() =>
+  identityItems.value.filter((item) => item.label !== '销售员'),
+)
+const transcriptDisplaySegments = computed(() =>
+  record.value ? buildTranscriptDisplaySegments(record.value) : [],
+)
+const displaySalesUser = computed(() => {
+  if (!record.value) return '-'
+  return (
+    record.value.salesUserName ||
+    record.value.user?.name ||
+    record.value.user?.username ||
+    userName.value ||
+    `ID: ${record.value.userId}`
+  )
+})
 
 // ---- Data Fetching ----
 async function fetchRecord() {
@@ -523,6 +592,9 @@ async function fetchRecord() {
       record.value = res.data
       // Resolve related names
       await resolveRelatedNames(res.data)
+      if ((res.data.transcriptTextLen ?? 0) > 0 && !analysisResult.value) {
+        pollForAnalysis(res.data.id, 0, { silent: true })
+      }
     }
   } catch {
     // Error handled by request interceptor
@@ -533,20 +605,25 @@ async function fetchRecord() {
 
 async function resolveRelatedNames(data: CallRecordVO) {
   const tasks: Promise<void>[] = []
+  const customerId = toLinkedEntityId(data.customerId)
+  customerName.value = ''
+  opportunityTitle.value = ''
 
   // Resolve customer name
-  tasks.push(
-    customerApi
-      .getDetail(data.customerId)
-      .then((res) => {
-        if (res?.data) {
-          customerName.value = res.data.name + (res.data.company ? ` (${res.data.company})` : '')
-        }
-      })
-      .catch(() => {
-        // Silently fail
-      }),
-  )
+  if (customerId) {
+    tasks.push(
+      customerApi
+        .getDetail(customerId)
+        .then((res) => {
+          if (res?.data) {
+            customerName.value = res.data.name + (res.data.company ? ` (${res.data.company})` : '')
+          }
+        })
+        .catch(() => {
+          // Silently fail
+        }),
+    )
+  }
 
   // Resolve opportunity title
   if (data.opportunityId) {
@@ -569,9 +646,17 @@ async function resolveRelatedNames(data: CallRecordVO) {
   }
 
   // Resolve user name
-  userName.value = userStore.userInfo?.name ?? ''
+  userName.value =
+    data.salesUserName ?? data.user?.name ?? data.user?.username ?? userStore.userInfo?.name ?? ''
 
   await Promise.all(tasks)
+}
+
+function goToLinkedCustomer() {
+  const customerId = linkedCustomerId.value
+  if (customerId) {
+    router.push(`/customer/${customerId}`)
+  }
 }
 
 // ---- AI Summary ----
@@ -697,8 +782,10 @@ async function searchOpportunities(query: string) {
 function handleEdit() {
   if (!record.value) return
   const totalSec = record.value.duration ?? 0
+  customerOptions.value = []
+  opportunityOptions.value = []
   Object.assign(formData, {
-    customerId: record.value.customerId,
+    customerId: linkedCustomerId.value ?? undefined,
     opportunityId: record.value.opportunityId ?? undefined,
     callAt: record.value.callAt ? record.value.callAt.replace(' ', 'T').slice(0, 19) : '',
     durationMin: Math.floor(totalSec / 60),
@@ -707,10 +794,10 @@ function handleEdit() {
     recordingUrl: record.value.recordingUrl ?? '',
   })
   // Pre-set customer option
-  if (customerName.value) {
+  if (linkedCustomerId.value && customerName.value) {
     customerOptions.value = [
       {
-        id: record.value.customerId,
+        id: linkedCustomerId.value,
         name: customerName.value,
       },
     ] as CustomerVO[]
@@ -795,13 +882,15 @@ async function triggerAnalysis() {
   }
 }
 
-async function pollForAnalysis(id: number, attempt = 0) {
+async function pollForAnalysis(id: number, attempt = 0, options: { silent?: boolean } = {}) {
   const delays = [3000, 5000, 8000, 12000, 18000]
   const maxAttempts = delays.length
 
   if (attempt >= maxAttempts) {
     analyzing.value = false
-    ElMessage.warning('AI 分析较慢，请稍后手动刷新查看结果')
+    if (!options.silent) {
+      ElMessage.warning('AI 分析较慢，请稍后手动刷新查看结果')
+    }
     return
   }
 
@@ -819,18 +908,22 @@ async function pollForAnalysis(id: number, attempt = 0) {
           analysisResult.value = result
           manualNote.value = result.manualNote ?? ''
           if (result.status === AnalysisStatus.FAILED) {
-            ElMessage.error('AI 分析失败，请稍后重试')
+            if (!options.silent) {
+              ElMessage.error('AI 分析失败，请稍后重试')
+            }
           } else {
-            ElMessage.success('AI 分析已完成')
+            if (!options.silent) {
+              ElMessage.success('AI 分析已完成')
+            }
           }
         } else {
-          pollForAnalysis(id, attempt + 1)
+          pollForAnalysis(id, attempt + 1, options)
         }
       } else {
-        pollForAnalysis(id, attempt + 1)
+        pollForAnalysis(id, attempt + 1, options)
       }
     } catch {
-      pollForAnalysis(id, attempt + 1)
+      pollForAnalysis(id, attempt + 1, options)
     }
   }, delays[attempt])
 }
@@ -953,6 +1046,43 @@ onBeforeUnmount(() => {
   border-left: 3px solid #409eff;
 }
 
+.transcript-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.transcript-row {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 12px;
+  padding: 10px 12px;
+  background: #f5f7fa;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+}
+
+.transcript-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.transcript-time {
+  font-size: 12px;
+  color: #909399;
+}
+
+.transcript-text {
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #303133;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .summarizing-placeholder {
   padding: 12px 0;
 }
@@ -1053,5 +1183,11 @@ onBeforeUnmount(() => {
 .manual-section-actions {
   display: flex;
   gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .transcript-row {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

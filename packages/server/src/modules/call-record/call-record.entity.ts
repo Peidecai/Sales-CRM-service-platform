@@ -3,7 +3,20 @@ import { BaseEntity } from '../../common/entities/base.entity'
 import { CallDirection, CallType, CallStatus, CallResult } from '@crm/shared'
 import { Customer } from '../customer/customer.entity'
 import { Opportunity } from '../opportunity/opportunity.entity'
+import { User } from '../user/user.entity'
 
+export interface CallRecordTranscriptSegment {
+  id: number
+  segmentIndex: number | null
+  startTimeMs: number | null
+  endTimeMs: number | null
+  speaker: string
+  text: string
+}
+
+@Index('IDX_call_records_provider_sim_unique', ['providerCallId', 'simNumber', 'simCarrier'], {
+  unique: true,
+})
 @Entity('call_records')
 export class CallRecord extends BaseEntity {
   @Index()
@@ -92,6 +105,10 @@ export class CallRecord extends BaseEntity {
   @JoinColumn({ name: 'opportunity_id' })
   opportunity!: Opportunity | null
 
+  @ManyToOne(() => User, { createForeignKeyConstraints: false, nullable: true })
+  @JoinColumn({ name: 'user_id' })
+  user!: User | null
+
   @Index()
   @Column({ name: 'user_id', comment: 'Caller user ID' })
   userId!: number
@@ -150,4 +167,22 @@ export class CallRecord extends BaseEntity {
 
   @Column({ name: 'sim_carrier', type: 'varchar', length: 20, nullable: true, comment: '运营商' })
   simCarrier!: string | null
+
+  transcriptSegments?: CallRecordTranscriptSegment[]
+
+  transcriptText?: string
+
+  transcriptSegmentCount?: number
+
+  transcriptTextLen?: number
+
+  customerPhone?: string | null
+
+  salesUserName?: string | null
+
+  salesUserPhone?: string | null
+
+  counterpartPhone?: string | null
+
+  callPhoneNumber?: string | null
 }

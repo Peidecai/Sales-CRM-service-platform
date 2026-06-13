@@ -6,6 +6,10 @@ import { CallRecordService } from '../../src/modules/call-record/call-record.ser
 import { CallRecord } from '../../src/modules/call-record/call-record.entity'
 import { Customer } from '../../src/modules/customer/customer.entity'
 import { User } from '../../src/modules/user/user.entity'
+import { CallTranscript } from '../../src/modules/recording/entities/call-transcript.entity'
+import { RecordingFile } from '../../src/modules/recording/entities/recording-file.entity'
+import { CloudTranscriptionCallback } from '../../src/modules/recording/entities/cloud-transcription-callback.entity'
+import { CloudTranscriptionMatchStatus } from '../../src/modules/recording/entities/cloud-transcription-callback.entity'
 import { CallResult, CallStatus, CallType, UserRole } from '@crm/shared'
 import {
   createMockRepository,
@@ -31,11 +35,20 @@ describe('CallRecordService', () => {
   let repo: MockRepository<CallRecord>
   let customerRepo: MockRepository<Customer>
   let userRepo: MockRepository<User>
+  let transcriptRepo: MockRepository<CallTranscript>
+  let recordingFileRepo: MockRepository<RecordingFile>
+  let cloudTranscriptionCallbackRepo: MockRepository<CloudTranscriptionCallback>
 
   beforeEach(async () => {
     repo = createMockRepository<CallRecord>()
     customerRepo = createMockRepository<Customer>()
     userRepo = createMockRepository<User>()
+    transcriptRepo = createMockRepository<CallTranscript>()
+    recordingFileRepo = createMockRepository<RecordingFile>()
+    cloudTranscriptionCallbackRepo = createMockRepository<CloudTranscriptionCallback>()
+    transcriptRepo.createQueryBuilder.mockReturnValue(createMockQueryBuilder([]))
+    recordingFileRepo.createQueryBuilder.mockReturnValue(createMockQueryBuilder([]))
+    cloudTranscriptionCallbackRepo.createQueryBuilder.mockReturnValue(createMockQueryBuilder([]))
     mockQueue.add.mockClear()
     mockTranscriptionMatchQueue.add.mockClear()
 
@@ -45,6 +58,12 @@ describe('CallRecordService', () => {
         { provide: getRepositoryToken(CallRecord), useValue: repo },
         { provide: getRepositoryToken(Customer), useValue: customerRepo },
         { provide: getRepositoryToken(User), useValue: userRepo },
+        { provide: getRepositoryToken(CallTranscript), useValue: transcriptRepo },
+        { provide: getRepositoryToken(RecordingFile), useValue: recordingFileRepo },
+        {
+          provide: getRepositoryToken(CloudTranscriptionCallback),
+          useValue: cloudTranscriptionCallbackRepo,
+        },
         { provide: getQueueToken('call-summary'), useValue: mockQueue },
         { provide: getQueueToken('cloud-transcription-match'), useValue: mockTranscriptionMatchQueue },
       ],
@@ -352,14 +371,158 @@ describe('CallRecordService', () => {
     it('should return call record with relations', async () => {
       const record = fixtures.callRecord()
       repo.findOne.mockResolvedValue(record)
+      transcriptRepo.createQueryBuilder.mockReturnValue(createMockQueryBuilder([]))
+      cloudTranscriptionCallbackRepo.createQueryBuilder.mockReturnValue(createMockQueryBuilder([]))
 
       const result = await service.findOne(1, adminUser)
 
       expect(repo.findOne).toHaveBeenCalledWith({
         where: { id: 1 },
-        relations: ['customer', 'opportunity'],
+        relations: ['customer', 'opportunity', 'user'],
       })
       expect(result.notes).toBe('Test call notes')
+    })
+
+    it('should not expose password on nested user relation', async () => {
+      const record = fixtures.callRecord({
+        user: fixtures.user({ password: '$2a$10$leakedhash' }),
+      })
+      repo.findOne.mockResolvedValue(record)
+
+      const result = await service.findOne(1, adminUser)
+
+      expect(result.user).toMatchObject({
+        id: 1,
+        username: 'testuser',
+        name: 'Test User',
+      })
+      expect(result.user).not.toHaveProperty('password')
+    })
+
+    it('should prefer recording counterpart phone for the displayed call number', async () => {
+      const record = fixtures.callRecord({
+        id: 44,
+        simNumber: '13900139000',
+        customer: fixtures.customer({ phone: '13800138001' }),
+        user: fixtures.user({ phone: '13900139000' }),
+      })
+      repo.findOne.mockResolvedValue(record)
+      const recordingFileQb = createMockQueryBuilder([
+        {
+          callRecordId: 44,
+          counterpartPhone: '13700137000',
+        },
+      ])
+      recordingFileRepo.createQueryBuilder.mockReturnValue(recordingFileQb)
+
+      const result = await service.findOne(44, adminUser)
+
+      expect(recordingFileQb.where).toHaveBeenCalledWith('rf.callRecordId IN (:...callRecordIds)', {
+        callRecordIds: [44],
+      })
+      expect(result.counterpartPhone).toBe('13700137000')
+      expect(result.callPhoneNumber).toBe('13700137000')
+      expect(result.salesUserPhone).toBe('13900139000')
+    })
+
+    it('should not use the sales line number as the counterpart display number', async () => {
+      const record = fixtures.callRecord({
+        id: 45,
+        customer: null,
+        simNumber: '13900139000',
+        user: fixtures.user({ phone: '13900139000' }),
+      })
+      repo.findOne.mockResolvedValue(record)
+
+      const result = await service.findOne(45, adminUser)
+
+      expect(result.counterpartPhone).toBeNull()
+      expect(result.callPhoneNumber).toBeNull()
+      expect(result.salesUserPhone).toBe('13900139000')
+    })
+
+    it('should include normalized transcript segments on detail', async () => {
+      const record = fixtures.callRecord({ id: 42 })
+      repo.findOne.mockResolvedValue(record)
+      const transcriptQb = createMockQueryBuilder([
+        {
+          id: 10,
+          speaker: 'agent',
+          startTimeMs: 0,
+          endTimeMs: 1200,
+          text: '您好，我是销售小王',
+          segmentIndex: 0,
+        },
+        {
+          id: 11,
+          speaker: 'customer',
+          startTimeMs: 1300,
+          endTimeMs: 3200,
+          text: '我想了解贷款方案',
+          segmentIndex: 1,
+        },
+      ])
+      transcriptRepo.createQueryBuilder.mockReturnValue(transcriptQb)
+      cloudTranscriptionCallbackRepo.createQueryBuilder.mockReturnValue(createMockQueryBuilder([]))
+
+      const result = await service.findOne(42, adminUser)
+
+      expect(transcriptQb.innerJoin).toHaveBeenCalledWith('asr_tasks', 'at', 'at.id = ct.asr_task_id')
+      expect(transcriptQb.innerJoin).toHaveBeenCalledWith(
+        'recording_files',
+        'rf',
+        'rf.id = at.recording_file_id',
+      )
+      expect(transcriptQb.where).toHaveBeenCalledWith('rf.call_record_id = :callRecordId', {
+        callRecordId: 42,
+      })
+      expect(result.transcriptSegments).toEqual([
+        {
+          id: 10,
+          speaker: 'agent',
+          startTimeMs: 0,
+          endTimeMs: 1200,
+          text: '您好，我是销售小王',
+          segmentIndex: 0,
+        },
+        {
+          id: 11,
+          speaker: 'customer',
+          startTimeMs: 1300,
+          endTimeMs: 3200,
+          text: '我想了解贷款方案',
+          segmentIndex: 1,
+        },
+      ])
+      expect(result.transcriptText).toBe('您好，我是销售小王\n我想了解贷款方案')
+      expect(result.transcriptSegmentCount).toBe(2)
+      expect(result.transcriptTextLen).toBe(18)
+    })
+
+    it('should fallback to matched cloud callback text when transcript rows are missing', async () => {
+      const record = fixtures.callRecord({ id: 43 })
+      repo.findOne.mockResolvedValue(record)
+      transcriptRepo.createQueryBuilder.mockReturnValue(createMockQueryBuilder([]))
+      const callbackQb = createMockQueryBuilder([
+        {
+          taskId: 'task-1',
+          transcriptText: '联通转写第一句\n联通转写第二句',
+        },
+      ])
+      cloudTranscriptionCallbackRepo.createQueryBuilder.mockReturnValue(callbackQb)
+
+      const result = await service.findOne(43, adminUser)
+
+      expect(callbackQb.where).toHaveBeenCalledWith('ctc.matchedCallRecordId = :callRecordId', {
+        callRecordId: 43,
+      })
+      expect(callbackQb.andWhere).toHaveBeenCalledWith('ctc.matchStatus = :matchStatus', {
+        matchStatus: CloudTranscriptionMatchStatus.MATCHED,
+      })
+      expect(result.transcriptText).toBe('联通转写第一句\n联通转写第二句')
+      expect(result.transcriptSegments).toEqual([])
+      expect(result.transcriptSegmentCount).toBe(0)
+      expect(result.transcriptTextLen).toBe(15)
     })
 
     it('should throw NotFoundException if not found', async () => {

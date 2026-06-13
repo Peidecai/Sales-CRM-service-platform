@@ -5,6 +5,10 @@ import { CallAnalysisResult } from './entities/call-analysis-result.entity'
 import { CallRecord } from '../call-record/call-record.entity'
 import { CallTranscript } from '../recording/entities/call-transcript.entity'
 import { RecordingFile } from '../recording/entities/recording-file.entity'
+import {
+  CloudTranscriptionCallback,
+  CloudTranscriptionMatchStatus,
+} from '../recording/entities/cloud-transcription-callback.entity'
 import { Customer } from '../customer/customer.entity'
 import { AiService } from './ai.service'
 import { AiAnalysisConfigService, type AnalysisJsonResult } from './ai-analysis-config.service'
@@ -83,6 +87,8 @@ export class CallAnalysisService {
     private readonly callRecordRepo: Repository<CallRecord>,
     @InjectRepository(CallTranscript)
     private readonly transcriptRepo: Repository<CallTranscript>,
+    @InjectRepository(CloudTranscriptionCallback)
+    private readonly cloudTranscriptionCallbackRepo: Repository<CloudTranscriptionCallback>,
     @InjectRepository(Customer)
     private readonly customerRepo: Repository<Customer>,
     @InjectRepository(RecordingFile)
@@ -692,11 +698,20 @@ export class CallAnalysisService {
       .select(['ct.text', 'ct.speaker'])
       .getMany()
 
-    const transcriptText = transcriptRows
+    let transcriptText = transcriptRows
       .filter((row) => row.text)
       .map((row) => `[${row.speaker}] ${row.text ?? ''}`)
       .join('\n')
       .trim()
+
+    if (!transcriptText) {
+      transcriptText = await this.getMatchedCloudTranscriptText(record.id)
+      if (transcriptText) {
+        this.logger.warn(
+          `Using matched cloud transcription callback text for call record #${record.id} because call_transcripts is empty`,
+        )
+      }
+    }
 
     const notesText = record.notes?.trim() ?? ''
 
@@ -722,6 +737,30 @@ export class CallAnalysisService {
   }
 
   // ─── Private: LLM calls ──────────────────────────────────────────────────────
+
+  /**
+   * Uses the latest matched cloud transcription callback as a fallback when
+   * normalized ASR transcript rows have not been created yet.
+   */
+  private async getMatchedCloudTranscriptText(callRecordId: number): Promise<string> {
+    const callbacks = await this.cloudTranscriptionCallbackRepo
+      .createQueryBuilder('ctc')
+      .where('ctc.matchedCallRecordId = :callRecordId', { callRecordId })
+      .andWhere('ctc.matchStatus = :matchStatus', {
+        matchStatus: CloudTranscriptionMatchStatus.MATCHED,
+      })
+      .andWhere('ctc.transcriptText IS NOT NULL')
+      .orderBy('ctc.createdAt', 'DESC')
+      .select(['ctc.taskId', 'ctc.transcriptText'])
+      .take(5)
+      .getMany()
+
+    return (
+      callbacks
+        .map((callback) => callback.transcriptText?.trim())
+        .find((text): text is string => Boolean(text)) ?? ''
+    )
+  }
 
   /**
    * Dedicated speech-scoring supplemental LLM call.

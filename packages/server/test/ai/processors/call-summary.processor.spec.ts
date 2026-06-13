@@ -50,10 +50,36 @@ describe('CallSummaryProcessor', () => {
       id: 2,
       deleted: false,
       notes: '',
+      userId: 8,
     })
 
     await processor.handleSummary({ data: { callRecordId: 2 } } as never)
 
+    expect(callAnalysisService.analyzeCall).toHaveBeenCalledWith(2, {
+      id: 8,
+      username: 'user_8',
+      role: 'sales',
+    })
+    expect(aiService.chat).not.toHaveBeenCalled()
+    expect(callRecordRepository.save).not.toHaveBeenCalled()
+  })
+
+  it('should run full AI analysis automatically before legacy summary fallback', async () => {
+    callAnalysisService.analyzeCall.mockResolvedValue({ id: 99 })
+    callRecordRepository.findOne.mockResolvedValue({
+      id: 5,
+      userId: 12,
+      deleted: false,
+      notes: null,
+    })
+
+    await processor.handleSummary({ data: { callRecordId: 5 } } as never)
+
+    expect(callAnalysisService.analyzeCall).toHaveBeenCalledWith(5, {
+      id: 12,
+      username: 'user_12',
+      role: 'sales',
+    })
     expect(aiService.chat).not.toHaveBeenCalled()
     expect(callRecordRepository.save).not.toHaveBeenCalled()
   })

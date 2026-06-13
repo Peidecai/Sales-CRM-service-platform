@@ -82,12 +82,19 @@ async function bootstrap() {
   )
   const jsonBodyLimit = configService.get<string>('JSON_BODY_LIMIT', '100kb')
   const urlencodedBodyLimit = configService.get<string>('URLENCODED_BODY_LIMIT', jsonBodyLimit)
+  const callbackJsonParser = express.json({
+    limit: callbackBodyLimit,
+    verify: (req, _res, buf) => {
+      ;(req as express.Request & { rawBody?: string }).rawBody = buf.toString('utf8')
+    },
+  })
 
   // 云转写回调包含分段识别结果，体积明显大于普通 API 请求，单独放宽限制。
-  app.use(
-    `${normalizedApiPrefix}/recordings/transcription/callback`,
-    express.json({ limit: callbackBodyLimit }),
-  )
+  app.use(`${normalizedApiPrefix}/recordings/transcription/callback`, callbackJsonParser)
+  app.use(`${normalizedApiPrefix}/unicom/:phone/records`, callbackJsonParser)
+  app.use(`${normalizedApiPrefix}/unicom/records`, callbackJsonParser)
+  app.use(`${normalizedApiPrefix}/unicom/:phone/transcriptions`, callbackJsonParser)
+  app.use(`${normalizedApiPrefix}/unicom/transcriptions`, callbackJsonParser)
   app.use(express.json({ limit: jsonBodyLimit }))
   app.use(express.urlencoded({ extended: true, limit: urlencodedBodyLimit }))
 

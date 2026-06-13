@@ -5,7 +5,10 @@ import { RecordingFile } from './entities/recording-file.entity'
 import { AsrTask } from './entities/asr-task.entity'
 import { CallTranscript } from './entities/call-transcript.entity'
 import { CloudTranscriptionCallback } from './entities/cloud-transcription-callback.entity'
+import { UnicomCallCallback } from './entities/unicom-call-callback.entity'
+import { UnicomPhoneBinding } from './entities/unicom-phone-binding.entity'
 import { CallRecord } from '../call-record/call-record.entity'
+import { User } from '../user/user.entity'
 import { CallRecordModule } from '../call-record/call-record.module'
 import { CustomerModule } from '../customer/customer.module'
 import { OpportunityModule } from '../opportunity/opportunity.module'
@@ -14,7 +17,11 @@ import { XunfeiAsrAdapter } from './adapters/xunfei-asr.adapter'
 import { RecordingService } from './recording.service'
 import { RecordingController } from './recording.controller'
 import { CloudTranscriptionCallbackController } from './cloud-transcription-callback.controller'
+import { UnicomCallbackController } from './unicom-callback.controller'
+import { UnicomPhoneBindingController } from './unicom-phone-binding.controller'
 import { CloudTranscriptionCallbackService } from './cloud-transcription-callback.service'
+import { UnicomCallCallbackService } from './unicom-call-callback.service'
+import { UnicomPhoneBindingService } from './unicom-phone-binding.service'
 import { AsrProcessor } from './asr.processor'
 
 @Module({
@@ -24,7 +31,10 @@ import { AsrProcessor } from './asr.processor'
       AsrTask,
       CallTranscript,
       CloudTranscriptionCallback,
+      UnicomCallCallback,
+      UnicomPhoneBinding,
       CallRecord,
+      User,
     ]),
     CallRecordModule,
     CustomerModule,
@@ -57,10 +67,17 @@ import { AsrProcessor } from './asr.processor'
       },
     }),
   ],
-  controllers: [RecordingController, CloudTranscriptionCallbackController],
+  controllers: [
+    RecordingController,
+    CloudTranscriptionCallbackController,
+    UnicomCallbackController,
+    UnicomPhoneBindingController,
+  ],
   providers: [
     RecordingService,
     CloudTranscriptionCallbackService,
+    UnicomCallCallbackService,
+    UnicomPhoneBindingService,
     OssRecordingService,
     AsrProcessor,
     { provide: 'ASR_PROVIDER', useClass: XunfeiAsrAdapter },

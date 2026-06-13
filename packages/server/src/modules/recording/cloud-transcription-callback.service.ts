@@ -20,8 +20,30 @@ import {
   CloudTranscriptionCallbackQueryDto,
   CloudTranscriptionCallbackResponse,
 } from './dto/cloud-transcription-callback.dto'
+import { UnicomPhoneBindingService } from './unicom-phone-binding.service'
 
 type CloudTranscriptionSegment = CloudTranscriptionCallbackBodyDto['result'][number]
+type CallbackCredentialContext = 'cloud' | 'unicom'
+
+interface CallbackCredential {
+  token: string
+  salt: string
+  tokenKey: string
+  saltKey: string
+}
+
+interface SignatureCandidate {
+  label: string
+  signature: string
+}
+
+interface SignatureValidationResult {
+  valid: boolean
+  reason: string
+  credential: CallbackCredential | null
+  candidates: SignatureCandidate[]
+  diagnosticCandidates: SignatureCandidate[]
+}
 
 interface MatchResult {
   status: CloudTranscriptionMatchStatus
@@ -66,6 +88,7 @@ export class CloudTranscriptionCallbackService {
     private readonly callSummaryQueue: Queue<CallSummaryJobData>,
     @InjectQueue('cloud-transcription-match')
     private readonly transcriptionMatchQueue: Queue<CloudTranscriptionMatchJobData>,
+    private readonly phoneBindingService: UnicomPhoneBindingService,
   ) {}
 
   @Process()
@@ -83,10 +106,38 @@ export class CloudTranscriptionCallbackService {
   async handleCallback(
     query: CloudTranscriptionCallbackQueryDto,
     rawBody: Record<string, unknown>,
+    routePhone?: string,
+    credentialContext: CallbackCredentialContext = 'cloud',
+    rawBodyText?: string,
   ): Promise<CloudTranscriptionCallbackResponse> {
     const taskIdForLog = this.getRequiredString(rawBody.taskId) ?? 'unknown'
+    const normalizedRoutePhone = this.normalizePhone(routePhone)
 
-    if (!this.isValidSignature(query, rawBody)) {
+    if (routePhone !== undefined && !this.isValidRoutePhone(normalizedRoutePhone)) {
+      this.logger.warn(
+        `Rejected cloud transcription callback: invalid route phone, taskId=${taskIdForLog}`,
+      )
+      return this.failure('invalid route phone')
+    }
+
+    const credentialRoutePhone = await this.resolveBoundRoutePhone(normalizedRoutePhone)
+    const signatureResult = this.validateSignature(
+      query,
+      rawBody,
+      credentialRoutePhone,
+      credentialContext,
+      rawBodyText,
+    )
+    if (!signatureResult.valid) {
+      this.logSignatureDiagnostics(
+        taskIdForLog,
+        query,
+        rawBody,
+        normalizedRoutePhone,
+        credentialContext,
+        rawBodyText,
+        signatureResult,
+      )
       this.logger.warn(
         `Rejected cloud transcription callback: invalid signature, taskId=${taskIdForLog}`,
       )
@@ -510,31 +561,235 @@ export class CloudTranscriptionCallbackService {
     return this.asrTaskRepository.save(task)
   }
 
-  private isValidSignature(
+  private validateSignature(
     query: CloudTranscriptionCallbackQueryDto,
     body: Record<string, unknown>,
-  ): boolean {
-    const expectedToken = this.configService.get<string>('CLOUD_TRANSCRIPTION_CALLBACK_TOKEN', '')
-    const salt = this.configService.get<string>('CLOUD_TRANSCRIPTION_CALLBACK_SALT', '')
-    if (!expectedToken || !salt || query.token !== expectedToken) return false
+    routePhone?: string,
+    credentialContext: CallbackCredentialContext = 'cloud',
+    rawBodyText?: string,
+  ): SignatureValidationResult {
+    const credential = this.resolveCredential(routePhone, credentialContext)
+    if (!credential) {
+      return {
+        valid: false,
+        reason: 'missing credential',
+        credential: null,
+        candidates: [],
+        diagnosticCandidates: [],
+      }
+    }
+    const { token: expectedToken, salt } = credential
+    if (!expectedToken || !salt || query.token !== expectedToken) {
+      return {
+        valid: false,
+        reason: 'token mismatch',
+        credential,
+        candidates: [],
+        diagnosticCandidates: [],
+      }
+    }
 
     const timestamp = Number(query.timestamp)
     const toleranceMs = this.getTimestampToleranceMs()
     if (!Number.isFinite(timestamp) || Math.abs(Date.now() - timestamp) > toleranceMs) {
-      return false
+      return {
+        valid: false,
+        reason: 'timestamp invalid or expired',
+        credential,
+        candidates: [],
+        diagnosticCandidates: [],
+      }
     }
 
-    const signedPayload = { ...body, timestamp: query.timestamp, token: query.token }
-    const candidates = new Set<string>()
+    const candidates = this.buildAcceptedSignatureCandidates(query, body, salt)
+    if (credentialContext === 'unicom') {
+      candidates.push(...this.buildUnicomBodySignatureCandidates(query, body, rawBodyText, salt))
+    }
+    const valid = candidates.some((candidate) => this.safeEquals(candidate.signature, query.sign))
+    const diagnosticCandidates = valid
+      ? []
+      : this.buildDiagnosticSignatureCandidates(query, body, rawBodyText, salt)
+
+    return {
+      valid,
+      reason: valid ? 'matched' : 'candidate mismatch',
+      credential,
+      candidates,
+      diagnosticCandidates,
+    }
+  }
+
+  private buildAcceptedSignatureCandidates(
+    query: CloudTranscriptionCallbackQueryDto,
+    body: Record<string, unknown>,
+    salt: string,
+  ): SignatureCandidate[] {
+    const timestampValues: Array<string | number> = [query.timestamp]
+    const timestamp = Number(query.timestamp)
+    if (String(timestamp) === query.timestamp) timestampValues.push(timestamp)
+
+    const candidates: SignatureCandidate[] = []
 
     // 兼容厂商文档/实际回调中的两种签名串和单/双 MD5 写法。
-    for (const str of [this.stableStringify(signedPayload), this.joinSortedFields(signedPayload)]) {
-      const first = this.md5(`${str}${salt}`)
-      candidates.add(first)
-      candidates.add(this.md5(first))
+    for (const timestampValue of timestampValues) {
+      const signedPayload = { ...body, timestamp: timestampValue, token: query.token }
+      const timestampLabel = typeof timestampValue === 'number' ? 'ts-number' : 'ts-string'
+      for (const source of [
+        { label: `object-json-${timestampLabel}`, value: JSON.stringify(signedPayload) },
+        { label: `stable-json-${timestampLabel}`, value: this.stableStringify(signedPayload) },
+        {
+          label: `sorted-fields-${timestampLabel}`,
+          value: this.joinSortedFields(signedPayload),
+        },
+      ]) {
+        this.addMd5Candidates(candidates, source.label, source.value, salt)
+      }
     }
 
-    return Array.from(candidates).some((candidate) => this.safeEquals(candidate, query.sign))
+    return this.uniqueCandidates(candidates)
+  }
+
+  private buildDiagnosticSignatureCandidates(
+    query: CloudTranscriptionCallbackQueryDto,
+    body: Record<string, unknown>,
+    rawBodyText: string | undefined,
+    salt: string,
+  ): SignatureCandidate[] {
+    const candidates: SignatureCandidate[] = []
+    const bodyJson = JSON.stringify(body)
+    const sources = [
+      { label: 'body-json-only', value: bodyJson },
+      { label: 'body-json-ts-token', value: `${bodyJson}${query.timestamp}${query.token}` },
+      { label: 'body-json-token-ts', value: `${bodyJson}${query.token}${query.timestamp}` },
+      { label: 'ts-token-body-json', value: `${query.timestamp}${query.token}${bodyJson}` },
+      { label: 'token-ts-body-json', value: `${query.token}${query.timestamp}${bodyJson}` },
+      { label: 'sorted-fields-body-only', value: this.joinSortedFields(body) },
+    ]
+
+    for (const source of sources) {
+      this.addMd5Candidates(candidates, source.label, source.value, salt)
+    }
+
+    if (rawBodyText) {
+      for (const source of [
+        { label: 'raw-body-only', value: rawBodyText },
+        { label: 'raw-body-ts-token', value: `${rawBodyText}${query.timestamp}${query.token}` },
+        { label: 'raw-body-token-ts', value: `${rawBodyText}${query.token}${query.timestamp}` },
+        { label: 'ts-token-raw-body', value: `${query.timestamp}${query.token}${rawBodyText}` },
+        { label: 'token-ts-raw-body', value: `${query.token}${query.timestamp}${rawBodyText}` },
+      ]) {
+        this.addMd5Candidates(candidates, source.label, source.value, salt)
+      }
+    }
+
+    return this.uniqueCandidates(candidates)
+  }
+
+  private buildUnicomBodySignatureCandidates(
+    query: CloudTranscriptionCallbackQueryDto,
+    body: Record<string, unknown>,
+    rawBodyText: string | undefined,
+    salt: string,
+  ): SignatureCandidate[] {
+    const candidates: SignatureCandidate[] = []
+    const bodyJson = JSON.stringify(body)
+    candidates.push({
+      label: 'unicom-body-json-token-ts:md5',
+      signature: this.md5(`${bodyJson}${query.token}${query.timestamp}${salt}`),
+    })
+
+    if (rawBodyText && rawBodyText !== bodyJson) {
+      candidates.push({
+        label: 'unicom-raw-body-token-ts:md5',
+        signature: this.md5(`${rawBodyText}${query.token}${query.timestamp}${salt}`),
+      })
+    }
+
+    return this.uniqueCandidates(candidates)
+  }
+
+  private addMd5Candidates(
+    candidates: SignatureCandidate[],
+    label: string,
+    source: string,
+    salt: string,
+  ): void {
+    const first = this.md5(`${source}${salt}`)
+    candidates.push({ label: `${label}:md5`, signature: first })
+    candidates.push({ label: `${label}:md5-md5`, signature: this.md5(first) })
+  }
+
+  private uniqueCandidates(candidates: SignatureCandidate[]): SignatureCandidate[] {
+    const seen = new Set<string>()
+    return candidates.filter((candidate) => {
+      const key = `${candidate.label}:${candidate.signature}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }
+
+  private resolveCredential(
+    routePhone?: string,
+    credentialContext: CallbackCredentialContext = 'cloud',
+  ): CallbackCredential | null {
+    const suffix = this.normalizePhone(routePhone)
+    const phoneTokenKeys = [
+      suffix ? `UNICOM_CALLBACK_TOKEN_${suffix}` : '',
+      suffix ? `UNICOM_TRANSCRIPTION_CALLBACK_TOKEN_${suffix}` : '',
+    ]
+    const phoneSaltKeys = [
+      suffix ? `UNICOM_CALLBACK_SALT_${suffix}` : '',
+      suffix ? `UNICOM_TRANSCRIPTION_CALLBACK_SALT_${suffix}` : '',
+    ]
+
+    const globalTokenKeys =
+      credentialContext === 'unicom'
+        ? [
+            'UNICOM_CALLBACK_TOKEN',
+            'UNICOM_TRANSCRIPTION_CALLBACK_TOKEN',
+            'CLOUD_TRANSCRIPTION_CALLBACK_TOKEN',
+          ]
+        : [
+            'CLOUD_TRANSCRIPTION_CALLBACK_TOKEN',
+            'UNICOM_TRANSCRIPTION_CALLBACK_TOKEN',
+            'UNICOM_CALLBACK_TOKEN',
+          ]
+    const globalSaltKeys =
+      credentialContext === 'unicom'
+        ? [
+            'UNICOM_CALLBACK_SALT',
+            'UNICOM_TRANSCRIPTION_CALLBACK_SALT',
+            'CLOUD_TRANSCRIPTION_CALLBACK_SALT',
+          ]
+        : [
+            'CLOUD_TRANSCRIPTION_CALLBACK_SALT',
+            'UNICOM_TRANSCRIPTION_CALLBACK_SALT',
+            'UNICOM_CALLBACK_SALT',
+          ]
+
+    const token = this.firstConfigEntry([...phoneTokenKeys, ...globalTokenKeys])
+    const salt = this.firstConfigEntry([...phoneSaltKeys, ...globalSaltKeys])
+
+    return token && salt
+      ? { token: token.value, salt: salt.value, tokenKey: token.key, saltKey: salt.key }
+      : null
+  }
+
+  private async resolveBoundRoutePhone(routePhone?: string): Promise<string | undefined> {
+    const normalized = this.normalizePhone(routePhone)
+    if (!normalized) return undefined
+    const binding = await this.phoneBindingService.findEnabledByPhone(normalized)
+    return binding ? binding.phone : normalized
+  }
+
+  private firstConfigEntry(keys: string[]): { key: string; value: string } | null {
+    for (const key of keys) {
+      if (!key) continue
+      const value = this.configService.get<string>(key, '')
+      if (value) return { key, value }
+    }
+    return null
   }
 
   private parseSegment(value: unknown): CloudTranscriptionSegment | null {
@@ -593,6 +848,64 @@ export class CloudTranscriptionCallbackService {
 
   private md5(value: string): string {
     return createHash('md5').update(value, 'utf8').digest('hex')
+  }
+
+  private sha256(value: string): string {
+    return createHash('sha256').update(value, 'utf8').digest('hex')
+  }
+
+  private logSignatureDiagnostics(
+    taskId: string,
+    query: CloudTranscriptionCallbackQueryDto,
+    body: Record<string, unknown>,
+    routePhone: string,
+    credentialContext: CallbackCredentialContext,
+    rawBodyText: string | undefined,
+    result: SignatureValidationResult,
+  ): void {
+    const diagnosticMatches = result.diagnosticCandidates
+      .filter((candidate) => this.safeEquals(candidate.signature, query.sign))
+      .map((candidate) => candidate.label)
+    const bodyKeys = Object.keys(body).join(',') || 'none'
+    const firstSegmentKeys = this.firstSegmentKeys(body)
+    const rawBodyFingerprint = rawBodyText
+      ? `present:length=${rawBodyText.length}:sha256_12=${this.sha256(rawBodyText).slice(0, 12)}`
+      : 'absent'
+
+    this.logger.warn(
+      [
+        `Cloud transcription signature diagnostics: taskId=${taskId}`,
+        `context=${credentialContext}`,
+        `routePhone=${routePhone || 'account'}`,
+        `reason=${result.reason}`,
+        `credentialKeys=${result.credential ? `${result.credential.tokenKey}/${result.credential.saltKey}` : 'none'}`,
+        `sign12=${this.shortSignature(query.sign)}`,
+        `timestamp=${query.timestamp}`,
+        `bodyKeys=${bodyKeys}`,
+        `firstSegmentKeys=${firstSegmentKeys}`,
+        `rawBody=${rawBodyFingerprint}`,
+        `acceptedCandidates=${this.formatCandidates(result.candidates)}`,
+        `diagnosticCandidates=${this.formatCandidates(result.diagnosticCandidates)}`,
+        `diagnosticMatches=${diagnosticMatches.length ? diagnosticMatches.join(',') : 'none'}`,
+      ].join('; '),
+    )
+  }
+
+  private firstSegmentKeys(body: Record<string, unknown>): string {
+    const result = body.result
+    if (!Array.isArray(result) || !result[0] || typeof result[0] !== 'object') return 'none'
+    return Object.keys(result[0] as Record<string, unknown>).join(',') || 'none'
+  }
+
+  private formatCandidates(candidates: SignatureCandidate[]): string {
+    if (candidates.length === 0) return 'none'
+    return candidates
+      .map((candidate) => `${candidate.label}:${this.shortSignature(candidate.signature)}`)
+      .join(',')
+  }
+
+  private shortSignature(value: string): string {
+    return String(value ?? '').slice(0, 12)
   }
 
   private async saveCallbackEntity(
@@ -676,6 +989,17 @@ export class CloudTranscriptionCallbackService {
     if (value === 'true') return true
     if (value === 'false') return false
     return null
+  }
+
+  private normalizePhone(value: string | null | undefined): string {
+    const digits = String(value ?? '').replace(/\D/g, '')
+    if (digits.startsWith('0086') && digits.length === 15) return digits.slice(4)
+    if (digits.startsWith('86') && digits.length === 13) return digits.slice(2)
+    return digits
+  }
+
+  private isValidRoutePhone(phone: string): boolean {
+    return /^1[3-9]\d{9}$/.test(phone)
   }
 
   private getTimestampToleranceMs(): number {

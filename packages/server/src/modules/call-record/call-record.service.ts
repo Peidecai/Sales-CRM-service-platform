@@ -10,13 +10,19 @@ import { Repository, SelectQueryBuilder } from 'typeorm'
 import { InjectQueue } from '@nestjs/bull'
 import { Queue } from 'bull'
 import { CallDirection, CallStatus, CallType, UserRole } from '@crm/shared'
-import { CallRecord } from './call-record.entity'
+import { CallRecord, type CallRecordTranscriptSegment } from './call-record.entity'
 import { CreateCallRecordDto } from './dto/create-call-record.dto'
 import { CreateNativeOutboundCallDto } from './dto/create-native-outbound-call.dto'
 import { UpdateCallRecordDto } from './dto/update-call-record.dto'
 import { QueryCallRecordDto } from './dto/query-call-record.dto'
 import { Customer } from '../customer/customer.entity'
 import { User } from '../user/user.entity'
+import { CallTranscript } from '../recording/entities/call-transcript.entity'
+import { RecordingFile } from '../recording/entities/recording-file.entity'
+import {
+  CloudTranscriptionCallback,
+  CloudTranscriptionMatchStatus,
+} from '../recording/entities/cloud-transcription-callback.entity'
 import type { CallSummaryJobData } from '../ai/processors/call-summary.processor'
 import type { AuthUser } from '../../common/decorators/current-user.decorator'
 
@@ -47,6 +53,12 @@ export class CallRecordService {
     private readonly customerRepository: Repository<Customer>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(CallTranscript)
+    private readonly transcriptRepository: Repository<CallTranscript>,
+    @InjectRepository(RecordingFile)
+    private readonly recordingFileRepository: Repository<RecordingFile>,
+    @InjectRepository(CloudTranscriptionCallback)
+    private readonly cloudTranscriptionCallbackRepository: Repository<CloudTranscriptionCallback>,
     @InjectQueue('call-summary')
     private readonly callSummaryQueue: Queue<CallSummaryJobData>,
     @InjectQueue('cloud-transcription-match')
@@ -158,6 +170,8 @@ export class CallRecordService {
       .createQueryBuilder('cr')
       .leftJoinAndSelect('cr.customer', 'customer')
       .leftJoinAndSelect('cr.opportunity', 'opportunity')
+      .leftJoin('cr.user', 'user')
+      .addSelect(['user.id', 'user.username', 'user.name', 'user.phone'])
 
     this.applyDataPermission(qb, user)
 
@@ -198,13 +212,15 @@ export class CallRecordService {
 
     const [list, total] = await qb.getManyAndCount()
 
+    await this.decorateDisplayFields(list)
+
     return { list, total, page, pageSize }
   }
 
   async findOne(id: number, user?: AuthUser): Promise<CallRecord> {
     const record = await this.callRecordRepository.findOne({
       where: { id },
-      relations: ['customer', 'opportunity'],
+      relations: ['customer', 'opportunity', 'user'],
     })
 
     if (!record) {
@@ -212,6 +228,9 @@ export class CallRecordService {
     }
 
     this.checkOwnership(record, user)
+
+    await this.decorateTranscriptFields(record)
+    await this.decorateDisplayFields([record])
 
     return record
   }
@@ -369,6 +388,124 @@ export class CallRecordService {
     if (digits.startsWith('0086') && digits.length === 15) return digits.slice(4)
     if (digits.startsWith('86') && digits.length === 13) return digits.slice(2)
     return digits
+  }
+
+  private async decorateDisplayFields(records: CallRecord[]): Promise<void> {
+    if (records.length === 0) return
+
+    const counterpartPhones = await this.getCounterpartPhones(records.map((record) => record.id))
+
+    for (const record of records) {
+      const safeUser = this.toSafeUser(record.user)
+      record.user = safeUser
+      record.customerPhone = record.customer?.phone ?? null
+      record.salesUserName = this.firstNonBlank(safeUser?.name, safeUser?.username) || null
+      record.salesUserPhone = safeUser?.phone ?? null
+      record.counterpartPhone = counterpartPhones.get(record.id) ?? null
+      record.callPhoneNumber =
+        this.firstNonBlank(record.counterpartPhone, record.customer?.phone) || null
+    }
+  }
+
+  private async getCounterpartPhones(callRecordIds: number[]): Promise<Map<number, string>> {
+    const ids = [...new Set(callRecordIds.filter((id) => Number.isFinite(id)))]
+    if (ids.length === 0) return new Map()
+
+    const rows = await this.recordingFileRepository
+      .createQueryBuilder('rf')
+      .where('rf.callRecordId IN (:...callRecordIds)', { callRecordIds: ids })
+      .andWhere('rf.counterpartPhone IS NOT NULL')
+      .orderBy('rf.createdAt', 'DESC')
+      .select(['rf.callRecordId', 'rf.counterpartPhone'])
+      .getMany()
+
+    const phones = new Map<number, string>()
+    for (const row of rows) {
+      const phone = row.counterpartPhone?.trim()
+      if (row.callRecordId && phone && !phones.has(row.callRecordId)) {
+        phones.set(row.callRecordId, phone)
+      }
+    }
+    return phones
+  }
+
+  private toSafeUser(user: User | null | undefined): User | null {
+    if (!user) return null
+    return {
+      id: user.id,
+      username: user.username,
+      name: user.name,
+      phone: user.phone,
+    } as User
+  }
+
+  private async decorateTranscriptFields(record: CallRecord): Promise<void> {
+    const segments = await this.getTranscriptSegments(record.id)
+    record.transcriptSegments = segments
+
+    let transcriptText = segments
+      .map((segment) => segment.text.trim())
+      .filter((text) => text.length > 0)
+      .join('\n')
+      .trim()
+
+    if (!transcriptText) {
+      transcriptText = await this.getMatchedCloudTranscriptText(record.id)
+    }
+
+    record.transcriptText = transcriptText
+    record.transcriptSegmentCount = segments.length
+    record.transcriptTextLen = transcriptText.length
+  }
+
+  private async getTranscriptSegments(
+    callRecordId: number,
+  ): Promise<CallRecordTranscriptSegment[]> {
+    const rows = await this.transcriptRepository
+      .createQueryBuilder('ct')
+      .innerJoin('asr_tasks', 'at', 'at.id = ct.asr_task_id')
+      .innerJoin('recording_files', 'rf', 'rf.id = at.recording_file_id')
+      .where('rf.call_record_id = :callRecordId', { callRecordId })
+      .orderBy('ct.segment_index', 'ASC')
+      .addOrderBy('ct.id', 'ASC')
+      .getMany()
+
+    return rows
+      .filter((row) => row.text?.trim())
+      .map((row) => ({
+        id: row.id,
+        segmentIndex: row.segmentIndex,
+        startTimeMs: row.startTimeMs,
+        endTimeMs: row.endTimeMs,
+        speaker: row.speaker,
+        text: row.text?.trim() ?? '',
+      }))
+  }
+
+  private async getMatchedCloudTranscriptText(callRecordId: number): Promise<string> {
+    const callbacks = await this.cloudTranscriptionCallbackRepository
+      .createQueryBuilder('ctc')
+      .where('ctc.matchedCallRecordId = :callRecordId', { callRecordId })
+      .andWhere('ctc.matchStatus = :matchStatus', {
+        matchStatus: CloudTranscriptionMatchStatus.MATCHED,
+      })
+      .andWhere('ctc.transcriptText IS NOT NULL')
+      .orderBy('ctc.createdAt', 'DESC')
+      .select(['ctc.taskId', 'ctc.transcriptText'])
+      .take(5)
+      .getMany()
+
+    return (
+      callbacks
+        .map((callback) => callback.transcriptText?.trim())
+        .find((text): text is string => Boolean(text)) ?? ''
+    )
+  }
+
+  private firstNonBlank(...values: Array<string | null | undefined>): string {
+    return (
+      values.map((value) => value?.trim()).find((value): value is string => Boolean(value)) ?? ''
+    )
   }
 
   private async scheduleCloudTranscriptionMatch(callRecordId: number): Promise<void> {

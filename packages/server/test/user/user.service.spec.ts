@@ -80,6 +80,7 @@ describe('UserService', () => {
 
       expect(result.total).toBe(2)
       expect(result.list).toHaveLength(2)
+      expect(qb.orderBy).toHaveBeenCalledWith('user.id', 'DESC')
       // passwords should be stripped
       result.list.forEach((u) => expect(u).not.toHaveProperty('password'))
     })
@@ -139,18 +140,21 @@ describe('UserService', () => {
   describe('findByUsername', () => {
     it('should return user including password (for auth)', async () => {
       const user = fixtures.user()
-      repo.findOne.mockResolvedValue(user)
+      const qb = createMockQueryBuilder([user])
+      repo.createQueryBuilder.mockReturnValue(qb)
 
       const result = await service.findByUsername('testuser')
 
-      expect(repo.findOne).toHaveBeenCalledWith({
-        where: { username: 'testuser' },
+      expect(qb.addSelect).toHaveBeenCalledWith('user.password')
+      expect(qb.where).toHaveBeenCalledWith('user.username = :username', {
+        username: 'testuser',
       })
-      expect(result).toBeDefined()
+      expect(result).toBe(user)
     })
 
     it('should return null if user not found', async () => {
-      repo.findOne.mockResolvedValue(null)
+      const qb = createMockQueryBuilder([])
+      repo.createQueryBuilder.mockReturnValue(qb)
 
       const result = await service.findByUsername('nonexistent')
       expect(result).toBeNull()

@@ -41,6 +41,7 @@ import { CallAnalysisResult } from './entities/call-analysis-result.entity'
 import { EmployeeBadge } from './entities/employee-badge.entity'
 import { CallTranscript } from '../recording/entities/call-transcript.entity'
 import { RecordingFile } from '../recording/entities/recording-file.entity'
+import { CloudTranscriptionCallback } from '../recording/entities/cloud-transcription-callback.entity'
 import { CallRecordModule } from '../call-record/call-record.module'
 import { CustomerModule } from '../customer/customer.module'
 import { KnowledgeModule } from '../knowledge/knowledge.module'
@@ -65,6 +66,7 @@ import { UserModule } from '../user/user.module'
       // (which would create a cross-module dep chain: AiModule → RecordingModule → CallRecordModule → AiModule)
       CallTranscript,
       RecordingFile,
+      CloudTranscriptionCallback,
     ]),
     // Import modules instead of registering their entities directly
     CallRecordModule,

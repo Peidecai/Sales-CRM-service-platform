@@ -51,7 +51,7 @@ export class UserService {
       qb.andWhere('user.role = :role', { role })
     }
 
-    qb.orderBy('user.id', 'ASC')
+    qb.orderBy('user.id', 'DESC')
       .skip((page - 1) * pageSize)
       .take(pageSize)
 
@@ -73,9 +73,11 @@ export class UserService {
   }
 
   async findByUsername(username: string): Promise<User | null> {
-    return this.userRepository.findOne({
-      where: { username },
-    })
+    return this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('user.username = :username', { username })
+      .getOne()
   }
 
   async update(id: number, dto: UpdateUserDto): Promise<UserResponseDto> {

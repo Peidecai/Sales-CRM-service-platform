@@ -30,6 +30,7 @@ describe('CloudTranscriptionCallbackService', () => {
   let transcriptRepo: MockRepository<CallTranscript>
   let callSummaryQueue: { add: jest.Mock }
   let transcriptionMatchQueue: { add: jest.Mock }
+  let phoneBindingService: { findEnabledByPhone: jest.Mock }
   let now: number
 
   const token = 'test-token'
@@ -75,6 +76,7 @@ describe('CloudTranscriptionCallbackService', () => {
     transcriptRepo = createMockRepository<CallTranscript>()
     callSummaryQueue = { add: jest.fn().mockResolvedValue({ id: 'summary-job-1' }) }
     transcriptionMatchQueue = { add: jest.fn().mockResolvedValue({ id: 'match-job-1' }) }
+    phoneBindingService = { findEnabledByPhone: jest.fn().mockResolvedValue(null) }
 
     callbackRepo.findOne.mockResolvedValue(null)
     callbackRepo.create.mockImplementation((payload) => ({
@@ -129,6 +131,7 @@ describe('CloudTranscriptionCallbackService', () => {
       transcriptRepo as never,
       callSummaryQueue as never,
       transcriptionMatchQueue as never,
+      phoneBindingService as never,
     )
   })
 
@@ -138,12 +141,14 @@ describe('CloudTranscriptionCallbackService', () => {
     const result = await service.handleCallback(signedQuery(callbackBody), asRawBody(callbackBody))
 
     expect(result).toEqual({ message: 'success', success: true, code: 1, data: true })
-    expect(lastCallbackSave()).toEqual(expect.objectContaining({
-      taskId: 'task-1',
-      callSid: 'orphan-call',
-      matchStatus: CloudTranscriptionMatchStatus.PENDING,
-      matchedCallRecordId: null,
-    }))
+    expect(lastCallbackSave()).toEqual(
+      expect.objectContaining({
+        taskId: 'task-1',
+        callSid: 'orphan-call',
+        matchStatus: CloudTranscriptionMatchStatus.PENDING,
+        matchedCallRecordId: null,
+      }),
+    )
     expect(recordingFileRepo.save).not.toHaveBeenCalled()
     expect(callSummaryQueue.add).not.toHaveBeenCalled()
     expect(transcriptionMatchQueue.add).toHaveBeenCalledWith(
@@ -169,18 +174,18 @@ describe('CloudTranscriptionCallbackService', () => {
       matchStatus: CloudTranscriptionMatchStatus.PENDING,
       matchReason: null,
     } as CloudTranscriptionCallback
-    callbackRepo.findOne
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(existingCallback)
+    callbackRepo.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(existingCallback)
     callbackRepo.save.mockRejectedValueOnce({ code: 'ER_DUP_ENTRY' })
 
     const result = await service.handleCallback(signedQuery(body), asRawBody(body))
 
     expect(result).toEqual({ message: 'success', success: true, code: 1, data: true })
-    expect(lastCallbackSave()).toEqual(expect.objectContaining({
-      taskId: body.taskId,
-      matchStatus: CloudTranscriptionMatchStatus.PENDING,
-    }))
+    expect(lastCallbackSave()).toEqual(
+      expect.objectContaining({
+        taskId: body.taskId,
+        matchStatus: CloudTranscriptionMatchStatus.PENDING,
+      }),
+    )
   })
 
   it('should parse the callback payload into the documented structure', () => {
@@ -188,9 +193,207 @@ describe('CloudTranscriptionCallbackService', () => {
   })
 
   it('should accept sorted key-value signature format from the push document', async () => {
-    const result = await service.handleCallback(
-      signedQueryWithSortedFields(body),
+    const result = await service.handleCallback(signedQueryWithSortedFields(body), asRawBody(body))
+
+    expect(result).toEqual({ message: 'success', success: true, code: 1, data: true })
+  })
+
+  it('should accept Unicom transcription JSON signatures that sign timestamp as a number', async () => {
+    const unicomService = new CloudTranscriptionCallbackService(
+      createMockConfigService({
+        UNICOM_CALLBACK_TOKEN: token,
+        UNICOM_CALLBACK_SALT: salt,
+        CLOUD_TRANSCRIPTION_CALLBACK_TIMESTAMP_TOLERANCE_MS: 15 * 60 * 1000,
+        CLOUD_TRANSCRIPTION_MATCH_WINDOW_MS: 10 * 60 * 1000,
+        CLOUD_TRANSCRIPTION_MATCH_DURATION_TOLERANCE_SECONDS: 120,
+      }) as never,
+      callbackRepo as never,
+      callRecordRepo as never,
+      recordingFileRepo as never,
+      asrTaskRepo as never,
+      transcriptRepo as never,
+      callSummaryQueue as never,
+      transcriptionMatchQueue as never,
+      phoneBindingService as never,
+    )
+    const timestamp = String(now)
+    const signedPayload = { ...asRawBody(body), timestamp: now, token }
+    const sign = md5(`${stableStringify(signedPayload)}${salt}`)
+
+    const result = await unicomService.handleCallback(
+      { token, timestamp, sign },
       asRawBody(body),
+      undefined,
+      'unicom',
+    )
+
+    expect(result).toEqual({ message: 'success', success: true, code: 1, data: true })
+  })
+
+  it('should accept Unicom transcription JSON signatures that preserve payload key order', async () => {
+    const unicomService = new CloudTranscriptionCallbackService(
+      createMockConfigService({
+        UNICOM_CALLBACK_TOKEN: token,
+        UNICOM_CALLBACK_SALT: salt,
+        CLOUD_TRANSCRIPTION_CALLBACK_TIMESTAMP_TOLERANCE_MS: 15 * 60 * 1000,
+        CLOUD_TRANSCRIPTION_MATCH_WINDOW_MS: 10 * 60 * 1000,
+        CLOUD_TRANSCRIPTION_MATCH_DURATION_TOLERANCE_SECONDS: 120,
+      }) as never,
+      callbackRepo as never,
+      callRecordRepo as never,
+      recordingFileRepo as never,
+      asrTaskRepo as never,
+      transcriptRepo as never,
+      callSummaryQueue as never,
+      transcriptionMatchQueue as never,
+      phoneBindingService as never,
+    )
+    const timestamp = String(now)
+    const signedPayload = { ...asRawBody(body), timestamp, token }
+    const sign = md5(`${JSON.stringify(signedPayload)}${salt}`)
+
+    const result = await unicomService.handleCallback(
+      { token, timestamp, sign },
+      asRawBody(body),
+      undefined,
+      'unicom',
+    )
+
+    expect(result).toEqual({ message: 'success', success: true, code: 1, data: true })
+  })
+
+  it('should accept real Unicom transcription signatures using body JSON plus token and timestamp', async () => {
+    const unicomService = new CloudTranscriptionCallbackService(
+      createMockConfigService({
+        UNICOM_CALLBACK_TOKEN: token,
+        UNICOM_CALLBACK_SALT: salt,
+        CLOUD_TRANSCRIPTION_CALLBACK_TIMESTAMP_TOLERANCE_MS: 15 * 60 * 1000,
+        CLOUD_TRANSCRIPTION_MATCH_WINDOW_MS: 10 * 60 * 1000,
+        CLOUD_TRANSCRIPTION_MATCH_DURATION_TOLERANCE_SECONDS: 120,
+      }) as never,
+      callbackRepo as never,
+      callRecordRepo as never,
+      recordingFileRepo as never,
+      asrTaskRepo as never,
+      transcriptRepo as never,
+      callSummaryQueue as never,
+      transcriptionMatchQueue as never,
+      phoneBindingService as never,
+    )
+    const timestamp = String(now)
+    const rawBody = asRawBody(body)
+    const rawBodyText = JSON.stringify(rawBody)
+    const sign = md5(`${rawBodyText}${token}${timestamp}${salt}`)
+
+    const result = await unicomService.handleCallback(
+      { token, timestamp, sign },
+      rawBody,
+      undefined,
+      'unicom',
+      rawBodyText,
+    )
+
+    expect(result).toEqual({ message: 'success', success: true, code: 1, data: true })
+  })
+
+  it('should accept phone-specific Unicom transcription callback credentials', async () => {
+    const phoneSpecificService = new CloudTranscriptionCallbackService(
+      createMockConfigService({
+        UNICOM_TRANSCRIPTION_CALLBACK_TOKEN_13800138000: 'phone-token',
+        UNICOM_TRANSCRIPTION_CALLBACK_SALT_13800138000: 'phone-salt',
+        CLOUD_TRANSCRIPTION_CALLBACK_TIMESTAMP_TOLERANCE_MS: 15 * 60 * 1000,
+        CLOUD_TRANSCRIPTION_MATCH_WINDOW_MS: 10 * 60 * 1000,
+        CLOUD_TRANSCRIPTION_MATCH_DURATION_TOLERANCE_SECONDS: 120,
+      }) as never,
+      callbackRepo as never,
+      callRecordRepo as never,
+      recordingFileRepo as never,
+      asrTaskRepo as never,
+      transcriptRepo as never,
+      callSummaryQueue as never,
+      transcriptionMatchQueue as never,
+      phoneBindingService as never,
+    )
+
+    const timestamp = String(now)
+    const signedPayload = { ...asRawBody(body), timestamp, token: 'phone-token' }
+    const first = md5(`${stableStringify(signedPayload)}phone-salt`)
+    const result = await phoneSpecificService.handleCallback(
+      { token: 'phone-token', timestamp, sign: md5(first) },
+      asRawBody(body),
+      '13800138000',
+    )
+
+    expect(result).toEqual({ message: 'success', success: true, code: 1, data: true })
+  })
+
+  it('should prefer Unicom global credentials for account-level Unicom transcription callbacks', async () => {
+    const unicomService = new CloudTranscriptionCallbackService(
+      createMockConfigService({
+        CLOUD_TRANSCRIPTION_CALLBACK_TOKEN: 'cloud-token',
+        CLOUD_TRANSCRIPTION_CALLBACK_SALT: 'cloud-salt',
+        UNICOM_CALLBACK_TOKEN: 'unicom-token',
+        UNICOM_CALLBACK_SALT: 'unicom-salt',
+        CLOUD_TRANSCRIPTION_CALLBACK_TIMESTAMP_TOLERANCE_MS: 15 * 60 * 1000,
+        CLOUD_TRANSCRIPTION_MATCH_WINDOW_MS: 10 * 60 * 1000,
+        CLOUD_TRANSCRIPTION_MATCH_DURATION_TOLERANCE_SECONDS: 120,
+      }) as never,
+      callbackRepo as never,
+      callRecordRepo as never,
+      recordingFileRepo as never,
+      asrTaskRepo as never,
+      transcriptRepo as never,
+      callSummaryQueue as never,
+      transcriptionMatchQueue as never,
+      phoneBindingService as never,
+    )
+
+    const timestamp = String(now)
+    const signedPayload = { ...asRawBody(body), timestamp, token: 'unicom-token' }
+    const first = md5(`${stableStringify(signedPayload)}unicom-salt`)
+    const result = await unicomService.handleCallback(
+      { token: 'unicom-token', timestamp, sign: md5(first) },
+      asRawBody(body),
+      undefined,
+      'unicom',
+    )
+
+    expect(result).toEqual({ message: 'success', success: true, code: 1, data: true })
+  })
+
+  it('should prefer account-level Unicom credentials over stale legacy transcription credentials', async () => {
+    const accountToken = 'account-unicom-token'
+    const accountSalt = 'account-unicom-salt'
+    const unicomService = new CloudTranscriptionCallbackService(
+      createMockConfigService({
+        UNICOM_CALLBACK_TOKEN: accountToken,
+        UNICOM_CALLBACK_SALT: accountSalt,
+        UNICOM_TRANSCRIPTION_CALLBACK_TOKEN: 'stale-transcription-token',
+        UNICOM_TRANSCRIPTION_CALLBACK_SALT: 'stale-transcription-salt',
+        CLOUD_TRANSCRIPTION_CALLBACK_TOKEN: 'cloud-token',
+        CLOUD_TRANSCRIPTION_CALLBACK_SALT: 'cloud-salt',
+        CLOUD_TRANSCRIPTION_CALLBACK_TIMESTAMP_TOLERANCE_MS: 15 * 60 * 1000,
+        CLOUD_TRANSCRIPTION_MATCH_WINDOW_MS: 10 * 60 * 1000,
+        CLOUD_TRANSCRIPTION_MATCH_DURATION_TOLERANCE_SECONDS: 120,
+      }) as never,
+      callbackRepo as never,
+      callRecordRepo as never,
+      recordingFileRepo as never,
+      asrTaskRepo as never,
+      transcriptRepo as never,
+      callSummaryQueue as never,
+      transcriptionMatchQueue as never,
+      phoneBindingService as never,
+    )
+
+    const timestamp = String(now)
+    const signedPayload = { ...asRawBody(body), timestamp, token: accountToken }
+    const first = md5(`${stableStringify(signedPayload)}${accountSalt}`)
+    const result = await unicomService.handleCallback(
+      { token: accountToken, timestamp, sign: md5(first) },
+      asRawBody(body),
+      undefined,
+      'unicom',
     )
 
     expect(result).toEqual({ message: 'success', success: true, code: 1, data: true })
@@ -210,27 +413,35 @@ describe('CloudTranscriptionCallbackService', () => {
 
     expect(result.success).toBe(true)
     expect(record.duration).toBe(11)
-    expect(recordingFileRepo.save).toHaveBeenCalledWith(expect.objectContaining({
-      callRecordId: 8,
-      ossKey: 'cloud-transcription/call-1/task-1.json',
-    }))
-    expect(asrTaskRepo.save).toHaveBeenCalledWith(expect.objectContaining({
-      externalTaskId: 'task-1',
-      status: AsrTaskStatus.COMPLETED,
-    }))
+    expect(recordingFileRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        callRecordId: 8,
+        ossKey: 'cloud-transcription/call-1/task-1.json',
+      }),
+    )
+    expect(asrTaskRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        externalTaskId: 'task-1',
+        status: AsrTaskStatus.COMPLETED,
+      }),
+    )
     expect(transcriptRepo.delete).toHaveBeenCalledWith({ asrTaskId: 70 })
-    expect(transcriptRepo.save).toHaveBeenCalledWith(expect.arrayContaining([
-      expect.objectContaining({ asrTaskId: 70, segmentIndex: 0, text: 'hello' }),
-      expect.objectContaining({ asrTaskId: 70, segmentIndex: 1, text: 'world' }),
-    ]))
+    expect(transcriptRepo.save).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ asrTaskId: 70, segmentIndex: 0, text: 'hello' }),
+        expect.objectContaining({ asrTaskId: 70, segmentIndex: 1, text: 'world' }),
+      ]),
+    )
     expect(callSummaryQueue.add).toHaveBeenCalledWith(
       { callRecordId: 8 },
       expect.objectContaining({ jobId: 'cloud-transcription:task-1:8' }),
     )
-    expect(lastCallbackSave()).toEqual(expect.objectContaining({
-      matchedCallRecordId: 8,
-      matchStatus: CloudTranscriptionMatchStatus.MATCHED,
-    }))
+    expect(lastCallbackSave()).toEqual(
+      expect.objectContaining({
+        matchedCallRecordId: 8,
+        matchStatus: CloudTranscriptionMatchStatus.MATCHED,
+      }),
+    )
   })
 
   it('should bind a unique fuzzy match and set providerCallId on the local record', async () => {
@@ -248,15 +459,19 @@ describe('CloudTranscriptionCallbackService', () => {
     await service.handleCallback(signedQuery(body), asRawBody(body))
 
     expect(record.providerCallId).toBe(body.callSid)
-    expect(callRecordRepo.save).toHaveBeenCalledWith(expect.objectContaining({
-      id: 9,
-      providerCallId: body.callSid,
-    }))
-    expect(lastCallbackSave()).toEqual(expect.objectContaining({
-      matchedCallRecordId: 9,
-      matchStatus: CloudTranscriptionMatchStatus.MATCHED,
-      matchReason: 'matched by local native outbound metadata',
-    }))
+    expect(callRecordRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 9,
+        providerCallId: body.callSid,
+      }),
+    )
+    expect(lastCallbackSave()).toEqual(
+      expect.objectContaining({
+        matchedCallRecordId: 9,
+        matchStatus: CloudTranscriptionMatchStatus.MATCHED,
+        matchReason: 'matched by local native outbound metadata',
+      }),
+    )
   })
 
   it('should retry a pending callback and bind it when the local outbound record appears later', async () => {
@@ -290,10 +505,12 @@ describe('CloudTranscriptionCallbackService', () => {
 
     await service.handlePendingMatchRetry({ data: { taskId: body.taskId } } as never)
 
-    expect(lastCallbackSave()).toEqual(expect.objectContaining({
-      matchedCallRecordId: 15,
-      matchStatus: CloudTranscriptionMatchStatus.MATCHED,
-    }))
+    expect(lastCallbackSave()).toEqual(
+      expect.objectContaining({
+        matchedCallRecordId: 15,
+        matchStatus: CloudTranscriptionMatchStatus.MATCHED,
+      }),
+    )
     expect(callSummaryQueue.add).toHaveBeenCalledWith(
       { callRecordId: 15 },
       expect.objectContaining({ jobId: 'cloud-transcription:task-1:15' }),
@@ -327,9 +544,7 @@ describe('CloudTranscriptionCallbackService', () => {
       callType: CallType.MANUAL,
     }) as CallRecord
 
-    callRecordRepo.findOne
-      .mockResolvedValueOnce(record)
-      .mockResolvedValue(null)
+    callRecordRepo.findOne.mockResolvedValueOnce(record).mockResolvedValue(null)
     callbackRepo.createQueryBuilder.mockReturnValue(createMockQueryBuilder([pendingCallback], 1))
     callbackRepo.findOne.mockResolvedValue(pendingCallback)
     callRecordRepo.createQueryBuilder.mockReturnValue(createMockQueryBuilder([record], 1))
@@ -337,10 +552,12 @@ describe('CloudTranscriptionCallbackService', () => {
     await service.handlePendingMatchRetry({ data: { callRecordId: 16 } } as never)
 
     expect(callbackRepo.createQueryBuilder).toHaveBeenCalled()
-    expect(lastCallbackSave()).toEqual(expect.objectContaining({
-      matchedCallRecordId: 16,
-      matchStatus: CloudTranscriptionMatchStatus.MATCHED,
-    }))
+    expect(lastCallbackSave()).toEqual(
+      expect.objectContaining({
+        matchedCallRecordId: 16,
+        matchStatus: CloudTranscriptionMatchStatus.MATCHED,
+      }),
+    )
   })
 
   it('should mark ambiguous when multiple local outbound candidates match', async () => {
@@ -365,22 +582,65 @@ describe('CloudTranscriptionCallbackService', () => {
 
     await service.handleCallback(signedQuery(body), asRawBody(body))
 
-    expect(lastCallbackSave()).toEqual(expect.objectContaining({
-      matchedCallRecordId: null,
-      matchStatus: CloudTranscriptionMatchStatus.AMBIGUOUS,
-    }))
+    expect(lastCallbackSave()).toEqual(
+      expect.objectContaining({
+        matchedCallRecordId: null,
+        matchStatus: CloudTranscriptionMatchStatus.AMBIGUOUS,
+      }),
+    )
     expect(recordingFileRepo.save).not.toHaveBeenCalled()
     expect(callSummaryQueue.add).not.toHaveBeenCalled()
     expect(transcriptionMatchQueue.add).not.toHaveBeenCalled()
   })
 
   it('should reject invalid signatures without writing callback data', async () => {
+    const warnSpy = jest
+      .spyOn((service as unknown as { logger: { warn: (message: string) => void } }).logger, 'warn')
+      .mockImplementation()
+    const rawBodyText = JSON.stringify(asRawBody(body))
+
     const result = await service.handleCallback(
       { token, timestamp: String(now), sign: 'bad' },
       asRawBody(body),
+      undefined,
+      'cloud',
+      rawBodyText,
     )
 
     expect(result).toEqual({ message: 'invalid sign', success: false, code: 0, data: false })
+    expect(callbackRepo.save).not.toHaveBeenCalled()
+
+    const diagnosticMessage = warnSpy.mock.calls
+      .map(([message]) => String(message))
+      .find((message) => message.includes('Cloud transcription signature diagnostics'))
+    expect(diagnosticMessage).toBeDefined()
+    expect(diagnosticMessage).toContain('reason=candidate mismatch')
+    expect(diagnosticMessage).toContain('bodyKeys=bizDuration,enableCallback,requestTime')
+    expect(diagnosticMessage).toContain('rawBody=present:length=')
+    expect(diagnosticMessage).toContain('acceptedCandidates=object-json-ts-string:md5:')
+    expect(diagnosticMessage).toContain('diagnosticCandidates=body-json-only:md5:')
+    expect(diagnosticMessage).not.toContain(token)
+    expect(diagnosticMessage).not.toContain(salt)
+    expect(diagnosticMessage).not.toContain('hello')
+    expect(diagnosticMessage).not.toContain('world')
+
+    warnSpy.mockRestore()
+  })
+
+  it('should reject malformed Unicom route phones before global credential fallback', async () => {
+    const result = await service.handleCallback(
+      signedQuery(body),
+      asRawBody(body),
+      '138',
+    )
+
+    expect(result).toEqual({
+      message: 'invalid route phone',
+      success: false,
+      code: 0,
+      data: false,
+    })
+    expect(phoneBindingService.findEnabledByPhone).not.toHaveBeenCalled()
     expect(callbackRepo.save).not.toHaveBeenCalled()
   })
 
@@ -454,10 +714,12 @@ describe('CloudTranscriptionCallbackService', () => {
     const result = await service.handleCallback(signedQuery(failedBody), asRawBody(failedBody))
 
     expect(result).toEqual({ message: 'success', success: true, code: 1, data: true })
-    expect(lastCallbackSave()).toEqual(expect.objectContaining({
-      matchStatus: CloudTranscriptionMatchStatus.FAILED,
-      matchReason: expect.stringContaining('provider failed'),
-    }))
+    expect(lastCallbackSave()).toEqual(
+      expect.objectContaining({
+        matchStatus: CloudTranscriptionMatchStatus.FAILED,
+        matchReason: expect.stringContaining('provider failed'),
+      }),
+    )
     expect(transcriptRepo.save).not.toHaveBeenCalled()
     expect(callSummaryQueue.add).not.toHaveBeenCalled()
   })

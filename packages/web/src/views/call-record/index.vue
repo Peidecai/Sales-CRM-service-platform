@@ -56,15 +56,31 @@
         <el-table-column prop="customerId" label="客户" min-width="120">
           <template #default="{ row }">
             <el-button
-              v-if="customerMap[row.customerId]"
+              v-if="getLinkedCustomerId(row) && getCallRecordCustomerName(row)"
               type="primary"
               link
               size="small"
-              @click="$router.push(`/customer/${row.customerId}`)"
+              @click="$router.push(`/customer/${getLinkedCustomerId(row)}`)"
             >
-              {{ customerMap[row.customerId] }}
+              {{ getCallRecordCustomerName(row) }}
             </el-button>
-            <span v-else>ID: {{ row.customerId }}</span>
+            <span v-else-if="getLinkedCustomerId(row)">ID: {{ getLinkedCustomerId(row) }}</span>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="对方号码" min-width="130">
+          <template #default="{ row }">
+            {{ getCallRecordPhoneDisplay(row) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="销售员" min-width="120">
+          <template #default="{ row }">
+            <div class="sales-user-cell">
+              <span>{{ getCallRecordSalesDisplay(row) }}</span>
+              <span v-if="getCallRecordSalesPhone(row)" class="sales-user-phone">
+                {{ getCallRecordSalesPhone(row) }}
+              </span>
+            </div>
           </template>
         </el-table-column>
         <el-table-column prop="opportunityId" label="商机" min-width="140">
@@ -301,7 +317,7 @@
       <template v-if="summaryRecord">
         <el-descriptions :column="1" border size="small" class="summary-desc">
           <el-descriptions-item label="客户">
-            {{ customerMap[summaryRecord.customerId] ?? `ID: ${summaryRecord.customerId}` }}
+            {{ getCallRecordCustomerDisplay(summaryRecord) }}
           </el-descriptions-item>
           <el-descriptions-item label="通话时间">
             {{ formatDate(summaryRecord.callAt) }}
@@ -341,6 +357,7 @@ import { customerApi, type CustomerVO } from '@/api/customer'
 import { opportunityApi, type OpportunityVO } from '@/api/opportunity'
 import { formatDate, formatDuration } from '@/utils/format'
 import { usePermission } from '@/composables/usePermission'
+import { toLinkedEntityId } from './detail-helpers'
 
 const route = useRoute()
 const userStore = useUserStore()
@@ -362,6 +379,41 @@ async function resolveCustomerNames(ids: number[]) {
   } catch {
     // Silently fail
   }
+}
+
+function getLinkedCustomerId(record: CallRecordVO): number | null {
+  return toLinkedEntityId(record.customerId)
+}
+
+function getCallRecordCustomerName(record: CallRecordVO): string {
+  const customerId = getLinkedCustomerId(record)
+  return customerId ? (record.customer?.name ?? customerMap.value[customerId] ?? '') : ''
+}
+
+function getCallRecordCustomerDisplay(record: CallRecordVO): string {
+  const customerId = getLinkedCustomerId(record)
+  if (!customerId) return '-'
+  return record.customer?.name ?? customerMap.value[customerId] ?? `ID: ${customerId}`
+}
+
+function getCallRecordPhoneDisplay(record: CallRecordVO): string {
+  return (
+    record.counterpartPhone ||
+    record.callPhoneNumber ||
+    record.customerPhone ||
+    record.customer?.phone ||
+    '-'
+  )
+}
+
+function getCallRecordSalesDisplay(record: CallRecordVO): string {
+  return (
+    record.salesUserName || record.user?.name || record.user?.username || `ID: ${record.userId}`
+  )
+}
+
+function getCallRecordSalesPhone(record: CallRecordVO): string {
+  return record.salesUserPhone || record.user?.phone || ''
 }
 
 // ---- Opportunity Name Resolution (fallback when backend doesn't embed) ----
@@ -496,7 +548,9 @@ async function fetchList() {
       tableData.value = res.data.list
       pagination.total = res.data.total
       // Resolve customer names
-      const ids = res.data.list.map((r) => r.customerId)
+      const ids = res.data.list
+        .map((r) => toLinkedEntityId(r.customerId))
+        .filter((id): id is number => id !== null)
       resolveCustomerNames(ids)
       // Resolve opportunity names (fallback for records without embedded opportunity)
       resolveOpportunityNames(res.data.list)
@@ -654,6 +708,8 @@ function handleCreate() {
   isEdit.value = false
   editId.value = null
   dialogTitle.value = '新建通话记录'
+  customerDialogOptions.value = []
+  opportunityDialogOptions.value = []
   const form = defaultForm()
   // Check if coming from customer detail page
   const createForCustomer = route.query.createForCustomer
@@ -669,8 +725,10 @@ function handleEdit(row: CallRecordVO) {
   editId.value = row.id
   dialogTitle.value = '编辑通话记录'
   const totalSec = row.duration ?? 0
+  customerDialogOptions.value = []
+  opportunityDialogOptions.value = []
   Object.assign(formData, {
-    customerId: row.customerId,
+    customerId: toLinkedEntityId(row.customerId) ?? undefined,
     opportunityId: row.opportunityId ?? undefined,
     callAt: row.callAt ? row.callAt.replace(' ', 'T').slice(0, 19) : '',
     durationMin: Math.floor(totalSec / 60),
@@ -679,11 +737,12 @@ function handleEdit(row: CallRecordVO) {
     recordingUrl: row.recordingUrl ?? '',
   })
   // Set customer option for current record
-  if (row.customerId && customerMap.value[row.customerId]) {
+  const customerId = toLinkedEntityId(row.customerId)
+  if (customerId && customerMap.value[customerId]) {
     customerDialogOptions.value = [
       {
-        id: row.customerId,
-        name: customerMap.value[row.customerId],
+        id: customerId,
+        name: customerMap.value[customerId],
       },
     ] as CustomerVO[]
   }
@@ -820,6 +879,18 @@ onMounted(() => {
 
 .clickable-tag:hover {
   opacity: 0.8;
+}
+
+.sales-user-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.4;
+}
+
+.sales-user-phone {
+  font-size: 12px;
+  color: #909399;
 }
 
 /* Summary Drawer */

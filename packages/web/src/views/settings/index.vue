@@ -415,6 +415,85 @@
             </div>
           </div>
         </el-tab-pane>
+
+        <!-- ==================== TAB 5: 联通回调绑定 ==================== -->
+        <el-tab-pane label="联通回调绑定" name="unicom">
+          <div class="unicom-account-panel">
+            <div class="section-title">账户级回调地址</div>
+            <div class="section-desc">
+              联通侧只配置下方两条账户级 POST URL；号码和业务员的对应关系在下方绑定表中维护。
+            </div>
+            <div class="unicom-callback-grid">
+              <div class="unicom-callback-item">
+                <span class="unicom-callback-label">通话/录音 POST</span>
+                <div class="callback-url-cell">
+                  <el-input :model-value="accountRecordCallbackUrl" readonly size="small" />
+                  <el-button size="small" @click="copyText(accountRecordCallbackUrl)">
+                    复制
+                  </el-button>
+                </div>
+              </div>
+              <div class="unicom-callback-item">
+                <span class="unicom-callback-label">语音转写 POST</span>
+                <div class="callback-url-cell">
+                  <el-input :model-value="accountTranscriptionCallbackUrl" readonly size="small" />
+                  <el-button size="small" @click="copyText(accountTranscriptionCallbackUrl)">
+                    复制
+                  </el-button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-toolbar">
+            <el-button type="primary" @click="handleAddUnicomBinding">
+              <el-icon><Plus /></el-icon>
+              添加手机号
+            </el-button>
+            <el-button :loading="unicomLoading" @click="loadUnicomBindings">
+              <el-icon><Refresh /></el-icon>
+              刷新
+            </el-button>
+          </div>
+
+          <el-table
+            v-loading="unicomLoading"
+            :data="unicomBindings"
+            row-key="id"
+            stripe
+            style="width: 100%"
+          >
+            <el-table-column prop="phone" label="绑定手机号" width="140" />
+            <el-table-column label="销售员" min-width="170">
+              <template #default="{ row }">
+                <div class="sales-user-cell">
+                  <span>{{ row.userName || row.username || '-' }}</span>
+                  <span class="muted-text">{{ row.userPhone || '-' }}</span>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column prop="isEnabled" label="状态" width="90">
+              <template #default="{ row }">
+                <el-tag :type="row.isEnabled ? 'success' : 'info'" size="small">
+                  {{ row.isEnabled ? '启用' : '禁用' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip>
+              <template #default="{ row }">{{ row.remark || '-' }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="130" fixed="right">
+              <template #default="{ row }">
+                <el-button type="info" link size="small" @click="handleEditUnicomBinding(row)">
+                  编辑
+                </el-button>
+                <el-button type="danger" link size="small" @click="handleDeleteUnicomBinding(row)">
+                  删除
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-tab-pane>
       </el-tabs>
     </el-card>
 
@@ -574,15 +653,76 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- ==================== Unicom Binding Dialog ==================== -->
+    <el-dialog
+      v-model="unicomDialogVisible"
+      :title="unicomDialogMode === 'create' ? '添加联通回调手机号' : '编辑联通回调手机号'"
+      width="560px"
+      :close-on-click-modal="false"
+      @closed="resetUnicomForm"
+    >
+      <el-form
+        ref="unicomFormRef"
+        :model="unicomForm"
+        :rules="unicomFormRules"
+        label-width="100px"
+        label-position="right"
+      >
+        <el-form-item label="手机号" prop="phone">
+          <el-input v-model="unicomForm.phone" placeholder="请输入联通云呼手机号" maxlength="11" />
+        </el-form-item>
+        <el-form-item label="销售员" prop="userId">
+          <el-select
+            v-model="unicomForm.userId"
+            filterable
+            remote
+            reserve-keyword
+            placeholder="搜索销售员姓名或账号"
+            :remote-method="searchSalesUsers"
+            :loading="salesUsersLoading"
+            style="width: 100%"
+            @visible-change="handleSalesUserDropdown"
+          >
+            <el-option
+              v-for="user in salesUsers"
+              :key="user.id"
+              :label="`${user.name || user.username}（${user.phone || '无手机号'}）`"
+              :value="user.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-switch v-model="unicomForm.isEnabled" active-text="启用" inactive-text="禁用" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input
+            v-model="unicomForm.remark"
+            type="textarea"
+            :rows="3"
+            maxlength="255"
+            show-word-limit
+            placeholder="可填写运营商账号、用途等信息"
+          />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="unicomDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="unicomSaving" @click="handleSubmitUnicomBinding">
+          保存
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch } from 'vue'
+import { computed, ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { Plus, Refresh } from '@element-plus/icons-vue'
-import { ProspectChannel, CustomerStatus } from '@crm/shared'
+import { ProspectChannel, CustomerStatus, UserRole } from '@crm/shared'
 import {
   dataSourceApi,
   filterConfigApi,
@@ -592,10 +732,13 @@ import {
 } from '@/api/prospect-config'
 import { analysisConfigApi, type AiAnalysisConfigVO, type ClassifyRule } from '@/api/ai-analysis'
 import { reminderApi } from '@/api/reminder'
+import { unicomPhoneBindingApi, type UnicomPhoneBindingVO } from '@/api/unicom-phone-binding'
+import { userApi, type UserVO } from '@/api/user'
+import { getApiBase } from '@/api/request'
 
 // ==================== Tab ====================
 
-const activeTab = ref<'datasource' | 'filter' | 'ai-analysis' | 'reminder'>('datasource')
+const activeTab = ref<'datasource' | 'filter' | 'ai-analysis' | 'reminder' | 'unicom'>('datasource')
 
 // ==================== Helpers ====================
 
@@ -813,6 +956,12 @@ watch(activeTab, (tab) => {
   if (tab === 'reminder' && !reminderLoaded.value) {
     void loadReminderSettings()
   }
+  if (tab === 'unicom') {
+    if (!unicomLoaded.value) {
+      void loadUnicomBindings()
+    }
+    void loadSalesUsers()
+  }
 })
 
 // ==================== Reminder Settings ====================
@@ -850,6 +999,206 @@ async function saveReminderSettings() {
     // handled by interceptor
   } finally {
     reminderSaving.value = false
+  }
+}
+
+// ==================== Unicom Phone Bindings ====================
+
+const unicomLoading = ref(false)
+const unicomSaving = ref(false)
+const unicomLoaded = ref(false)
+const unicomBindings = ref<UnicomPhoneBindingVO[]>([])
+const unicomDialogVisible = ref(false)
+const unicomDialogMode = ref<'create' | 'edit'>('create')
+const editingUnicomId = ref<number | null>(null)
+const unicomFormRef = ref<FormInstance>()
+const salesUsersLoading = ref(false)
+const salesUsers = ref<UserVO[]>([])
+
+const accountRecordCallbackUrl = computed(
+  () => unicomBindings.value[0]?.recordCallbackUrl ?? buildBrowserCallbackUrl('/unicom/records'),
+)
+const accountTranscriptionCallbackUrl = computed(
+  () =>
+    unicomBindings.value[0]?.transcriptionCallbackUrl ??
+    buildBrowserCallbackUrl('/unicom/transcriptions'),
+)
+
+const unicomForm = reactive({
+  phone: '',
+  userId: undefined as number | undefined,
+  isEnabled: true,
+  remark: '',
+})
+
+const unicomFormRules: FormRules = {
+  phone: [
+    { required: true, message: '请输入手机号', trigger: 'blur' },
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入有效的11位手机号', trigger: 'blur' },
+  ],
+  userId: [{ required: true, message: '请选择销售员', trigger: 'change' }],
+}
+
+async function loadUnicomBindings() {
+  unicomLoading.value = true
+  try {
+    const res = await unicomPhoneBindingApi.getAll()
+    if (res.code === 0 && res.data) {
+      unicomBindings.value = res.data
+      unicomLoaded.value = true
+    }
+  } catch {
+    // handled by request interceptor
+  } finally {
+    unicomLoading.value = false
+  }
+}
+
+async function loadSalesUsers(keyword = '') {
+  salesUsersLoading.value = true
+  try {
+    const selectedUser = salesUsers.value.find((user) => user.id === unicomForm.userId)
+    const [salesRes, managerRes] = await Promise.all([
+      userApi.getList({ page: 1, pageSize: 100, role: UserRole.SALES, keyword }),
+      userApi.getList({ page: 1, pageSize: 100, role: UserRole.MANAGER, keyword }),
+    ])
+    const map = new Map<number, UserVO>()
+    for (const user of [...(salesRes.data?.list ?? []), ...(managerRes.data?.list ?? [])]) {
+      if (user.isActive) map.set(user.id, user)
+    }
+    if (selectedUser && !map.has(selectedUser.id)) {
+      map.set(selectedUser.id, selectedUser)
+    }
+    salesUsers.value = Array.from(map.values())
+  } catch {
+    // handled by request interceptor
+  } finally {
+    salesUsersLoading.value = false
+  }
+}
+
+function searchSalesUsers(keyword: string) {
+  void loadSalesUsers(keyword)
+}
+
+function handleSalesUserDropdown(visible: boolean) {
+  if (visible) {
+    void loadSalesUsers()
+  }
+}
+
+function handleAddUnicomBinding() {
+  unicomDialogMode.value = 'create'
+  editingUnicomId.value = null
+  unicomDialogVisible.value = true
+  void loadSalesUsers()
+}
+
+function buildBrowserCallbackUrl(path: string): string {
+  const apiBase = getApiBase().replace(/\/+$/, '')
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  if (typeof window === 'undefined') return `${apiBase}${normalizedPath}`
+  return `${window.location.origin}${apiBase}${normalizedPath}`
+}
+
+function handleEditUnicomBinding(row: UnicomPhoneBindingVO) {
+  unicomDialogMode.value = 'edit'
+  editingUnicomId.value = row.id
+  unicomForm.phone = row.phone
+  unicomForm.userId = row.userId
+  unicomForm.isEnabled = row.isEnabled
+  unicomForm.remark = row.remark ?? ''
+  if (!salesUsers.value.some((user) => user.id === row.userId)) {
+    salesUsers.value = [
+      {
+        id: row.userId,
+        username: row.username ?? '',
+        name: row.userName ?? row.username ?? `用户${row.userId}`,
+        email: null,
+        role: UserRole.SALES,
+        phone: row.userPhone,
+        isActive: true,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      },
+      ...salesUsers.value,
+    ]
+  }
+  unicomDialogVisible.value = true
+}
+
+function resetUnicomForm() {
+  unicomForm.phone = ''
+  unicomForm.userId = undefined
+  unicomForm.isEnabled = true
+  unicomForm.remark = ''
+  editingUnicomId.value = null
+  unicomFormRef.value?.clearValidate()
+}
+
+async function handleSubmitUnicomBinding() {
+  const valid = await unicomFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+
+  unicomSaving.value = true
+  try {
+    const payload = {
+      phone: unicomForm.phone,
+      userId: unicomForm.userId,
+      isEnabled: unicomForm.isEnabled,
+      remark: unicomForm.remark || null,
+    }
+    if (unicomDialogMode.value === 'create') {
+      await unicomPhoneBindingApi.create(payload)
+      ElMessage.success('联通回调绑定已添加')
+    } else if (editingUnicomId.value !== null) {
+      await unicomPhoneBindingApi.update(editingUnicomId.value, payload)
+      ElMessage.success('联通回调绑定已保存')
+    }
+    unicomDialogVisible.value = false
+    await loadUnicomBindings()
+  } catch {
+    // handled by request interceptor
+  } finally {
+    unicomSaving.value = false
+  }
+}
+
+async function handleDeleteUnicomBinding(row: UnicomPhoneBindingVO) {
+  try {
+    await ElMessageBox.confirm(`确定要删除手机号 ${row.phone} 的联通回调绑定吗？`, '删除确认', {
+      confirmButtonText: '确定删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+  } catch {
+    return
+  }
+
+  try {
+    await unicomPhoneBindingApi.remove(row.id)
+    ElMessage.success('删除成功')
+    await loadUnicomBindings()
+  } catch {
+    // handled by request interceptor
+  }
+}
+
+async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+    ElMessage.success('已复制')
+  } catch {
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.style.position = 'fixed'
+    textarea.style.left = '-9999px'
+    document.body.appendChild(textarea)
+    textarea.focus()
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+    ElMessage.success('已复制')
   }
 }
 
@@ -1371,5 +1720,56 @@ onMounted(async () => {
 .ai-prompt-form :deep(.el-form-item__label) {
   font-weight: 500;
   margin-bottom: 6px;
+}
+
+.callback-url-cell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.unicom-account-panel {
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 6px;
+  background: var(--el-fill-color-extra-light);
+}
+
+.unicom-callback-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.unicom-callback-item {
+  display: grid;
+  gap: 6px;
+}
+
+.unicom-callback-label {
+  color: var(--el-text-color-regular);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.sales-user-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.3;
+}
+
+.muted-text {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+@media (max-width: 960px) {
+  .unicom-callback-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

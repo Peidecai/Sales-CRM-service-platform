@@ -8,7 +8,7 @@ export class User extends BaseEntity {
   @Column({ length: 50 })
   username!: string
 
-  @Column({ length: 255 })
+  @Column({ length: 255, select: false })
   password!: string
 
   @Column({ length: 100, nullable: true })

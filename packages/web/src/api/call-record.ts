@@ -8,17 +8,54 @@ export interface CallRecordOpportunity {
   stage: string
 }
 
+export interface CallRecordCustomer {
+  id: number
+  name: string
+  company?: string | null
+  phone?: string | null
+}
+
+export interface CallRecordUser {
+  id: number
+  username: string
+  name?: string | null
+  phone?: string | null
+}
+
+export interface CallTranscriptSegmentVO {
+  id: number
+  segmentIndex: number | null
+  startTimeMs: number | null
+  endTimeMs: number | null
+  speaker: string
+  text: string
+}
+
 // Call record VO returned from backend
 export interface CallRecordVO {
   id: number
-  customerId: number
+  customerId: number | null
   opportunityId: number | null
   userId: number
+  customer?: CallRecordCustomer | null
+  user?: CallRecordUser | null
   callAt: string
   duration: number
   notes: string | null
   aiSummary: string | null
   recordingUrl: string | null
+  simSlot?: number | null
+  simNumber?: string | null
+  simCarrier?: string | null
+  customerPhone?: string | null
+  salesUserName?: string | null
+  salesUserPhone?: string | null
+  counterpartPhone?: string | null
+  callPhoneNumber?: string | null
+  transcriptSegments?: CallTranscriptSegmentVO[]
+  transcriptText?: string
+  transcriptSegmentCount?: number
+  transcriptTextLen?: number
   createdAt: string
   updatedAt: string
   deleted: boolean

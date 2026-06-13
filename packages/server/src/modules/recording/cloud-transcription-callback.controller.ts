@@ -1,5 +1,6 @@
-import { Body, Controller, HttpCode, Post, Query } from '@nestjs/common'
+import { Body, Controller, HttpCode, Post, Query, Req } from '@nestjs/common'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
+import type { Request } from 'express'
 import { CloudTranscriptionCallbackService } from './cloud-transcription-callback.service'
 import {
   CloudTranscriptionCallbackQueryDto,
@@ -17,7 +18,8 @@ export class CloudTranscriptionCallbackController {
   async handleCallback(
     @Query() query: CloudTranscriptionCallbackQueryDto,
     @Body() body: Record<string, unknown>,
+    @Req() request: Request & { rawBody?: string },
   ): Promise<CloudTranscriptionCallbackResponse> {
-    return this.callbackService.handleCallback(query, body)
+    return this.callbackService.handleCallback(query, body, undefined, 'cloud', request.rawBody)
   }
 }
