@@ -1,4 +1,5 @@
 import request from './request'
+import type { ApiResponse } from './types'
 
 export interface LoginDto {
   username: string
@@ -14,18 +15,54 @@ export interface LoginResponse {
     name: string
     role: string
   }
+  permissions?: string[]
+}
+
+export interface UserProfile {
+  id: number
+  username: string
+  name: string
+  email: string
+  phone: string
+  role: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface UpdateProfileDto {
+  name?: string
+  email?: string
+  phone?: string
+}
+
+export interface ChangePasswordDto {
+  oldPassword: string
+  newPassword: string
 }
 
 export const authApi = {
-  login(data: LoginDto): Promise<LoginResponse> {
+  login(data: LoginDto): Promise<ApiResponse<LoginResponse>> {
     return request.post('/auth/login', data)
   },
 
-  logout(): Promise<void> {
+  logout(): Promise<ApiResponse<null>> {
     return request.post('/auth/logout')
   },
 
-  refreshToken(refreshToken: string): Promise<LoginResponse> {
+  refreshToken(refreshToken: string): Promise<ApiResponse<LoginResponse>> {
     return request.post('/auth/refresh', { refreshToken })
+  },
+
+  getProfile(): Promise<ApiResponse<UserProfile>> {
+    return request.get('/auth/profile')
+  },
+
+  updateProfile(data: UpdateProfileDto): Promise<ApiResponse<UserProfile>> {
+    return request.put('/auth/profile', data)
+  },
+
+  changePassword(data: ChangePasswordDto): Promise<ApiResponse<null>> {
+    return request.put('/auth/change-password', data)
   },
 }

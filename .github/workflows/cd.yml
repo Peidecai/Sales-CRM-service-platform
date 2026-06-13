@@ -1,0 +1,163 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "test"
+        type: choice
+        options:
+          - test
+          - staging
+          - production
+      tag:
+        description: "Image tag override (default: git SHA)"
+        required: false
+        type: string
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  ACR_REGISTRY: ${{ secrets.ACR_REGISTRY }}
+  IMAGE_SERVER: crm-server
+  IMAGE_WEB: crm-web
+
+jobs:
+  # ── Build & Push Docker Images ────────────────────────────
+  build-and-push:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine image tag
+        id: meta
+        run: |
+          if [[ -n "${{ inputs.tag }}" ]]; then
+            TAG="${{ inputs.tag }}"
+          elif [[ "${{ github.ref_type }}" == "tag" ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            TAG="sha-${GITHUB_SHA::8}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "📦 Image tag: ${TAG}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to ACR
+        if: env.ACR_REGISTRY != ''
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build & push server image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/server/Dockerfile
+          push: ${{ env.ACR_REGISTRY != '' }}
+          tags: |
+            ${{ env.ACR_REGISTRY }}/${{ env.IMAGE_SERVER }}:${{ steps.meta.outputs.tag }}
+            ${{ env.ACR_REGISTRY }}/${{ env.IMAGE_SERVER }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/web/Dockerfile
+          push: ${{ env.ACR_REGISTRY != '' }}
+          tags: |
+            ${{ env.ACR_REGISTRY }}/${{ env.IMAGE_WEB }}:${{ steps.meta.outputs.tag }}
+            ${{ env.ACR_REGISTRY }}/${{ env.IMAGE_WEB }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── Deploy to Test ────────────────────────────────────────
+  deploy-test:
+    name: Deploy → Test
+    needs: build-and-push
+    if: >-
+      github.ref == 'refs/heads/main' ||
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'test')
+    runs-on: ubuntu-latest
+    environment: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to test server via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.TEST_SSH_HOST }}
+          username: ${{ secrets.TEST_SSH_USER }}
+          key: ${{ secrets.TEST_SSH_KEY }}
+          port: ${{ secrets.TEST_SSH_PORT || 22 }}
+          script: |
+            cd ${{ secrets.TEST_DEPLOY_PATH }}
+            export IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
+            export ACR_REGISTRY=${{ secrets.ACR_REGISTRY }}
+            bash scripts/deploy.sh --env test --tag "${IMAGE_TAG}"
+
+  # ── Deploy to Staging (manual approval) ──────────────��────
+  deploy-staging:
+    name: Deploy → Staging
+    needs: build-and-push
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'staging')
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to staging server via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.STAGING_SSH_HOST }}
+          username: ${{ secrets.STAGING_SSH_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          port: ${{ secrets.STAGING_SSH_PORT || 22 }}
+          script: |
+            cd ${{ secrets.STAGING_DEPLOY_PATH }}
+            export IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
+            export ACR_REGISTRY=${{ secrets.ACR_REGISTRY }}
+            bash scripts/deploy.sh --env staging --tag "${IMAGE_TAG}"
+
+  # ── Deploy to Production (manual approval) ────────────────
+  deploy-prod:
+    name: Deploy → Production
+    needs: [build-and-push, deploy-staging]
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'production')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to production server via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PROD_SSH_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_SSH_PORT || 22 }}
+          script: |
+            cd ${{ secrets.PROD_DEPLOY_PATH }}
+            export IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
+            export ACR_REGISTRY=${{ secrets.ACR_REGISTRY }}
+            bash scripts/deploy.sh --env production --tag "${IMAGE_TAG}" --skip-backup=false

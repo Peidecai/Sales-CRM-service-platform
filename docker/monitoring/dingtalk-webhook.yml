@@ -1,0 +1,42 @@
+# ==============================================================
+# DingTalk Webhook Configuration Template
+# File: docker/monitoring/dingtalk-webhook.yml
+#
+# Used with Prometheus Alertmanager + prometheus-webhook-dingtalk
+# Docker image: timonwong/prometheus-webhook-dingtalk
+#
+# Setup:
+#   1. Create a DingTalk group robot (custom keyword or signing)
+#   2. Fill in the webhook URL below
+#   3. Mount this file into the dingtalk container
+# ==============================================================
+
+targets:
+  # ── Operations Team ──────────────────────────────────────
+  ops:
+    url: https://oapi.dingtalk.com/robot/send?access_token=YOUR_OPS_TOKEN
+    # secret: SEC_YOUR_SIGNING_SECRET  # Uncomment if using signing mode
+    message:
+      title: '{{ template "ding.link.title" . }}'
+      text: '{{ template "ding.link.content" . }}'
+
+  # ── Backend Team ─────────────────────────────────────────
+  backend:
+    url: https://oapi.dingtalk.com/robot/send?access_token=YOUR_BACKEND_TOKEN
+    message:
+      title: '{{ template "ding.link.title" . }}'
+      text: '{{ template "ding.link.content" . }}'
+
+  # ── DBA Team ─────────────────────────────────────────────
+  dba:
+    url: https://oapi.dingtalk.com/robot/send?access_token=YOUR_DBA_TOKEN
+    message:
+      title: '{{ template "ding.link.title" . }}'
+      text: '{{ template "ding.link.content" . }}'
+
+  # ── Security Team ────────────────────────────────────────
+  security:
+    url: https://oapi.dingtalk.com/robot/send?access_token=YOUR_SECURITY_TOKEN
+    message:
+      title: '{{ template "ding.link.title" . }}'
+      text: '{{ template "ding.link.content" . }}'

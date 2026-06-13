@@ -88,7 +88,7 @@ async function handleLogin() {
       ElMessage.success('登录成功')
       const redirect = route.query.redirect as string | undefined
       router.push(redirect ?? '/')
-    } catch (error) {
+    } catch {
       // Error is handled by axios interceptor
     } finally {
       loading.value = false

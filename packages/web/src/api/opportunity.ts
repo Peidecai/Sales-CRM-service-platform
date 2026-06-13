@@ -1,0 +1,118 @@
+import request from './request'
+import type { ApiResponse, PageResult } from './types'
+import { OpportunityStage } from '@crm/shared'
+
+export { OpportunityStage }
+
+// Opportunity VO returned from backend
+export interface OpportunityVO {
+  id: number
+  title: string
+  customerId: number
+  stage: OpportunityStage
+  amount: number
+  expectedCloseDate: string | null
+  probability: number
+  assignedUserId: number
+  description: string | null
+  createdAt: string
+  updatedAt: string
+  deleted: boolean
+}
+
+// Query params
+export interface OpportunityQueryParams {
+  page?: number
+  pageSize?: number
+  keyword?: string
+  stage?: OpportunityStage
+  customerId?: number
+  assignedUserId?: number
+}
+
+// Create params
+export interface CreateOpportunityParams {
+  title: string
+  customerId: number
+  stage?: OpportunityStage
+  amount?: number
+  expectedCloseDate?: string
+  probability?: number
+  assignedUserId: number
+  description?: string
+}
+
+// Update params (all optional)
+export type UpdateOpportunityParams = Partial<CreateOpportunityParams>
+
+// Update stage params
+export interface UpdateStageParams {
+  stage: OpportunityStage
+}
+
+// Stage statistics item
+export interface OpportunityStageStats {
+  stage: OpportunityStage
+  count: number
+  totalAmount: number
+}
+
+// Funnel stage item
+export interface FunnelStageItem {
+  stage: string
+  count: number
+  amount: number
+  conversionRate: number
+}
+
+// Funnel data returned by /opportunities/funnel
+export interface FunnelData {
+  stages: FunnelStageItem[]
+  totalAmount: number
+  winRate: number
+}
+
+export const opportunityApi = {
+  getList(params: OpportunityQueryParams): Promise<ApiResponse<PageResult<OpportunityVO>>> {
+    return request.get('/opportunities', { params })
+  },
+
+  getDetail(id: number): Promise<ApiResponse<OpportunityVO>> {
+    return request.get(`/opportunities/${id}`)
+  },
+
+  create(data: CreateOpportunityParams): Promise<ApiResponse<OpportunityVO>> {
+    return request.post('/opportunities', data)
+  },
+
+  update(id: number, data: UpdateOpportunityParams): Promise<ApiResponse<OpportunityVO>> {
+    return request.put(`/opportunities/${id}`, data)
+  },
+
+  updateStage(id: number, data: UpdateStageParams): Promise<ApiResponse<OpportunityVO>> {
+    return request.put(`/opportunities/${id}/stage`, data)
+  },
+
+  remove(id: number): Promise<ApiResponse<null>> {
+    return request.delete(`/opportunities/${id}`)
+  },
+
+  getStats(): Promise<ApiResponse<OpportunityStageStats[]>> {
+    return request.get('/opportunities/stats')
+  },
+
+  getFunnel(): Promise<ApiResponse<FunnelData>> {
+    return request.get('/opportunities/funnel')
+  },
+
+  /**
+   * Export all opportunities as CSV.
+   * Returns a Blob since the backend sends raw CSV (not JSON-wrapped).
+   */
+  async exportCsv(): Promise<Blob> {
+    const response = await request.get('/opportunities/export', {
+      responseType: 'blob',
+    })
+    return response as unknown as Blob
+  },
+}

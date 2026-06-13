@@ -1,0 +1,8 @@
+{
+  "timestamp": "2026-05-05T00:00:00+08:00",
+  "area": "CRM testing baseline",
+  "observation": "A CRM verification fact worth remembering, such as a stable command baseline or recurring generated-file behavior.",
+  "evidence": "Example: pnpm --filter @crm/server test -- --runInBand passed with 97 suites and 1183 tests.",
+  "implication": "Future CRM work should use this evidence boundary and avoid overstating unverified E2E or release confidence.",
+  "recommended_action": "Promote stable observations into memory/topics when they recur across tasks."
+}

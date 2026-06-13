@@ -1,10 +1,10 @@
 {
   "packages/web/src/**/*.{ts,tsx,vue}": [
-    "eslint --fix",
+    "eslint --fix --config packages/web/eslint.config.mjs",
     "prettier --write"
   ],
   "packages/server/src/**/*.ts": [
-    "eslint --fix",
+    "eslint --fix --config packages/server/eslint.config.mjs",
     "prettier --write"
   ],
   "packages/shared/src/**/*.ts": [

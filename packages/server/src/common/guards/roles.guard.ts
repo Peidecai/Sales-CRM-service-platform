@@ -1,7 +1,7 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { ROLES_KEY } from '../decorators/roles.decorator';
-import { UserRole } from '@crm/shared';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common'
+import { Reflector } from '@nestjs/core'
+import { ROLES_KEY } from '../decorators/roles.decorator'
+import { UserRole } from '@crm/shared'
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -11,18 +11,18 @@ export class RolesGuard implements CanActivate {
     const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(ROLES_KEY, [
       context.getHandler(),
       context.getClass(),
-    ]);
+    ])
 
     if (!requiredRoles || requiredRoles.length === 0) {
-      return true;
+      return true
     }
 
-    const { user } = context.switchToHttp().getRequest<{ user: { role: UserRole } }>();
+    const { user } = context.switchToHttp().getRequest<{ user: { role: UserRole } }>()
 
     if (!user || !requiredRoles.includes(user.role)) {
-      throw new ForbiddenException('权限不足');
+      throw new ForbiddenException('权限不足')
     }
 
-    return true;
+    return true
   }
 }

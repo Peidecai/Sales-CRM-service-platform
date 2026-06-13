@@ -3,19 +3,19 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
-  Column,
-} from 'typeorm';
+  DeleteDateColumn,
+} from 'typeorm'
 
 export abstract class BaseEntity extends TypeOrmBaseEntity {
   @PrimaryGeneratedColumn()
-  id!: number;
+  id!: number
 
   @CreateDateColumn({ name: 'created_at' })
-  createdAt!: Date;
+  createdAt!: Date
 
   @UpdateDateColumn({ name: 'updated_at' })
-  updatedAt!: Date;
+  updatedAt!: Date
 
-  @Column({ type: 'boolean', default: false })
-  deleted!: boolean;
+  @DeleteDateColumn({ name: 'deleted_at' })
+  deletedAt!: Date | null
 }

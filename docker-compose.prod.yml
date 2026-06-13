@@ -1,0 +1,74 @@
+# =============================================================================
+# docker-compose.prod.yml — Production overrides
+# =============================================================================
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Key differences from dev:
+#   - MySQL/Redis/MinIO ports NOT exposed to host (internal network only)
+#   - Redis requires password authentication
+#   - MinIO console bound to localhost only
+#   - Server gets Redis password + production CORS
+# =============================================================================
+
+services:
+  mysql:
+    # Remove external port binding — only accessible via crm-network
+    ports: !override []
+    command: >-
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-time-zone=+08:00
+      --expire-logs-days=3
+      --max-binlog-size=100M
+
+  redis:
+    # Remove external port binding
+    ports: !override []
+    # Add password authentication
+    command: >-
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD}
+
+  minio:
+    # Console accessible only from localhost (SSH tunnel)
+    ports: !override
+      - "127.0.0.1:9001:9001"
+
+  server:
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USERNAME: ${DB_USERNAME:-crm_user}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: crm_sales
+      DB_CONNECTION_LIMIT: ${DB_CONNECTION_LIMIT:-20}
+      DB_ROOT_PASSWORD: ""
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_EXPIRES_IN: 2h
+      JWT_REFRESH_EXPIRES_IN: 7d
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      WX_MINIAPP_APPID: ${WX_MINIAPP_APPID:-}
+      WX_MINIAPP_SECRET: ${WX_MINIAPP_SECRET:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://120.26.108.226}
+      OSS_ENDPOINT: http://minio:9000
+      OSS_REGION: ${OSS_REGION:-us-east-1}
+      OSS_BUCKET: ${OSS_BUCKET:-crm-call-recordings}
+      OSS_ACCESS_KEY_ID: ${OSS_ACCESS_KEY_ID}
+      OSS_ACCESS_KEY_SECRET: ${OSS_ACCESS_KEY_SECRET}
+      OSS_FORCE_PATH_STYLE: "true"
+      SWAGGER_ENABLED: "false"
+
+  web:
+    ports: !override
+      - "80:80"

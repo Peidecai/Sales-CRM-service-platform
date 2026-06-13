@@ -8,6 +8,12 @@ build/
 .next/
 out/
 
+# Compiled shared package (built from source on demand)
+packages/shared/src/**/*.js
+packages/shared/src/**/*.js.map
+packages/shared/src/**/*.d.ts
+packages/shared/src/**/*.d.ts.map
+
 # Environment files
 .env
 .env.local
@@ -48,3 +54,94 @@ coverage/
 # Docker volumes
 docker/mysql/data/
 docker/redis/data/
+
+# SQLite vector database
+packages/server/data/
+
+# AI assistant
+.claude/
+.codex/
+
+# Local Codex harness template source.
+# Keep these files available as a local reference, but do not commit the
+# external template repository into this product repo. Project-owned takeover
+# docs live under docs/project/ and are intentionally not ignored.
+docs/.git/
+docs/.git.local-template-source/
+docs/.github/
+docs/codex-skills/
+docs/superpowers/
+docs/.gitattributes
+docs/README.md
+docs/项目接管首轮提示词包.md
+
+# Test results
+test-results/
+/test-results/
+playwright-report/
+
+# Temp files
+.tmp/
+
+# Dev/fix session logs
+dev-logs/
+fix-logs/
+
+# Test reports (generated)
+TEST_REPORT*.md
+
+# Phase 2 engineering pipeline / AI follow-up logs (local)
+phase2-engineering-output/
+ai-phase2-output/
+ai-test-output/
+
+# Automation scripts & task files (local dev)
+app-dev.ps1
+app-tasks.txt
+app-logs/
+claude-*.ps1
+claude-*.txt
+fix-runner.ps1
+fix-tasks.txt
+fix-tasks-v2.txt
+review-runner.ps1
+review-tasks.txt
+run-fix-*.ps1
+run-fix-*.cmd
+run-phase2*.ps1
+run-phase2*.cmd
+ai-fix-*-tasks.txt
+ai-phase2*-tasks.txt
+ai-test-*-tasks.txt
+ai-test-*.ps1
+ai-test-*.cmd
+miniapp-test-runner.ps1
+miniapp-test-tasks.txt
+miniapp-test-logs/
+test-all-runner.ps1
+test-all-logs/
+test-p*-runner.ps1
+test-p*-tasks.txt
+test-p*-logs/
+
+# One-off migration/entity audit artifacts
+analyze_entities.py
+check_entities.sh
+ENTITY_MIGRATION_SUMMARY.md
+MIGRATION_AUDIT_REPORT.md
+FINDINGS_SUMMARY.txt
+docs1/
+
+# Session/debug artifacts
+archives/
+review-reports/
+testing/
+*.jsonl
+cookies.txt
+verify*.txt
+verify*.json
+api-resp.json
+st-check.txt
+
+# K8s secrets (use secret.example.yaml as template)
+k8s/secret.yaml

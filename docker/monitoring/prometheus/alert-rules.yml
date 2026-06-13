@@ -1,0 +1,312 @@
+# ==============================================================
+# CRM Sales Platform — Prometheus Alerting Rules
+# File: docker/monitoring/prometheus/alert-rules.yml
+#
+# Load in prometheus.yml:
+#   rule_files:
+#     - /etc/prometheus/alert-rules.yml
+# ==============================================================
+
+groups:
+  # ══════════════════════════════════════════════════════════
+  # Infrastructure Alerts
+  # ══════════════════════════════════════════════════════════
+  - name: infrastructure
+    rules:
+      # ── CPU ────────────────────────────────────────────────
+      - alert: HighCpuUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "CPU usage > 80% on {{ $labels.instance }}"
+          description: 'CPU usage has been above 80% for 5 minutes. Current value: {{ $value | printf "%.1f" }}%'
+
+      - alert: CriticalCpuUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
+        for: 2m
+        labels:
+          severity: critical
+          team: ops
+        annotations:
+          summary: "CPU usage > 95% on {{ $labels.instance }}"
+          description: 'CPU usage is critically high. Current value: {{ $value | printf "%.1f" }}%'
+
+      # ── Memory ─────────────────────────────────────────────
+      - alert: HighMemoryUsage
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "Memory usage > 85% on {{ $labels.instance }}"
+          description: 'Memory usage: {{ $value | printf "%.1f" }}%'
+
+      - alert: CriticalMemoryUsage
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          team: ops
+        annotations:
+          summary: "Memory usage > 95% on {{ $labels.instance }}"
+          description: 'Memory is nearly exhausted. Current value: {{ $value | printf "%.1f" }}%'
+
+      # ── Disk ───────────────────────────────────────────────
+      - alert: HighDiskUsage
+        expr: (1 - node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"}) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "Disk usage > 85% on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+          description: 'Disk usage: {{ $value | printf "%.1f" }}%'
+
+      - alert: CriticalDiskUsage
+        expr: (1 - node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"}) * 100 > 90
+        for: 2m
+        labels:
+          severity: critical
+          team: ops
+        annotations:
+          summary: "Disk usage > 90% on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+          description: 'Disk space is critically low. Current value: {{ $value | printf "%.1f" }}%'
+
+      # ── Container Restarts ─────────────────────────────────
+      - alert: ContainerFrequentRestart
+        expr: increase(container_restart_count[1h]) > 3
+        for: 0m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "Container {{ $labels.name }} restarted {{ $value }} times in 1h"
+          description: "Frequent container restarts may indicate a crash loop."
+
+  # ══════════════════════════════════════════════════════════
+  # Application Alerts
+  # ══════════════════════════════════════════════════════════
+  - name: application
+    rules:
+      # ── QPS Drop ───────────────────────────────────────────
+      - alert: QpsDrop
+        expr: rate(http_requests_total[5m]) < 0.1 and rate(http_requests_total[5m] offset 1h) > 1
+        for: 10m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "QPS dropped significantly on {{ $labels.instance }}"
+          description: 'Current QPS is {{ $value | printf "%.2f" }}, much lower than 1h ago.'
+
+      # ── High Error Rate ────────────────────────────────────
+      - alert: HighErrorRate
+        expr: sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) * 100 > 1
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "HTTP 5xx error rate > 1%"
+          description: 'Error rate: {{ $value | printf "%.2f" }}%'
+
+      - alert: CriticalErrorRate
+        expr: sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) * 100 > 5
+        for: 2m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "HTTP 5xx error rate > 5%"
+          description: 'Critical error rate: {{ $value | printf "%.2f" }}%'
+
+      # ── Slow Response ──────────────────────────────────────
+      - alert: HighP99Latency
+        expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "P99 latency > 2s on {{ $labels.instance }}"
+          description: 'P99 response time: {{ $value | printf "%.2f" }}s'
+
+      - alert: HighP95Latency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+        for: 10m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "P95 latency > 1s on {{ $labels.instance }}"
+          description: 'P95 response time: {{ $value | printf "%.2f" }}s'
+
+      # ── Service Down ───────────────────────────────────────
+      - alert: ServiceDown
+        expr: up{job="crm-server"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "CRM Server is down on {{ $labels.instance }}"
+          description: "The service has been unreachable for over 1 minute."
+
+      # ── Health Check Failure ───────────────────────────────
+      - alert: HealthCheckFailure
+        expr: probe_success{job="blackbox"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Health check failed for {{ $labels.instance }}"
+          description: "The health endpoint has been failing for 2 minutes."
+
+  # ══════════════════════════════════════════════════════════
+  # Database Alerts (MySQL)
+  # ══════════════════════════════════════════════════════════
+  - name: database
+    rules:
+      # ── Connection Pool ────────────────────────────────────
+      - alert: MysqlHighConnections
+        expr: mysql_global_status_threads_connected / mysql_global_variables_max_connections * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          team: dba
+        annotations:
+          summary: "MySQL connections > 80% of max on {{ $labels.instance }}"
+          description: 'Connection usage: {{ $value | printf "%.1f" }}%'
+
+      - alert: MysqlCriticalConnections
+        expr: mysql_global_status_threads_connected / mysql_global_variables_max_connections * 100 > 95
+        for: 1m
+        labels:
+          severity: critical
+          team: dba
+        annotations:
+          summary: "MySQL connections > 95% of max — connection pool exhaustion imminent"
+          description: 'Connection usage: {{ $value | printf "%.1f" }}%'
+
+      # ── Slow Queries ───────────────────────────────────────
+      - alert: MysqlSlowQueries
+        expr: rate(mysql_global_status_slow_queries[5m]) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          team: dba
+        annotations:
+          summary: "MySQL slow queries detected on {{ $labels.instance }}"
+          description: 'Slow query rate: {{ $value | printf "%.3f" }} per second'
+
+      # ── Replication Lag ────────────────────────────────────
+      - alert: MysqlReplicationLag
+        expr: mysql_slave_status_seconds_behind_master > 30
+        for: 5m
+        labels:
+          severity: warning
+          team: dba
+        annotations:
+          summary: "MySQL replication lag > 30s on {{ $labels.instance }}"
+          description: "Lag: {{ $value }}s"
+
+      - alert: MysqlReplicationStopped
+        expr: mysql_slave_status_slave_io_running == 0 or mysql_slave_status_slave_sql_running == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: dba
+        annotations:
+          summary: "MySQL replication stopped on {{ $labels.instance }}"
+          description: "IO or SQL thread is not running."
+
+      # ── Deadlocks ──────────────────────────────────────────
+      - alert: MysqlDeadlocks
+        expr: increase(mysql_global_status_innodb_deadlocks[5m]) > 3
+        for: 0m
+        labels:
+          severity: warning
+          team: dba
+        annotations:
+          summary: "MySQL deadlocks detected on {{ $labels.instance }}"
+          description: "{{ $value }} deadlocks in the last 5 minutes"
+
+  # ══════════════════════════════════════════════════════════
+  # Redis Alerts
+  # ══════════════════════════════════════════════════════════
+  - name: redis
+    rules:
+      # ── Memory ─────────────────────────────────────────────
+      - alert: RedisHighMemory
+        expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "Redis memory usage > 80% on {{ $labels.instance }}"
+          description: 'Memory usage: {{ $value | printf "%.1f" }}%'
+
+      - alert: RedisCriticalMemory
+        expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          team: ops
+        annotations:
+          summary: "Redis memory usage > 95% — OOM risk"
+          description: 'Memory usage: {{ $value | printf "%.1f" }}%'
+
+      # ── Hit Rate ───────────────────────────────────────────
+      - alert: RedisLowHitRate
+        expr: redis_keyspace_hits_total / (redis_keyspace_hits_total + redis_keyspace_misses_total) * 100 < 90
+        for: 15m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Redis cache hit rate < 90% on {{ $labels.instance }}"
+          description: 'Hit rate: {{ $value | printf "%.1f" }}%. Check for cache key misses or eviction pressure.'
+
+      # ── Redis Down ─────────────────────────────────────────
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: ops
+        annotations:
+          summary: "Redis is down on {{ $labels.instance }}"
+          description: "Redis has been unreachable for over 1 minute."
+
+  # ══════════════════════════════════════════════════════════
+  # Business Alerts
+  # ══════════════════════════════════════════════════════════
+  - name: business
+    rules:
+      # ── Login Failure Spike ────────────────────────────────
+      - alert: HighLoginFailureRate
+        expr: sum(rate(auth_login_failures_total[5m])) / sum(rate(auth_login_attempts_total[5m])) * 100 > 30
+        for: 5m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "Login failure rate > 30%"
+          description: 'Login failure rate: {{ $value | printf "%.1f" }}%. Possible brute-force attack.'
+
+      # ── Import Failures ────────────────────────────────────
+      - alert: DataImportFailures
+        expr: increase(data_import_failures_total[1h]) > 5
+        for: 0m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Multiple data import failures in the last hour"
+          description: "{{ $value }} import failures detected."

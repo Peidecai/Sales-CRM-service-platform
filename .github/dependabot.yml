@@ -1,0 +1,102 @@
+version: 2
+updates:
+  # ── npm: Production dependencies ────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    allow:
+      - dependency-type: "production"
+    commit-message:
+      prefix: "chore(deps):"
+    labels:
+      - "dependencies"
+    groups:
+      nestjs:
+        patterns:
+          - "@nestjs/*"
+      vue-ecosystem:
+        patterns:
+          - "vue"
+          - "vue-router"
+          - "pinia"
+          - "@vue/*"
+      element-plus:
+        patterns:
+          - "element-plus"
+          - "@element-plus/*"
+
+  # ── npm: Dev dependencies ───────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+    open-pull-requests-limit: 10
+    allow:
+      - dependency-type: "development"
+    commit-message:
+      prefix: "chore(deps-dev):"
+    labels:
+      - "dependencies"
+      - "dev"
+    groups:
+      testing:
+        patterns:
+          - "jest"
+          - "@jest/*"
+          - "vitest"
+          - "@vitest/*"
+          - "@playwright/*"
+          - "@vue/test-utils"
+      linters:
+        patterns:
+          - "eslint"
+          - "@typescript-eslint/*"
+          - "prettier"
+      typescript:
+        patterns:
+          - "typescript"
+          - "ts-jest"
+          - "ts-node"
+          - "tslib"
+
+  # ── Docker: base image updates ──────────────────────────────
+  - package-ecosystem: "docker"
+    directory: "/docker/server"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(docker):"
+    labels:
+      - "dependencies"
+      - "docker"
+
+  - package-ecosystem: "docker"
+    directory: "/docker/web"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(docker):"
+    labels:
+      - "dependencies"
+      - "docker"
+
+  # ── GitHub Actions: action version updates ──────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "thursday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(ci):"
+    labels:
+      - "dependencies"
+      - "ci"
